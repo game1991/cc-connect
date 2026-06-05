@@ -16,6 +16,7 @@ const (
 type Config struct {
 	BinaryPath string
 	WorkDir    string
+	ConfigFile string // explicit config file path (when --config is used)
 	LogFile    string
 	LogMaxSize int64
 	EnvPATH    string            // capture user's PATH so agents are accessible

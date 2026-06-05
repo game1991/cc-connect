@@ -55,11 +55,28 @@ func daemonInstall(args []string) {
 		os.Exit(1)
 	}
 
-	configPath := cfg.WorkDir + "/config.toml"
-	if _, err := os.Stat(configPath); err != nil {
-		fmt.Fprintf(os.Stderr, "Warning: config.toml not found in %s\n", cfg.WorkDir)
+	// Resolve config path using the same logic as the main program:
+	// explicit --config → WorkDir/config.toml → ~/.cc-connect/config.toml
+	configPath := ""
+	if cfg.ConfigFile != "" {
+		configPath = cfg.ConfigFile
+	} else {
+		cwdConfig := filepath.Join(cfg.WorkDir, "config.toml")
+		if _, err := os.Stat(cwdConfig); err == nil {
+			configPath = cwdConfig
+		} else if home, err := os.UserHomeDir(); err == nil {
+			homeConfig := filepath.Join(home, ".cc-connect", "config.toml")
+			if _, err := os.Stat(homeConfig); err == nil {
+				configPath = homeConfig
+				// Adjust WorkDir so the daemon starts in ~/.cc-connect
+				cfg.WorkDir = filepath.Join(home, ".cc-connect")
+			}
+		}
+	}
+
+	if configPath == "" {
+		fmt.Fprintf(os.Stderr, "Warning: config.toml not found in %s or ~/.cc-connect/\n", cfg.WorkDir)
 		fmt.Fprintf(os.Stderr, "  Use --work-dir to specify the config directory or --config to point to the config file\n")
-		os.Exit(1)
 	}
 
 	mgr, err := daemon.NewManager()
@@ -167,12 +184,15 @@ func parseDaemonInstallArgs(args []string) (daemon.Config, bool, error) {
 			if err != nil {
 				return daemon.Config{}, false, err
 			}
+			cfg.ConfigFile = value
 			cfg.WorkDir = filepath.Dir(value)
 			i = next
 		case strings.HasPrefix(arg, "--config="):
-			cfg.WorkDir = filepath.Dir(strings.TrimPrefix(arg, "--config="))
+			cfg.ConfigFile = strings.TrimPrefix(arg, "--config=")
+			cfg.WorkDir = filepath.Dir(cfg.ConfigFile)
 		case strings.HasPrefix(arg, "-config="):
-			cfg.WorkDir = filepath.Dir(strings.TrimPrefix(arg, "-config="))
+			cfg.ConfigFile = strings.TrimPrefix(arg, "-config=")
+			cfg.WorkDir = filepath.Dir(cfg.ConfigFile)
 		default:
 			return daemon.Config{}, false, fmt.Errorf("unknown flag: %s", arg)
 		}
