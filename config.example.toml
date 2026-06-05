@@ -705,11 +705,15 @@ name = "my-backend"
 #
 # [projects.users.roles.admin]
 # user_ids = ["platform_user_id_1", "platform_user_id_2"]
-# disabled_commands = []                                     # no restrictions
+# mode = "yolo"              # admin uses yolo mode: all tools auto-approved
+# allowed_tools = []          # no tool restrictions (empty = all allowed when mode="yolo")
+# disabled_commands = []     # no restrictions
 # rate_limit = { max_messages = 50, window_secs = 60 }
 #
 # [projects.users.roles.member]
 # user_ids = ["*"]                                           # matches all unassigned users
+# mode = "dontAsk"           # member uses dontAsk mode: only pre-approved tools auto-pass, others auto-denied
+# allowed_tools = ["Read", "Grep", "Glob", "LS", "LSP"]     # read-only tool whitelist
 # disabled_commands = ["*"]                                  # disable all built-in commands
 # rate_limit = { max_messages = 10, window_secs = 60 }
 

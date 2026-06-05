@@ -53,6 +53,9 @@ type bridgeAdapter struct {
 
 	previewMu       sync.Mutex
 	previewRequests map[string]chan string // ref_id → channel receiving preview_handle
+
+	lastCardActionMu sync.Mutex
+	lastCardAction   bridgeCardAction // most recent card action for user identity lookup
 }
 
 // bridgeReplyCtx carries the information needed to route replies back to the adapter.
@@ -125,6 +128,8 @@ type bridgeCardAction struct {
 	Action     string `json:"action"`
 	ReplyCtx   string `json:"reply_ctx"`
 	Project    string `json:"project,omitempty"`
+	UserID     string `json:"user_id,omitempty"`
+	UserName   string `json:"user_name,omitempty"`
 }
 
 type bridgePreviewAck struct {
@@ -931,6 +936,11 @@ func (a *bridgeAdapter) handleCardAction(raw json.RawMessage) {
 
 	slog.Debug("bridge: card_action", "platform", a.platform, "action", ca.Action, "session_key", ca.SessionKey, "project", ca.Project)
 
+	// Save for identity lookup in dispatchAsMessage
+	a.lastCardActionMu.Lock()
+	a.lastCardAction = ca
+	a.lastCardActionMu.Unlock()
+
 	ref := a.server.resolveEngine(ca.SessionKey, ca.Project)
 	if ref == nil {
 		return
@@ -995,11 +1005,21 @@ func (a *bridgeAdapter) dispatchAsMessage(ref *bridgeEngineRef, sessionKey, repl
 	if ref.platform.handler == nil {
 		return
 	}
+	userID := "web-admin"
+	userName := "Web Admin"
+	// Use real user identity from card action context when available
+	if ca := a.lastCardAction; ca.UserID != "" {
+		userID = ca.UserID
+		userName = ca.UserName
+		if userName == "" {
+			userName = userID
+		}
+	}
 	msg := &Message{
 		SessionKey: sessionKey,
 		Platform:   a.platform,
-		UserID:     "web-admin",
-		UserName:   "Web Admin",
+		UserID:     userID,
+		UserName:   userName,
 		Content:    content,
 		ReplyCtx:   newBridgeReplyCtx(a, sessionKey, replyCtx),
 	}

@@ -1585,6 +1585,8 @@ func buildUserRoleManager(uc *config.UsersConfig) *core.UserRoleManager {
 		roles = append(roles, core.RoleInput{
 			Name:             name,
 			UserIDs:          rc.UserIDs,
+			Mode:             rc.Mode,
+			AllowedTools:     rc.AllowedTools,
 			DisabledCommands: rc.DisabledCommands,
 			RateLimit:        rlCfg,
 		})

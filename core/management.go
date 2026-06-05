@@ -855,6 +855,8 @@ func (m *ManagementServer) handleProjectUsers(w http.ResponseWriter, r *http.Req
 		for name, raw := range body.Roles {
 			var rc struct {
 				UserIDs          []string `json:"user_ids"`
+				Mode             string   `json:"mode"`
+				AllowedTools     []string `json:"allowed_tools"`
 				DisabledCommands []string `json:"disabled_commands"`
 				RateLimit        *struct {
 					MaxMessages int `json:"max_messages"`
@@ -868,6 +870,8 @@ func (m *ManagementServer) handleProjectUsers(w http.ResponseWriter, r *http.Req
 			ri := RoleInput{
 				Name:             name,
 				UserIDs:          rc.UserIDs,
+				Mode:             rc.Mode,
+				AllowedTools:     rc.AllowedTools,
 				DisabledCommands: rc.DisabledCommands,
 			}
 			if rc.RateLimit != nil {

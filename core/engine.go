@@ -314,6 +314,7 @@ type interactiveState struct {
 	replyCtx               any
 	currentMessageID       string
 	workspaceDir           string
+	ownerUserID           string // user who started this interactive session
 	agent                  Agent
 	mu                     sync.Mutex
 	stopCh                 chan struct{}
@@ -368,15 +369,16 @@ type modelSwitchState struct {
 
 // pendingPermission represents a permission request waiting for user response.
 type pendingPermission struct {
-	RequestID       string
-	ToolName        string
-	ToolInput       map[string]any
-	InputPreview    string
-	Questions       []UserQuestion // non-nil for AskUserQuestion
-	Answers         map[int]string // collected answers keyed by question index
-	CurrentQuestion int            // index of the question currently being asked
-	Resolved        chan struct{}  // closed when user responds
-	resolveOnce     sync.Once
+	RequestID        string
+	ToolName         string
+	ToolInput        map[string]any
+	InputPreview     string
+	RequestingUserID string // user who triggered the permission request
+	Questions        []UserQuestion // non-nil for AskUserQuestion
+	Answers          map[int]string // collected answers keyed by question index
+	CurrentQuestion  int            // index of the question currently being asked
+	Resolved         chan struct{}  // closed when user responds
+	resolveOnce      sync.Once
 }
 
 func (s *interactiveState) stopSignal() <-chan struct{} {
@@ -2411,6 +2413,16 @@ func (e *Engine) handlePendingPermission(p Platform, msg *Message, content strin
 		return false
 	}
 
+	// Permission approval identity check: only the requesting user or an admin can approve.
+	// For AskUserQuestion, the requesting user must answer; for tool permission, either the
+	// requesting user or an admin may approve/deny.
+	if pending.RequestingUserID != "" && msg.UserID != pending.RequestingUserID {
+		if !e.isAdmin(msg.UserID) {
+			e.reply(p, msg.ReplyCtx, "⚠️ Only the requesting user or an admin can approve this permission request.")
+			return true
+		}
+	}
+
 	// AskUserQuestion: interpret user response as an answer, not a permission decision
 	if len(pending.Questions) > 0 {
 		// Reject empty or whitespace-only content: some platforms echo delivery
@@ -2636,7 +2648,7 @@ func (e *Engine) processInteractiveMessageWith(p Platform, msg *Message, session
 	if agent != e.agent {
 		agentOverride = agent
 	}
-	state := e.getOrCreateInteractiveStateWith(interactiveKey, p, msg.ReplyCtx, session, sessions, agentOverride, ccSessionKey)
+	state := e.getOrCreateInteractiveStateWith(interactiveKey, p, msg.ReplyCtx, session, sessions, agentOverride, ccSessionKey, msg.UserID)
 
 	// Set workspaceDir on the state for idle reaper identification
 	if workspaceDir != "" {
@@ -2884,7 +2896,7 @@ func adoptPendingFromPlaceholder(existing, newState *interactiveState) {
 
 // When agentOverride is non-nil it is used instead of e.agent to start the session.
 // ccSessionKey, when non-empty, is used for CC_SESSION_KEY env injection; otherwise sessionKey is used.
-func (e *Engine) getOrCreateInteractiveStateWith(sessionKey string, p Platform, replyCtx any, session *Session, sessions *SessionManager, agentOverride Agent, ccSessionKey string) *interactiveState {
+func (e *Engine) getOrCreateInteractiveStateWith(sessionKey string, p Platform, replyCtx any, session *Session, sessions *SessionManager, agentOverride Agent, ccSessionKey string, ownerUserID string) *interactiveState {
 	e.interactiveMu.Lock()
 	defer e.interactiveMu.Unlock()
 
@@ -3041,7 +3053,31 @@ func (e *Engine) getOrCreateInteractiveStateWith(sessionKey string, p Platform, 
 		platform:         p,
 		replyCtx:         replyCtx,
 		agent:            agent,
+		ownerUserID:     ownerUserID,
 		eventsNeedResync: true,
+	}
+
+	// Apply role-based agent mode and allowed_tools if configured for this user.
+	if e.userRoles != nil && ownerUserID != "" {
+		if role := e.userRoles.ResolveRole(ownerUserID); role != nil {
+			if role.Mode != "" {
+				if switcher, ok := agentSession.(LiveModeSwitcher); ok {
+					if switcher.SetLiveMode(role.Mode) {
+						slog.Info("applied role-based permission mode", "role", role.Name, "user", ownerUserID, "mode", role.Mode)
+					}
+				}
+			}
+			if len(role.AllowedTools) > 0 {
+				if authorizer, ok := agentSession.(ToolAuthorizer); ok {
+					tools := make([]string, 0, len(role.AllowedTools))
+					for t := range role.AllowedTools {
+						tools = append(tools, t)
+					}
+					authorizer.AddAllowedTools(tools...)
+					slog.Info("applied role-based allowed_tools", "role", role.Name, "user", ownerUserID, "tools", tools)
+				}
+			}
+		}
 	}
 	adoptPendingFromPlaceholder(e.interactiveStates[sessionKey], newState)
 	state = newState
@@ -4174,12 +4210,13 @@ func (e *Engine) processInteractiveEvents(state *interactiveState, session *Sess
 			)
 
 			pending := &pendingPermission{
-				RequestID:    event.RequestID,
-				ToolName:     event.ToolName,
-				ToolInput:    event.ToolInputRaw,
-				InputPreview: event.ToolInput,
-				Questions:    event.Questions,
-				Resolved:     make(chan struct{}),
+				RequestID:        event.RequestID,
+				ToolName:         event.ToolName,
+				ToolInput:        event.ToolInputRaw,
+				InputPreview:     event.ToolInput,
+				RequestingUserID: state.ownerUserID,
+				Questions:        event.Questions,
+				Resolved:         make(chan struct{}),
 			}
 			state.mu.Lock()
 			state.pending = pending
