@@ -42,16 +42,12 @@
     -webkit-font-smoothing: antialiased;
   }
 
-  .page {
-    max-width: 900px;
-    margin: 0 auto;
-    padding: 48px 32px 80px;
-  }
+  .page { max-width: 900px; margin: 0 auto; padding: 48px 32px 80px; }
 
   /* ── Hero ── */
   .hero {
     text-align: center;
-    padding: 56px 0 48px;
+    padding: 56px 0 32px;
     position: relative;
   }
 
@@ -92,48 +88,113 @@
     margin: 0 2px;
   }
 
-  /* ── Flow Overview ── */
-  .flow-bar {
+  /* ── Web Admin Info ── */
+  .info-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px 28px;
+    margin-bottom: 32px;
+  }
+
+  .info-panel h2 {
+    font-size: 17px;
+    font-weight: 600;
+    margin-bottom: 12px;
     display: flex;
     align-items: center;
-    justify-content: center;
-    gap: 6px;
-    padding: 20px 0;
-    margin-bottom: 36px;
-    flex-wrap: wrap;
+    gap: 8px;
   }
 
-  .flow-step {
-    display: inline-flex;
+  .info-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .info-item {
+    display: flex;
     align-items: center;
-    gap: 6px;
-    padding: 6px 14px;
+    gap: 8px;
+    padding: 6px 10px;
+    background: var(--card);
+    border-radius: 6px;
+    font-size: 13px;
+  }
+
+  .info-item .icon { color: var(--accent); font-size: 14px; }
+  .info-item .label { color: var(--text-secondary); }
+
+  .build-compare {
+    margin-top: 16px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  .build-card {
     background: var(--card);
     border: 1px solid var(--border);
-    border-radius: 8px;
-    font-size: 12.5px;
-    font-weight: 500;
+    border-radius: 10px;
+    padding: 16px;
+  }
+
+  .build-card h3 { font-size: 14px; font-weight: 600; margin-bottom: 8px; }
+  .build-card.noweb h3 { color: var(--yellow); }
+  .build-card.full h3 { color: var(--green); }
+
+  .build-card ul {
+    list-style: none;
+    font-size: 13px;
     color: var(--text-secondary);
-    white-space: nowrap;
   }
 
-  .flow-step .num {
-    display: inline-flex;
+  .build-card ul li {
+    padding: 3px 0;
+    display: flex;
     align-items: center;
-    justify-content: center;
-    width: 20px; height: 20px;
-    border-radius: 5px;
-    background: var(--accent);
-    color: #fff;
-    font-size: 10px;
-    font-weight: 700;
-    font-family: 'JetBrains Mono', monospace;
+    gap: 6px;
   }
 
-  .flow-arrow {
-    color: var(--text-muted);
-    font-size: 12px;
+  .build-card ul li::before { content: '·'; color: var(--text-muted); font-weight: 700; }
+
+  /* ── Path Tabs ── */
+  .path-tabs {
+    display: flex;
+    gap: 0;
+    margin-bottom: 32px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
   }
+
+  .path-tab {
+    flex: 1;
+    padding: 14px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-muted);
+    border-right: 1px solid var(--border);
+    user-select: none;
+  }
+
+  .path-tab:last-child { border-right: none; }
+
+  .path-tab:hover { color: var(--text-secondary); background: var(--card); }
+
+  .path-tab.active {
+    color: var(--accent);
+    background: var(--card);
+    font-weight: 600;
+    box-shadow: inset 0 -2px 0 var(--accent);
+  }
+
+  .path-tab .tab-label { display: block; margin-bottom: 2px; }
+  .path-tab .tab-desc { font-size: 11px; opacity: 0.7; }
 
   /* ── Step Card ── */
   .step-card {
@@ -147,7 +208,6 @@
   }
 
   .step-card:hover { border-color: var(--border-accent); }
-  .step-card.active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent-glow); }
 
   .step-header {
     display: flex;
@@ -171,11 +231,7 @@
     flex-shrink: 0;
   }
 
-  .step-title {
-    font-size: 17px;
-    font-weight: 600;
-    color: var(--text);
-  }
+  .step-title { font-size: 17px; font-weight: 600; }
 
   .step-tag {
     display: inline-block;
@@ -192,9 +248,7 @@
   .step-tag.optional { background: var(--blue-bg); color: var(--blue); }
   .step-tag.critical { background: var(--yellow-bg); color: var(--yellow); }
 
-  .step-body {
-    padding: 20px 24px 24px;
-  }
+  .step-body { padding: 20px 24px 24px; }
 
   .step-desc {
     font-size: 14px;
@@ -224,10 +278,7 @@
     color: var(--text-muted);
   }
 
-  .code-label .lang {
-    font-weight: 600;
-    color: var(--accent);
-  }
+  .code-label .lang { font-weight: 600; color: var(--accent); }
 
   .copy-btn {
     padding: 3px 10px;
@@ -279,21 +330,9 @@
     border-color: rgba(245, 194, 107, 0.3);
   }
 
-  .checkpoint-icon {
-    font-size: 15px;
-    flex-shrink: 0;
-    margin-top: 1px;
-  }
-
-  .checkpoint-text {
-    font-size: 13px;
-    color: var(--text-secondary);
-  }
-
-  .checkpoint-text strong {
-    color: var(--text);
-  }
-
+  .checkpoint-icon { font-size: 15px; flex-shrink: 0; margin-top: 1px; }
+  .checkpoint-text { font-size: 13px; color: var(--text-secondary); }
+  .checkpoint-text strong { color: var(--text); }
   .checkpoint-text code {
     font-family: 'JetBrains Mono', monospace;
     font-size: 12px;
@@ -323,67 +362,11 @@
   .structure-box .target { color: var(--green); font-weight: 600; }
   .structure-box .comment { color: var(--text-muted); font-style: italic; }
 
-  /* ── Quick Reference ── */
-  .quick-ref {
-    background: var(--surface);
-    border: 2px solid var(--accent);
-    border-radius: 14px;
-    padding: 0;
-    overflow: hidden;
-  }
-
-  .quick-ref-header {
-    padding: 16px 24px;
-    background: var(--accent);
-    color: #fff;
-    font-size: 16px;
-    font-weight: 700;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-
-  .quick-ref-body {
-    padding: 18px 24px;
-  }
-
-  /* ── Troubleshooting ── */
-  .issue-card {
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-left: 3px solid var(--red);
-    border-radius: 10px;
-    padding: 16px 20px;
-    margin-bottom: 12px;
-  }
-
-  .issue-q {
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--red);
-    margin-bottom: 6px;
-  }
-
-  .issue-a {
-    font-size: 13px;
-    color: var(--text-secondary);
-  }
-
-  .issue-a code {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 12px;
-    background: var(--code-bg);
-    padding: 1px 5px;
-    border-radius: 4px;
-    color: var(--accent);
-  }
-
   /* ── Acceptance Checklist ── */
   .acceptance {
     background: var(--card);
     border: 1px solid var(--border);
     border-radius: 14px;
-    padding: 0;
     overflow: hidden;
   }
 
@@ -412,7 +395,6 @@
 
   .acceptance-item:last-child { border-bottom: none; }
   .acceptance-item:hover { background: var(--card-hover); }
-
   .acceptance-item.checked { color: var(--green); text-decoration: line-through; text-decoration-color: var(--green-dim); }
 
   .checkbox {
@@ -441,6 +423,31 @@
     flex-shrink: 0;
   }
 
+  /* ── Issue Card ── */
+  .issue-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--red);
+    border-radius: 10px;
+    padding: 16px 20px;
+    margin-bottom: 12px;
+  }
+
+  .issue-q { font-size: 14px; font-weight: 600; color: var(--red); margin-bottom: 6px; }
+  .issue-a { font-size: 13px; color: var(--text-secondary); }
+  .issue-a code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    background: var(--code-bg);
+    padding: 1px 5px;
+    border-radius: 4px;
+    color: var(--accent);
+  }
+
+  /* ── Path Content Sections ── */
+  .path-content { display: none; }
+  .path-content.active { display: block; }
+
   /* ── Footer ── */
   .footer {
     margin-top: 48px;
@@ -450,6 +457,40 @@
     font-size: 12px;
     color: var(--text-muted);
   }
+
+  /* ── Table ── */
+  .ref-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+
+  .ref-table thead tr {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .ref-table th {
+    padding: 10px 16px;
+    text-align: left;
+    color: var(--text-muted);
+    font-weight: 600;
+  }
+
+  .ref-table td {
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .ref-table td:first-child { color: var(--text-secondary); }
+  .ref-table td:last-child {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+  }
+
+  .ref-table td .blue { color: var(--blue); }
+  .ref-table td .green { color: var(--green); }
+  .ref-table td .muted { color: var(--text-secondary); }
 </style>
 </head>
 <body>
@@ -459,380 +500,611 @@
   <div class="hero">
     <h1>Fork 验收部署流程</h1>
     <p class="subtitle">
-      编译 → 替换 → 重装 → 验证 &nbsp;
-      <span class="version-badge">v1.3.3-beta.4</span>
+      两条路径：GitHub Release 一键安装 &nbsp;|&nbsp; cp 替换快速验证 &nbsp;
+      <span class="version-badge">v1.3.3-fork.1</span>
       <span class="version-badge">Windows 11</span>
-      <span class="version-badge">MSYS2/bash</span>
     </p>
   </div>
 
-  <!-- ── Flow Overview ── -->
-  <div class="flow-bar">
-    <span class="flow-step"><span class="num">1</span>编译</span>
-    <span class="flow-arrow">→</span>
-    <span class="flow-step"><span class="num">2</span>定位</span>
-    <span class="flow-arrow">→</span>
-    <span class="flow-step"><span class="num">3</span>停卸</span>
-    <span class="flow-arrow">→</span>
-    <span class="flow-step"><span class="num">4</span>杀进程</span>
-    <span class="flow-arrow">→</span>
-    <span class="flow-step"><span class="num">5</span>替换</span>
-    <span class="flow-arrow">→</span>
-    <span class="flow-step"><span class="num">6</span>重装</span>
-    <span class="flow-arrow">→</span>
-    <span class="flow-step"><span class="num">7</span>验收</span>
-  </div>
-
-  <!-- ════════════════════════════════════════════ -->
-  <!-- Step 1: 编译 -->
-  <!-- ════════════════════════════════════════════ -->
-  <div class="step-card" id="step1">
-    <div class="step-header">
-      <span class="step-num">1</span>
-      <span class="step-title">编译 Fork 代码</span>
-      <span class="step-tag required">必须</span>
+  <!-- ── Web Admin 说明 ── -->
+  <div class="info-panel">
+    <h2>&#128736; Web Admin 是什么？</h2>
+    <p style="font-size:14px;color:var(--text-secondary);margin-bottom:14px">
+      <code>cc-connect web</code> 启动的可视化管理后台，通过 <code>//go:embed</code> 将 React SPA 嵌入二进制。编译方式决定是否包含此功能。
+    </p>
+    <div class="info-grid">
+      <div class="info-item"><span class="icon">&#9776;</span><span class="label">Dashboard — 状态总览</span></div>
+      <div class="info-item"><span class="icon">&#128172;</span><span class="label">Chat — 在线聊天</span></div>
+      <div class="info-item"><span class="icon">&#128295;</span><span class="label">Projects — 项目管理</span></div>
+      <div class="info-item"><span class="icon">&#129302;</span><span class="label">Providers — 模型切换</span></div>
+      <div class="info-item"><span class="icon">&#128336;</span><span class="label">Cron — 定时任务</span></div>
+      <div class="info-item"><span class="icon">&#128279;</span><span class="label">Bridge — WS 桥接</span></div>
+      <div class="info-item"><span class="icon">&#127919;</span><span class="label">Skills — 技能市场</span></div>
+      <div class="info-item"><span class="icon">&#9881;</span><span class="label">System — 全局设置</span></div>
     </div>
-    <div class="step-body">
-      <p class="step-desc">在 fork 仓库中编译出 Windows 二进制。<code>build-noweb</code> 跳过前端，速度最快；<code>build</code> 包含 Web Admin UI。</p>
-
-      <div class="code-block">
-        <div class="code-label">
-          <span class="lang">bash</span>
-          <button class="copy-btn" onclick="copyCode(this)">复制</button>
-        </div>
-        <div class="code-content"><span class="comment"># 进入 fork 仓库</span>
-<span class="prompt">$</span> <span class="cmd">cd</span> <span class="path">/d/WorkSpace/src/cc-connect</span>
-
-<span class="comment"># 确认在正确分支</span>
-<span class="prompt">$</span> <span class="cmd">git</span> branch --show-current
-<span class="output">feat/role-based-tool-permissions</span>
-
-<span class="comment"># 快速编译（跳过 Web 前端，推荐）</span>
-<span class="prompt">$</span> <span class="cmd">make</span> build-noweb
-
-<span class="comment"># 或完整编译（需要 pnpm）</span>
-<span class="prompt">$</span> <span class="cmd">make</span> build</div>
+    <div class="build-compare">
+      <div class="build-card noweb">
+        <h3>make build-noweb</h3>
+        <ul>
+          <li>跳过 Web 前端（<code>no_web</code> tag）</li>
+          <li>编译速度快 10x+</li>
+          <li><code>cc-connect web</code> 不可用</li>
+          <li>适合后端逻辑验收</li>
+        </ul>
       </div>
-
-      <div class="checkpoint">
-        <span class="checkpoint-icon">&#10003;</span>
-        <span class="checkpoint-text"><strong>编译成功</strong>：项目根目录生成 <code>cc-connect</code>（无 .exe 后缀，但实际是 PE 二进制）</span>
-      </div>
-
-      <div class="code-block">
-        <div class="code-label">
-          <span class="lang">验证</span>
-          <button class="copy-btn" onclick="copyCode(this)">复制</button>
-        </div>
-        <div class="code-content"><span class="prompt">$</span> <span class="cmd">./cc-connect</span> <span class="flag">--version</span>
-<span class="output">cc-connect v1.3.3-beta.4</span>
-<span class="output">commit:  a4558147</span>     <span class="comment">← 必须是你的 fork commit</span>
-<span class="output">built:   2026-06-07T08:18:31Z</span>
-
-<span class="prompt">$</span> <span class="cmd">file</span> cc-connect
-<span class="output">PE32+ executable for MS Windows 6.01 (console), x86-64</span></div>
+      <div class="build-card full">
+        <h3>make build</h3>
+        <ul>
+          <li>含完整 Web Admin UI</li>
+          <li>需要 pnpm 环境</li>
+          <li><code>cc-connect web</code> 完整可用</li>
+          <li>适合完整功能验收</li>
+        </ul>
       </div>
     </div>
   </div>
 
-  <!-- ════════════════════════════════════════════ -->
-  <!-- Step 2: 定位 -->
-  <!-- ════════════════════════════════════════════ -->
-  <div class="step-card" id="step2">
-    <div class="step-header">
-      <span class="step-num">2</span>
-      <span class="step-title">定位 npm 安装的二进制路径</span>
-      <span class="step-tag required">必须</span>
+  <!-- ── Path Tabs ── -->
+  <div class="path-tabs">
+    <div class="path-tab active" onclick="switchPath('a')" id="tab-a">
+      <span class="tab-label">路径 A：GitHub Release</span>
+      <span class="tab-desc">一键 npm install，团队可用</span>
     </div>
-    <div class="step-body">
-      <p class="step-desc">npm 安装的 cc-connect 是三层 wrapper 架构，真正需要替换的是最底层的 Go 二进制。</p>
-
-      <div class="structure-box"><span class="highlight">$npm_root/cc-connect/</span>
-├── <span class="target">bin/cc-connect.exe</span>      <span class="comment">← 真正的 Go 二进制（替换目标）</span>
-├── run.js                  <span class="comment">← Node.js wrapper，透传命令给 bin/cc-connect.exe</span>
-├── install.js              <span class="comment">← 版本不匹配时自动重装</span>
-└── package.json            <span class="comment">← 记录版本号</span>
-
-<span class="highlight">全局调用链：</span>
-cc-connect xxx
-  <span class="arrow">→</span> shell wrapper <span class="arrow">→</span> node run.js <span class="arrow">→</span> <span class="target">bin/cc-connect.exe</span></div>
-
-      <div class="code-block">
-        <div class="code-label">
-          <span class="lang">bash</span>
-          <button class="copy-btn" onclick="copyCode(this)">复制</button>
-        </div>
-        <div class="code-content"><span class="comment"># 查看 npm 全局模块根目录</span>
-<span class="prompt">$</span> <span class="cmd">npm</span> root <span class="flag">-g</span>
-<span class="output">D:\nodejs\node_global\node_modules</span>
-
-<span class="comment"># 确认目标二进制存在</span>
-<span class="prompt">$</span> <span class="cmd">ls</span> <span class="flag">-la</span> <span class="path">"$(npm root -g)/cc-connect/bin/"</span>
-<span class="output">-rwxr-xr-x 1 KC None 22723584 cc-connect.exe</span>
-
-<span class="comment"># 查看当前官方版本（替换前的基准）</span>
-<span class="prompt">$</span> <span class="cmd">cc-connect</span> <span class="flag">--version</span>
-<span class="output">cc-connect v1.3.3-beta.4</span>
-<span class="output">commit:  d577db28</span>     <span class="comment">← 上游 commit（非 fork）</span></div>
-      </div>
+    <div class="path-tab" onclick="switchPath('b')" id="tab-b">
+      <span class="tab-label">路径 B：cp 替换</span>
+      <span class="tab-desc">最快验证，无需 Release</span>
     </div>
   </div>
 
-  <!-- ════════════════════════════════════════════ -->
-  <!-- Step 3: 停卸 -->
-  <!-- ════════════════════════════════════════════ -->
-  <div class="step-card" id="step3">
-    <div class="step-header">
-      <span class="step-num">3</span>
-      <span class="step-title">停止并卸载旧 Daemon</span>
-      <span class="step-tag required">必须</span>
-    </div>
-    <div class="step-body">
-      <p class="step-desc">卸载 Windows 任务计划程序（schtasks）中的 <code>cc-connect</code> 任务，避免旧二进制开机自启。</p>
+  <!-- ══════════════════════════════════════════════ -->
+  <!-- PATH A: GitHub Release                        -->
+  <!-- ══════════════════════════════════════════════ -->
+  <div class="path-content active" id="path-a">
 
-      <div class="code-block">
-        <div class="code-label">
-          <span class="lang">bash</span>
-          <button class="copy-btn" onclick="copyCode(this)">复制</button>
+    <!-- A-1: Fork 仓库 -->
+    <div class="step-card">
+      <div class="step-header">
+        <span class="step-num">1</span>
+        <span class="step-title">在 GitHub 上 Fork 仓库</span>
+        <span class="step-tag required">必须</span>
+      </div>
+      <div class="step-body">
+        <p class="step-desc">浏览器打开 <code>https://github.com/chenhg5/cc-connect</code>，点击右上角 Fork 按钮。Fork 完成后你的仓库地址为：</p>
+        <div class="code-block">
+          <div class="code-label"><span class="lang">bash — 添加 fork remote（仅首次）</span><button class="copy-btn" onclick="copyCode(this)">复制</button></div>
+          <div class="code-content"><span class="prompt">$</span> <span class="cmd">git</span> remote add fork <span class="path">git@github.com:game1991/cc-connect.git</span>
+
+<span class="comment"># 确认 remote</span>
+<span class="prompt">$</span> <span class="cmd">git</span> remote -v
+<span class="output">origin  https://github.com/chenhg5/cc-connect.git  (上游)</span>
+<span class="output">fork    git@github.com:game1991/cc-connect.git    (你的 fork)</span></div>
         </div>
-        <div class="code-content"><span class="comment"># 停止 daemon</span>
+        <div class="checkpoint">
+          <span class="checkpoint-icon">&#10003;</span>
+          <span class="checkpoint-text"><strong>命名约定</strong>：<code>origin</code> 保留为上游，<code>fork</code> 指向你的仓库。这样既能 push fork，又能 <code>git pull origin main</code> 同步上游变更。</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- A-2: 改版本号 -->
+    <div class="step-card">
+      <div class="step-header">
+        <span class="step-num">2</span>
+        <span class="step-title">修改 Fork 版本号</span>
+        <span class="step-tag critical">关键</span>
+      </div>
+      <div class="step-body">
+        <p class="step-desc">将 Makefile 中的 <code>VERSION</code> 改为 fork 专用版本号，避免与上游 npm 包版本冲突。</p>
+        <div class="code-block">
+          <div class="code-label"><span class="lang">Makefile</span><button class="copy-btn" onclick="copyCode(this)">复制</button></div>
+          <div class="code-content"><span class="comment"># 修改前（上游版本）</span>
+VERSION := v1.3.3-beta.4
+
+<span class="comment"># 修改后（fork 版本）</span>
+<span class="cmd">VERSION</span> := <span class="highlight">v1.3.3-fork.1</span></div>
+        </div>
+        <div class="checkpoint warn">
+          <span class="checkpoint-icon">&#9888;</span>
+          <span class="checkpoint-text"><strong>版本号规则</strong>：使用 <code>vX.Y.Z-fork.N</code> 格式。<code>run.js</code> 会比较 <code>bin/cc-connect.exe</code> 的输出与 <code>package.json</code> 中的版本号。如果 fork 版本号 ≥ 官方版本号，就不会触发自动重装覆盖你的二进制。</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- A-3: 编译 Release 包 -->
+    <div class="step-card">
+      <div class="step-header">
+        <span class="step-num">3</span>
+        <span class="step-title">编译 Release 包</span>
+        <span class="step-tag required">必须</span>
+      </div>
+      <div class="step-body">
+        <div class="code-block">
+          <div class="code-label"><span class="lang">bash</span><button class="copy-btn" onclick="copyCode(this)">复制</button></div>
+          <div class="code-content"><span class="comment"># 编译 Windows amd64 包（跳过 Web 前端）</span>
+<span class="prompt">$</span> <span class="cmd">make</span> release-noweb TARGET=windows/amd64
+<span class="output">Built: dist/cc-connect-v1.3.3-fork.1-windows-amd64.exe</span>
+
+<span class="comment"># 打包 zip</span>
+<span class="prompt">$</span> <span class="cmd">cd</span> <span class="path">dist</span>
+<span class="prompt">$</span> <span class="cmd">zip</span> cc-connect-v1.3.3-fork.1-windows-amd64.zip \
+    cc-connect-v1.3.3-fork.1-windows-amd64.exe
+<span class="prompt">$</span> <span class="cmd">sha256sum</span> cc-connect-v1.3.3-fork.1-windows-amd64.zip &gt; checksums.txt</div>
+        </div>
+        <div class="checkpoint">
+          <span class="checkpoint-icon">&#10003;</span>
+          <span class="checkpoint-text"><strong>产物确认</strong>：<code>dist/cc-connect-v1.3.3-fork.1-windows-amd64.zip</code> 已生成</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- A-4: 提交 + 打 Tag + Push -->
+    <div class="step-card">
+      <div class="step-header">
+        <span class="step-num">4</span>
+        <span class="step-title">提交、打 Tag 并 Push 到 Fork</span>
+        <span class="step-tag required">必须</span>
+      </div>
+      <div class="step-body">
+        <div class="code-block">
+          <div class="code-label"><span class="lang">bash</span><button class="copy-btn" onclick="copyCode(this)">复制</button></div>
+          <div class="code-content"><span class="comment"># 提交所有修改</span>
+<span class="prompt">$</span> <span class="cmd">git</span> add -A
+<span class="prompt">$</span> <span class="cmd">git</span> commit -m <span class="flag">"feat: fork version v1.3.3-fork.1"</span>
+
+<span class="comment"># 打 tag（与 VERSION 一致）</span>
+<span class="prompt">$</span> <span class="cmd">git</span> tag v1.3.3-fork.1
+
+<span class="comment"># Push 到 fork 仓库（非 origin 上游）</span>
+<span class="prompt">$</span> <span class="cmd">git</span> push fork feat/role-based-tool-permissions
+<span class="prompt">$</span> <span class="cmd">git</span> push fork v1.3.3-fork.1</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- A-5: 创建 GitHub Release -->
+    <div class="step-card">
+      <div class="step-header">
+        <span class="step-num">5</span>
+        <span class="step-title">在 Fork 仓库创建 GitHub Release</span>
+        <span class="step-tag required">必须</span>
+      </div>
+      <div class="step-body">
+        <p class="step-desc">Release 是 npm install 的下载源——<code>install.js</code> 会拼出 URL 并从中下载 zip。以下是完整的浏览器操作步骤：</p>
+
+        <div class="structure-box"><span class="highlight">操作步骤：</span>
+
+<span class="comment">1. 打开 Release 创建页面</span>
+   浏览器访问：
+   <span class="highlight">https://github.com/game1991/cc-connect/releases/new</span>
+   <span class="comment">（或从仓库首页 → Releases → Draft a new release）</span>
+
+<span class="comment">2. 填写 Release 信息</span>
+   Choose a tag:     <span class="highlight">v1.3.3-fork.1</span>     <span class="comment">（选择刚 push 的 tag）</span>
+   Release title:   <span class="highlight">cc-connect v1.3.3-fork.1</span>
+   Describe this release:  <span class="comment">（参考下方模板）</span>
+
+<span class="comment">3. 上传产物</span>
+   拖入或选择文件：
+   <span class="target">dist/cc-connect-v1.3.3-fork.1-windows-amd64.zip</span>
+   <span class="target">dist/checksums.txt</span>
+
+<span class="comment">4. 点击 "Publish release"</span></div>
+
+        <div class="code-block">
+          <div class="code-label"><span class="lang">Release Description 模板（直接复制）</span><button class="copy-btn" onclick="copyCode(this)">复制</button></div>
+          <div class="code-content"><span class="comment">## cc-connect v1.3.3-fork.1</span>
+
+Fork of cc-connect v1.3.3-beta.4
+
+### Bug 修复
+- **daemon install** 配置 fallback：三级查找（--config → WorkDir/config.toml → ~/.cc-connect/config.toml）
+- **launcher --config 传递**：PowerShell / systemd / launchd 启动命令均传递 --config 参数
+
+### 新功能
+- **角色级权限模式**：per-role mode + allowed_tools（yolo / default / dontAsk）
+- **权限审批身份校验**：仅发起者或 admin 可批准工具请求
+- **Bridge 卡片身份修复**：传递真实 userID，默认身份改为 bridge-user
+
+### 安装
+<span class="cmd">npm install -g github:game1991/cc-connect#feat/role-based-tool-permissions</span>
+
+### 校验
+<span class="cmd">sha256sum -c checksums.txt</span></div>
+        </div>
+
+        <div class="checkpoint warn">
+          <span class="checkpoint-icon">&#9888;</span>
+          <span class="checkpoint-text"><strong>关键</strong>：Release 中的 zip 文件名必须匹配 <code>install.js</code> 的拼装规则 <code>{name}-{version}-{platform}-{arch}{ext}</code>。如果 VERSION 是 <code>v1.3.3-fork.1</code>，则 zip 中 exe 名称必须为 <code>cc-connect-v1.3.3-fork.1-windows-amd64.exe</code>。<code>make release-noweb</code> 已自动按此格式命名。</span>
+        </div>
+
+        <div class="checkpoint">
+          <span class="checkpoint-icon">&#10003;</span>
+          <span class="checkpoint-text"><strong>下载 URL 确认</strong>：发布后 npm install 将从以下地址下载二进制：<br>
+          <code>https://github.com/game1991/cc-connect/releases/download/v1.3.3-fork.1/cc-connect-v1.3.3-fork.1-windows-amd64.zip</code></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- A-6: 修改 install.js 指向 Fork -->
+    <div class="step-card">
+      <div class="step-header">
+        <span class="step-num">6</span>
+        <span class="step-title">修改 package.json + install.js 指向 Fork</span>
+        <span class="step-tag critical">关键</span>
+      </div>
+      <div class="step-body">
+        <p class="step-desc">npm 包的 <code>install.js</code> 硬编码了上游仓库地址，需改为你的 fork。同时 <code>package.json</code> 版本号需与 fork VERSION 一致。这两个文件不在 Go 源码仓库中，需要从官方 npm 包复制后修改，或者将它们加入 fork 仓库。</p>
+
+        <div class="code-block">
+          <div class="code-label"><span class="lang">package.json — 改 3 处</span><button class="copy-btn" onclick="copyCode(this)">复制</button></div>
+          <div class="code-content">{
+  <span class="highlight">"version": "1.3.3-fork.1"</span>,
+  <span class="highlight">"homepage": "https://github.com/game1991/cc-connect"</span>,
+  "repository": {
+    "type": "git",
+    <span class="highlight">"url": "https://github.com/game1991/cc-connect.git"</span>
+  }
+}</div>
+        </div>
+
+        <div class="code-block">
+          <div class="code-label"><span class="lang">install.js — 改 2 处</span><button class="copy-btn" onclick="copyCode(this)">复制</button></div>
+          <div class="code-content"><span class="comment">// 上游原值：</span>
+const GITHUB_REPO = "chenhg5/cc-connect";
+const GITEE_REPO = "cg33/cc-connect";
+
+<span class="comment">// 改为 fork：</span>
+const <span class="highlight">GITHUB_REPO</span> = "<span class="highlight">game1991/cc-connect</span>";
+const <span class="highlight">GITEE_REPO</span> = "<span class="highlight">game1991/cc-connect</span>";  <span class="comment">// 或保留 Gitee 上游</span></div>
+        </div>
+
+        <div class="checkpoint warn">
+          <span class="checkpoint-icon">&#9888;</span>
+          <span class="checkpoint-text"><strong>文件来源</strong>：<code>package.json</code> 和 <code>install.js</code> 不在 Go 源码仓库中。它们随 <code>npm install -g cc-connect@beta</code> 安装到 <code>$(npm root -g)/cc-connect/</code>。首次安装官方包后直接修改该目录下的这两个文件即可。</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- A-7: 安装 Fork 版本 -->
+    <div class="step-card">
+      <div class="step-header">
+        <span class="step-num">7</span>
+        <span class="step-title">通过 npm 安装 Fork 版本</span>
+        <span class="step-tag required">必须</span>
+      </div>
+      <div class="step-body">
+        <div class="code-block">
+          <div class="code-label"><span class="lang">bash — 从 GitHub 仓库直接安装</span><button class="copy-btn" onclick="copyCode(this)">复制</button></div>
+          <div class="code-content"><span class="comment"># 从 fork 仓库安装指定分支</span>
+<span class="prompt">$</span> <span class="cmd">npm</span> install <span class="flag">-g</span> <span class="path">github:game1991/cc-connect#feat/role-based-tool-permissions</span>
+
+<span class="comment"># 安装后 postinstall 自动从 GitHub Release 下载二进制</span>
+<span class="output">[cc-connect] Downloading from https://github.com/game1991/cc-connect/releases/download/v1.3.3-fork.1/...</span>
+<span class="output">[cc-connect] Installed to D:\nodejs\node_global\node_modules\cc-connect\bin\cc-connect.exe</span></div>
+        </div>
+
+        <div class="checkpoint">
+          <span class="checkpoint-icon">&#10003;</span>
+          <span class="checkpoint-text"><strong>一键安装</strong>：以后团队成员只需一行 npm install 即可安装 fork 版本</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- A-8: 重装 Daemon -->
+    <div class="step-card">
+      <div class="step-header">
+        <span class="step-num">8</span>
+        <span class="step-title">卸载旧 Daemon → 重装</span>
+        <span class="step-tag required">必须</span>
+      </div>
+      <div class="step-body">
+        <div class="code-block">
+          <div class="code-label"><span class="lang">bash</span><button class="copy-btn" onclick="copyCode(this)">复制</button></div>
+          <div class="code-content"><span class="comment"># 停止旧 daemon</span>
 <span class="prompt">$</span> <span class="cmd">cc-connect</span> daemon stop
 
 <span class="comment"># 卸载 schtasks 计划任务</span>
 <span class="prompt">$</span> <span class="cmd">cc-connect</span> daemon uninstall
 
-<span class="comment"># 确认已卸载</span>
-<span class="prompt">$</span> <span class="cmd">cc-connect</span> daemon status
-<span class="output">  Status:    Not installed</span>
-<span class="output">  Platform:  schtasks</span></div>
-      </div>
-
-      <div class="checkpoint warn">
-        <span class="checkpoint-icon">&#9888;</span>
-        <span class="checkpoint-text">如果 <code>daemon uninstall</code> 提示权限不足，需要在 <strong>管理员终端</strong> 执行 <code>schtasks /Delete /TN "cc-connect" /F</code></span>
-      </div>
-    </div>
-  </div>
-
-  <!-- ════════════════════════════════════════════ -->
-  <!-- Step 4: 杀进程 -->
-  <!-- ════════════════════════════════════════════ -->
-  <div class="step-card" id="step4">
-    <div class="step-header">
-      <span class="step-num">4</span>
-      <span class="step-title">确认旧进程已退出</span>
-      <span class="step-tag critical">关键</span>
-    </div>
-    <div class="step-body">
-      <p class="step-desc">Windows 上运行中的 exe 文件被锁定，无法覆盖。必须确保所有 cc-connect.exe 进程都已终止。</p>
-
-      <div class="code-block">
-        <div class="code-label">
-          <span class="lang">bash</span>
-          <button class="copy-btn" onclick="copyCode(this)">复制</button>
-        </div>
-        <div class="code-content"><span class="comment"># MSYS2 环境下查看 Windows 进程</span>
+<span class="comment"># 确认无残留进程</span>
 <span class="prompt">$</span> <span class="cmd">ps</span> <span class="flag">-W</span> | <span class="cmd">grep</span> <span class="flag">-i</span> cc-connect | <span class="cmd">grep</span> <span class="flag">-v</span> grep
 
-<span class="comment"># 如果有输出，在管理员终端执行（用实际 PID 替换）：</span>
-<span class="error"># taskkill /PID 33724 /F</span></div>
-      </div>
-
-      <div class="checkpoint warn">
-        <span class="checkpoint-icon">&#9888;</span>
-        <span class="checkpoint-text">
-          <strong>这是最常见的卡点</strong>。如果 <code>cp</code> 报 <code>Device or resource busy</code>，说明还有进程在运行。<br>
-          备选方案：用 <code>cc-connect --force daemon status</code> 强制杀旧进程并启动新实例（但会前台运行，需要再 Ctrl+C 停止）。
-        </span>
-      </div>
-    </div>
-  </div>
-
-  <!-- ════════════════════════════════════════════ -->
-  <!-- Step 5: 替换 -->
-  <!-- ════════════════════════════════════════════ -->
-  <div class="step-card" id="step5">
-    <div class="step-header">
-      <span class="step-num">5</span>
-      <span class="step-title">替换二进制文件</span>
-      <span class="step-tag required">必须</span>
-    </div>
-    <div class="step-body">
-      <p class="step-desc">用 fork 编译产物覆盖 npm 安装的 Go 二进制。注意 MINGW 编译产物无 <code>.exe</code> 后缀，但 cp 时必须指定 <code>.exe</code>。</p>
-
-      <div class="code-block">
-        <div class="code-label">
-          <span class="lang">bash</span>
-          <button class="copy-btn" onclick="copyCode(this)">复制</button>
+<span class="comment"># 重装 daemon（fork 修复后无需 --config）</span>
+<span class="prompt">$</span> <span class="cmd">cc-connect</span> daemon install
+<span class="output">cc-connect daemon installed and started.</span>
+<span class="output">  Platform:  schtasks</span>
+<span class="output">  Binary:    ...cc-connect.exe</span></div>
         </div>
-        <div class="code-content"><span class="comment"># 替换（注意：源文件无 .exe 后缀，目标必须加 .exe）</span>
-<span class="prompt">$</span> <span class="cmd">cp</span> <span class="path">/d/WorkSpace/src/cc-connect/cc-connect</span> <span class="path">"$(npm root -g)/cc-connect/bin/cc-connect.exe"</span>
+      </div>
+    </div>
 
-<span class="comment"># 验证替换成功</span>
+    <!-- A-9: 验证 -->
+    <div class="step-card">
+      <div class="step-header">
+        <span class="step-num">9</span>
+        <span class="step-title">验证</span>
+        <span class="step-tag critical">关键</span>
+      </div>
+      <div class="step-body">
+        <div class="code-block">
+          <div class="code-label"><span class="lang">bash</span><button class="copy-btn" onclick="copyCode(this)">复制</button></div>
+          <div class="code-content"><span class="prompt">$</span> <span class="cmd">cc-connect</span> <span class="flag">--version</span>
+<span class="output">cc-connect v1.3.3-fork.1</span>
+<span class="output">commit:  a4558147</span>
+
+<span class="prompt">$</span> <span class="cmd">cc-connect</span> daemon status
+<span class="output">  Status:    Running</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- A-10: 维护：发布新版本 -->
+    <div class="step-card" style="border-color:var(--accent)">
+      <div class="step-header" style="background:var(--accent-glow)">
+        <span class="step-num" style="background:var(--green)">&#8635;</span>
+        <span class="step-title">维护：发布新版本（后续迭代）</span>
+        <span class="step-tag optional">持续</span>
+      </div>
+      <div class="step-body">
+        <p class="step-desc">当 fork 有新修改需要发布时，只需重复以下流程：</p>
+
+        <div class="code-block">
+          <div class="code-label"><span class="lang">bash — 发布新版本完整流程</span><button class="copy-btn" onclick="copyCode(this)">复制</button></div>
+          <div class="code-content"><span class="comment"># ═══ 1. 修改版本号 ═══</span>
+<span class="comment"># 编辑 Makefile，将 VERSION 递增</span>
+<span class="cmd">VERSION</span> := <span class="highlight">v1.3.3-fork.2</span>   <span class="comment"># fork.1 → fork.2 → fork.3 ...</span>
+
+<span class="comment"># 同步修改 $(npm root -g)/cc-connect/package.json</span>
+<span class="prompt">$</span> <span class="cmd">sed</span> <span class="flag">-i</span> <span class="flag">'s/"1.3.3-fork.1"/"1.3.3-fork.2"/'</span> \
+    <span class="path">"$(npm root -g)/cc-connect/package.json"</span>
+
+<span class="comment"># ═══ 2. 编译 + 打包 ═══</span>
+<span class="prompt">$</span> <span class="cmd">make</span> release-noweb TARGET=windows/amd64
+<span class="prompt">$</span> <span class="cmd">cd</span> <span class="path">dist</span> && \
+    <span class="cmd">zip</span> cc-connect-v1.3.3-fork.2-windows-amd64.zip \
+    cc-connect-v1.3.3-fork.2-windows-amd64.exe && \
+    <span class="cmd">sha256sum</span> *.zip > checksums.txt
+
+<span class="comment"># ═══ 3. 提交 + 打 Tag + Push ═══</span>
+<span class="prompt">$</span> <span class="cmd">git</span> add -A && \
+    <span class="cmd">git</span> commit -m <span class="flag">"chore: bump version to v1.3.3-fork.2"</span>
+<span class="prompt">$</span> <span class="cmd">git</span> tag v1.3.3-fork.2
+<span class="prompt">$</span> <span class="cmd">git</span> push fork feat/role-based-tool-permissions
+<span class="prompt">$</span> <span class="cmd">git</span> push fork v1.3.3-fork.2
+
+<span class="comment"># ═══ 4. 创建 GitHub Release ═══</span>
+<span class="comment"># 浏览器打开 https://github.com/game1991/cc-connect/releases/new</span>
+<span class="comment"># Tag: v1.3.3-fork.2</span>
+<span class="comment"># Title: cc-connect v1.3.3-fork.2</span>
+<span class="comment"># 上传: .zip + checksums.txt</span>
+<span class="comment"># Description: 列出本次变更</span>
+
+<span class="comment"># ═══ 5. 团队成员更新 ═══</span>
+<span class="prompt">$</span> <span class="cmd">npm</span> install <span class="flag">-g</span> <span class="path">github:game1991/cc-connect#feat/role-based-tool-permissions</span>
+<span class="comment"># postinstall 自动下载 v1.3.3-fork.2 的二进制</span>
+
+<span class="comment"># ═══ 6. 重装 daemon ═══</span>
+<span class="prompt">$</span> <span class="cmd">cc-connect</span> daemon stop && <span class="cmd">cc-connect</span> daemon uninstall
+<span class="prompt">$</span> <span class="cmd">cc-connect</span> daemon install</div>
+        </div>
+
+        <div class="checkpoint">
+          <span class="checkpoint-icon">&#10003;</span>
+          <span class="checkpoint-text"><strong>版本号递增规则</strong>：小修改 <code>fork.N+1</code>，合并上游新版本 <code>vX.Y.Z-fork.1</code>（重置 N）。始终保持 <code>fork</code> 版本号 ≥ 上游最新版本号，防止 <code>run.js</code> 触发自动重装。</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+  <div class="path-content" id="path-b">
+
+    <!-- B-1: 编译 -->
+    <div class="step-card">
+      <div class="step-header">
+        <span class="step-num">1</span>
+        <span class="step-title">编译 Fork 代码</span>
+        <span class="step-tag required">必须</span>
+      </div>
+      <div class="step-body">
+        <div class="code-block">
+          <div class="code-label"><span class="lang">bash</span><button class="copy-btn" onclick="copyCode(this)">复制</button></div>
+          <div class="code-content"><span class="prompt">$</span> <span class="cmd">cd</span> <span class="path">/d/WorkSpace/src/cc-connect</span>
+<span class="prompt">$</span> <span class="cmd">make</span> build-noweb
+<span class="output">Built: cc-connect</span>
+
+<span class="prompt">$</span> <span class="cmd">./cc-connect</span> <span class="flag">--version</span>
+<span class="output">commit:  a4558147</span>  <span class="comment">← fork commit</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- B-2: 定位 -->
+    <div class="step-card">
+      <div class="step-header">
+        <span class="step-num">2</span>
+        <span class="step-title">定位 npm 二进制路径</span>
+        <span class="step-tag required">必须</span>
+      </div>
+      <div class="step-body">
+        <div class="structure-box"><span class="highlight">$npm_root/cc-connect/</span>
+├── <span class="target">bin/cc-connect.exe</span>      <span class="comment">← 替换目标（真正的 Go 二进制）</span>
+├── run.js                  <span class="comment">← Node.js wrapper</span>
+├── install.js              <span class="comment">← 版本不匹配时自动重装</span>
+└── package.json</div>
+        <div class="code-block">
+          <div class="code-label"><span class="lang">bash</span><button class="copy-btn" onclick="copyCode(this)">复制</button></div>
+          <div class="code-content"><span class="prompt">$</span> <span class="cmd">ls</span> <span class="flag">-la</span> <span class="path">"$(npm root -g)/cc-connect/bin/"</span>
+<span class="output">-rwxr-xr-x 1 KC None 22723584 cc-connect.exe</span>
+
+<span class="prompt">$</span> <span class="cmd">cc-connect</span> <span class="flag">--version</span>
+<span class="output">commit:  d577db28</span>  <span class="comment">← 上游 commit（非 fork）</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- B-3: 停卸 -->
+    <div class="step-card">
+      <div class="step-header">
+        <span class="step-num">3</span>
+        <span class="step-title">停止并卸载旧 Daemon</span>
+        <span class="step-tag required">必须</span>
+      </div>
+      <div class="step-body">
+        <div class="code-block">
+          <div class="code-label"><span class="lang">bash</span><button class="copy-btn" onclick="copyCode(this)">复制</button></div>
+          <div class="code-content"><span class="prompt">$</span> <span class="cmd">cc-connect</span> daemon stop
+<span class="prompt">$</span> <span class="cmd">cc-connect</span> daemon uninstall</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- B-4: 杀进程 -->
+    <div class="step-card">
+      <div class="step-header">
+        <span class="step-num">4</span>
+        <span class="step-title">确认旧进程已退出</span>
+        <span class="step-tag critical">关键</span>
+      </div>
+      <div class="step-body">
+        <div class="code-block">
+          <div class="code-label"><span class="lang">bash</span><button class="copy-btn" onclick="copyCode(this)">复制</button></div>
+          <div class="code-content"><span class="prompt">$</span> <span class="cmd">ps</span> <span class="flag">-W</span> | <span class="cmd">grep</span> <span class="flag">-i</span> cc-connect | <span class="cmd">grep</span> <span class="flag">-v</span> grep
+
+<span class="comment"># 如有残留，管理员终端执行：</span>
+<span class="error"># taskkill /PID &lt;PID&gt; /F</span></div>
+        </div>
+        <div class="checkpoint warn">
+          <span class="checkpoint-icon">&#9888;</span>
+          <span class="checkpoint-text"><strong>最常见的卡点</strong>：Windows 锁定运行中的 exe，<code>cp</code> 报 <code>Device or resource busy</code>。必须先终止所有 cc-connect.exe 进程。</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- B-5: 替换 -->
+    <div class="step-card">
+      <div class="step-header">
+        <span class="step-num">5</span>
+        <span class="step-title">替换二进制文件</span>
+        <span class="step-tag required">必须</span>
+      </div>
+      <div class="step-body">
+        <div class="code-block">
+          <div class="code-label"><span class="lang">bash — 注意 MINGW 下编译产物无 .exe 后缀</span><button class="copy-btn" onclick="copyCode(this)">复制</button></div>
+          <div class="code-content"><span class="prompt">$</span> <span class="cmd">cp</span> <span class="path">/d/WorkSpace/src/cc-connect/cc-connect</span> <span class="path">"$(npm root -g)/cc-connect/bin/cc-connect.exe"</span>
+
 <span class="prompt">$</span> <span class="cmd">"$(npm root -g)/cc-connect/bin/cc-connect.exe"</span> <span class="flag">--version</span>
-<span class="output">cc-connect v1.3.3-beta.4</span>
-<span class="output">commit:  a4558147</span>     <span class="comment">← fork commit，替换成功</span>
-<span class="output">built:   2026-06-07T08:18:31Z</span></div>
-      </div>
-
-      <div class="checkpoint warn">
-        <span class="checkpoint-icon">&#9888;</span>
-        <span class="checkpoint-text"><strong>npm 更新会覆盖</strong>：以后执行 <code>npm install -g cc-connect@beta</code> 会重新下载官方二进制。升级后需重新执行此 cp 命令。</span>
-      </div>
-    </div>
-  </div>
-
-  <!-- ════════════════════════════════════════════ -->
-  <!-- Step 6: 重装 -->
-  <!-- ════════════════════════════════════════════ -->
-  <div class="step-card" id="step6">
-    <div class="step-header">
-      <span class="step-num">6</span>
-      <span class="step-title">重新安装 Daemon</span>
-      <span class="step-tag required">必须</span>
-    </div>
-    <div class="step-body">
-      <p class="step-desc">用新二进制注册 Windows 任务计划程序，实现开机自启。Fork 修复后无需 <code>--config</code> 参数即可自动定位配置。</p>
-
-      <div class="code-block">
-        <div class="code-label">
-          <span class="lang">bash</span>
-          <button class="copy-btn" onclick="copyCode(this)">复制</button>
+<span class="output">commit:  a4558147</span>  <span class="comment">← 替换成功</span></div>
         </div>
-        <div class="code-content"><span class="prompt">$</span> <span class="cmd">cc-connect</span> daemon install
+        <div class="checkpoint warn">
+          <span class="checkpoint-icon">&#9888;</span>
+          <span class="checkpoint-text"><strong>npm update 会覆盖</strong>：<code>npm install -g cc-connect@beta</code> 会重下官方二进制。升级后需重新 cp。</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- B-6: 重装 daemon -->
+    <div class="step-card">
+      <div class="step-header">
+        <span class="step-num">6</span>
+        <span class="step-title">重新安装 Daemon</span>
+        <span class="step-tag required">必须</span>
+      </div>
+      <div class="step-body">
+        <div class="code-block">
+          <div class="code-label"><span class="lang">bash</span><button class="copy-btn" onclick="copyCode(this)">复制</button></div>
+          <div class="code-content"><span class="prompt">$</span> <span class="cmd">cc-connect</span> daemon install
 
 <span class="output">cc-connect daemon installed and started.</span>
-<span class="output"></span>
 <span class="output">  Platform:  schtasks</span>
 <span class="output">  Binary:    D:\nodejs\node_global\node_modules\cc-connect\bin\cc-connect.exe</span>
-<span class="output">  WorkDir:   C:\Users\KC\.cc-connect</span>
-<span class="output">  Log:       C:\Users\KC\.cc-connect\logs\cc-connect.log</span>
-<span class="output">  LogMax:    10 MB</span></div>
-      </div>
-
-      <div class="checkpoint">
-        <span class="checkpoint-icon">&#10003;</span>
-        <span class="checkpoint-text"><strong>无需 --config</strong>：fork 修复后三级 fallback 自动生效（<code>--config</code> → <code>WorkDir/config.toml</code> → <code>~/.cc-connect/config.toml</code>）</span>
-      </div>
-    </div>
-  </div>
-
-  <!-- ════════════════════════════════════════════ -->
-  <!-- Step 7: 验收 -->
-  <!-- ════════════════════════════════════════════ -->
-  <div class="step-card" id="step7">
-    <div class="step-header">
-      <span class="step-num">7</span>
-      <span class="step-title">验收验证</span>
-      <span class="step-tag critical">关键</span>
-    </div>
-    <div class="step-body">
-      <p class="step-desc">确认全局命令已是 fork 版本，daemon 正常运行，平台连接正常。</p>
-
-      <div class="code-block">
-        <div class="code-label">
-          <span class="lang">bash — 全流程验证</span>
-          <button class="copy-btn" onclick="copyCode(this)">复制</button>
+<span class="output">  WorkDir:   C:\Users\KC\.cc-connect</span></div>
         </div>
-        <div class="code-content"><span class="comment"># 1. 全局命令版本</span>
-<span class="prompt">$</span> <span class="cmd">cc-connect</span> <span class="flag">--version</span>
-<span class="output">commit:  a4558147</span>    <span class="comment">← fork commit</span>
-
-<span class="comment"># 2. daemon 状态</span>
-<span class="prompt">$</span> <span class="cmd">cc-connect</span> daemon status
-<span class="output">  Status:    Running</span>
-<span class="output">  Platform:  schtasks</span>
-
-<span class="comment"># 3. 实时日志（确认平台连接）</span>
-<span class="prompt">$</span> <span class="cmd">cc-connect</span> daemon logs <span class="flag">-f</span>
-<span class="output">  platform ready</span>
-<span class="output">  engine started</span>
-<span class="output">  wps-xiezuo: connected</span>  <span class="comment">← 或你配置的平台</span>
-
-<span class="comment"># 4. daemon install 不再需要 --config（Q1 修复验证）</span>
-<span class="prompt">$</span> <span class="cmd">cc-connect</span> daemon uninstall
-<span class="prompt">$</span> <span class="cmd">cc-connect</span> daemon install    <span class="comment">← 无 --config，应成功</span>
-<span class="output">  cc-connect daemon installed and started.</span></div>
+        <div class="checkpoint">
+          <span class="checkpoint-icon">&#10003;</span>
+          <span class="checkpoint-text"><strong>无需 --config</strong>：fork 修复后三级 fallback 自动生效</span>
+        </div>
       </div>
     </div>
-  </div>
 
-  <!-- ════════════════════════════════════════════ -->
-  <!-- Quick Reference: 一键命令 -->
-  <!-- ════════════════════════════════════════════ -->
-  <div class="quick-ref">
-    <div class="quick-ref-header">&#9889; 一键速查（复制即用）</div>
-    <div class="quick-ref-body">
-      <div class="code-block" style="margin-bottom:0">
-        <div class="code-label">
-          <span class="lang">bash — 完整流程</span>
-          <button class="copy-btn" onclick="copyCode(this)">复制</button>
+    <!-- B-7: 验证 -->
+    <div class="step-card">
+      <div class="step-header">
+        <span class="step-num">7</span>
+        <span class="step-title">验证</span>
+        <span class="step-tag critical">关键</span>
+      </div>
+      <div class="step-body">
+        <div class="code-block">
+          <div class="code-label"><span class="lang">bash</span><button class="copy-btn" onclick="copyCode(this)">复制</button></div>
+          <div class="code-content"><span class="prompt">$</span> <span class="cmd">cc-connect</span> <span class="flag">--version</span> && <span class="cmd">cc-connect</span> daemon status
+<span class="output">commit:  a4558147  (fork)</span>
+<span class="output">Status:  Running</span></div>
         </div>
-        <div class="code-content"><span class="comment"># 1. 编译</span>
-<span class="cmd">cd</span> <span class="path">/d/WorkSpace/src/cc-connect</span> && <span class="cmd">make</span> build-noweb
+      </div>
+    </div>
 
-<span class="comment"># 2. 停卸旧 daemon</span>
+    <!-- B Quick Ref -->
+    <div style="background:var(--surface);border:2px solid var(--accent);border-radius:14px;overflow:hidden;margin-top:24px">
+      <div style="padding:16px 24px;background:var(--accent);color:#fff;font-size:16px;font-weight:700">&#9889; 路径 B 一键速查</div>
+      <div style="padding:18px 24px">
+        <div class="code-block" style="margin-bottom:0">
+          <div class="code-label"><span class="lang">bash</span><button class="copy-btn" onclick="copyCode(this)">复制</button></div>
+          <div class="code-content"><span class="cmd">cd</span> <span class="path">/d/WorkSpace/src/cc-connect</span> && <span class="cmd">make</span> build-noweb
 <span class="cmd">cc-connect</span> daemon stop && <span class="cmd">cc-connect</span> daemon uninstall
-
-<span class="comment"># 3. 确认无残留进程</span>
 <span class="cmd">ps</span> <span class="flag">-W</span> | <span class="cmd">grep</span> <span class="flag">-i</span> cc-connect | <span class="cmd">grep</span> <span class="flag">-v</span> grep
-
-<span class="comment"># 4. 替换二进制</span>
 <span class="cmd">cp</span> <span class="path">/d/WorkSpace/src/cc-connect/cc-connect</span> <span class="path">"$(npm root -g)/cc-connect/bin/cc-connect.exe"</span>
-
-<span class="comment"># 5. 重装 daemon</span>
 <span class="cmd">cc-connect</span> daemon install
-
-<span class="comment"># 6. 验证</span>
 <span class="cmd">cc-connect</span> <span class="flag">--version</span> && <span class="cmd">cc-connect</span> daemon status</div>
+        </div>
       </div>
     </div>
+
   </div>
 
-  <!-- ════════════════════════════════════════════ -->
-  <!-- Acceptance Checklist -->
-  <!-- ════════════════════════════════════════════ -->
-  <div class="acceptance" style="margin-top:32px">
+  <!-- ══════════════════════════════════════════════ -->
+  <!-- Acceptance Checklist (shared)                 -->
+  <!-- ══════════════════════════════════════════════ -->
+  <div class="acceptance" style="margin-top:40px">
     <div class="acceptance-header">&#9745; Fork 功能验收清单</div>
     <div class="acceptance-item" onclick="toggleCheck(this)">
       <div class="checkbox">&#10003;</div>
       <span class="item-id">A-1</span>
-      <span>全局 <code>cc-connect --version</code> 显示 fork commit（a4558147）</span>
+      <span>全局 <code>cc-connect --version</code> 显示 fork commit</span>
     </div>
     <div class="acceptance-item" onclick="toggleCheck(this)">
       <div class="checkbox">&#10003;</div>
       <span class="item-id">B-1</span>
-      <span><code>daemon install</code> 无需 <code>--config</code> 即可成功安装</span>
+      <span><code>daemon install</code> 无需 <code>--config</code> 即可成功</span>
     </div>
     <div class="acceptance-item" onclick="toggleCheck(this)">
       <div class="checkbox">&#10003;</div>
       <span class="item-id">B-2</span>
-      <span><code>daemon status</code> 显示 Running + schtasks</span>
+      <span><code>daemon status</code> 显示 Running</span>
     </div>
     <div class="acceptance-item" onclick="toggleCheck(this)">
       <div class="checkbox">&#10003;</div>
       <span class="item-id">B-3</span>
-      <span>日志中出现 <code>--config</code> 参数传递（launcher 修复验证）</span>
+      <span>日志中 launcher 传递了 <code>--config</code> 参数</span>
     </div>
     <div class="acceptance-item" onclick="toggleCheck(this)">
       <div class="checkbox">&#10003;</div>
       <span class="item-id">F-1</span>
-      <span>非 admin 用户回复"允许"被拒绝，提示"仅发起者或 admin 可批准"</span>
+      <span>非 admin 用户回复"允许"被拒绝，提示权限校验</span>
     </div>
     <div class="acceptance-item" onclick="toggleCheck(this)">
       <div class="checkbox">&#10003;</div>
       <span class="item-id">F-2a</span>
-      <span>admin 角色工具请求自动通过（yolo 模式）</span>
+      <span>admin 角色：工具请求自动通过（yolo 模式）</span>
     </div>
     <div class="acceptance-item" onclick="toggleCheck(this)">
       <div class="checkbox">&#10003;</div>
       <span class="item-id">F-2b</span>
-      <span>readonly 角色非白名单工具自动拒绝（dontAsk 模式）</span>
+      <span>readonly 角色：非白名单工具自动拒绝（dontAsk 模式）</span>
     </div>
     <div class="acceptance-item" onclick="toggleCheck(this)">
       <div class="checkbox">&#10003;</div>
       <span class="item-id">F-2c</span>
-      <span>default 角色非白名单工具弹出确认弹窗</span>
+      <span>default 角色：非白名单工具弹出确认弹窗</span>
     </div>
     <div class="acceptance-item" onclick="toggleCheck(this)">
       <div class="checkbox">&#10003;</div>
@@ -842,110 +1114,115 @@ cc-connect xxx
     <div class="acceptance-item" onclick="toggleCheck(this)">
       <div class="checkbox">&#10003;</div>
       <span class="item-id">GEN</span>
-      <span>平台连接正常（日志中 platform ready + connected）</span>
+      <span>平台连接正常（日志 platform ready + connected）</span>
     </div>
   </div>
 
-  <!-- ════════════════════════════════════════════ -->
-  <!-- Troubleshooting -->
-  <!-- ════════════════════════════════════════════ -->
+  <!-- ══════════════════════════════════════════════ -->
+  <!-- Troubleshooting (shared)                      -->
+  <!-- ══════════════════════════════════════════════ -->
   <div style="margin-top:40px">
-    <h2 style="font-size:20px;font-weight:600;margin-bottom:18px;color:var(--text)">常见问题排查</h2>
-
+    <h2 style="font-size:20px;font-weight:600;margin-bottom:18px">常见问题排查</h2>
     <div class="issue-card">
       <div class="issue-q">cp: Device or resource busy</div>
-      <div class="issue-a">cc-connect.exe 进程仍运行锁定了文件。执行 <code>ps -W | grep cc-connect</code> 找到 PID，在管理员终端执行 <code>taskkill /PID &lt;PID&gt; /F</code>。</div>
+      <div class="issue-a">cc-connect.exe 进程仍在运行并锁定了文件。执行 <code>ps -W | grep cc-connect</code> 找到 PID，在管理员终端执行 <code>taskkill /PID &lt;PID&gt; /F</code>。</div>
     </div>
-
     <div class="issue-card">
       <div class="issue-q">daemon install 报 "config.toml not found"</div>
-      <div class="issue-a">当前二进制仍是旧版（commit d577db28）。确认 <code>cc-connect --version</code> 显示 fork commit。如不是，重新执行 cp 替换步骤。</div>
+      <div class="issue-a">当前二进制仍是上游旧版。确认 <code>cc-connect --version</code> 显示 fork commit 后重新安装。路径 A 用户确认 package.json 版本号已改为 <code>1.3.3-fork.1</code>。</div>
     </div>
-
     <div class="issue-card">
       <div class="issue-q">npm update 后版本回退</div>
-      <div class="issue-a"><code>npm install -g cc-connect@beta</code> 会覆盖你的 fork 二进制。升级后需重新执行 <code>cp /d/WorkSpace/src/cc-connect/cc-connect "$(npm root -g)/cc-connect/bin/cc-connect.exe"</code>。</div>
+      <div class="issue-a">路径 B：<code>npm install -g cc-connect@beta</code> 会覆盖 fork 二进制，需重新 cp。路径 A 不受影响，因为 package.json 版本号已改。</div>
     </div>
-
     <div class="issue-card">
       <div class="issue-q">taskkill 提示 Permission denied</div>
-      <div class="issue-a">需要在管理员终端（右键 → 以管理员身份运行）中执行 taskkill 命令。普通用户无权终止其他进程。</div>
+      <div class="issue-a">需在管理员终端（右键 → 以管理员身份运行）执行。</div>
     </div>
-
     <div class="issue-card">
-      <div class="issue-q">daemon status 显示 Not installed</div>
-      <div class="issue-a">schtasks 任务被意外删除。重新执行 <code>cc-connect daemon install</code> 即可。</div>
+      <div class="issue-q">GitHub Release 下载失败</div>
+      <div class="issue-a">检查 install.js 中的 GITHUB_REPO 是否指向你的 fork。检查 Release 中 zip 文件名是否匹配 <code>{name}-{version}-{os}-{arch}.zip</code>。中国大陆用户可配 GITEE_REPO 备用源。</div>
     </div>
   </div>
 
-  <!-- ════════════════════════════════════════════ -->
-  <!-- Path Reference -->
-  <!-- ════════════════════════════════════════════ -->
+  <!-- ══════════════════════════════════════════════ -->
+  <!-- Path Reference Table                          -->
+  <!-- ══════════════════════════════════════════════ -->
   <div style="margin-top:40px">
-    <h2 style="font-size:20px;font-weight:600;margin-bottom:18px;color:var(--text)">路径速查表</h2>
+    <h2 style="font-size:20px;font-weight:600;margin-bottom:18px">路径速查表</h2>
     <div style="background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden">
-      <table style="width:100%;border-collapse:collapse;font-size:13px">
-        <thead>
-          <tr style="background:var(--surface);border-bottom:1px solid var(--border)">
-            <th style="padding:10px 16px;text-align:left;color:var(--text-muted);font-weight:600">项目</th>
-            <th style="padding:10px 16px;text-align:left;color:var(--text-muted);font-weight:600">路径</th>
-          </tr>
-        </thead>
+      <table class="ref-table">
+        <thead><tr><th>项目</th><th>路径</th></tr></thead>
         <tbody>
-          <tr style="border-bottom:1px solid var(--border)">
-            <td style="padding:10px 16px;color:var(--text-secondary)">编译产物</td>
-            <td style="padding:10px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--blue)">/d/WorkSpace/src/cc-connect/cc-connect</td>
-          </tr>
-          <tr style="border-bottom:1px solid var(--border)">
-            <td style="padding:10px 16px;color:var(--text-secondary)">npm 二进制（替换目标）</td>
-            <td style="padding:10px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--green)">$(npm root -g)/cc-connect/bin/cc-connect.exe</td>
-          </tr>
-          <tr style="border-bottom:1px solid var(--border)">
-            <td style="padding:10px 16px;color:var(--text-secondary)">配置文件</td>
-            <td style="padding:10px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--text-secondary)">~/.cc-connect/config.toml</td>
-          </tr>
-          <tr style="border-bottom:1px solid var(--border)">
-            <td style="padding:10px 16px;color:var(--text-secondary)">日志目录</td>
-            <td style="padding:10px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--text-secondary)">~/.cc-connect/logs/</td>
-          </tr>
-          <tr style="border-bottom:1px solid var(--border)">
-            <td style="padding:10px 16px;color:var(--text-secondary)">Daemon 元数据</td>
-            <td style="padding:10px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--text-secondary)">~/.cc-connect/daemon.json</td>
-          </tr>
-          <tr style="border-bottom:1px solid var(--border)">
-            <td style="padding:10px 16px;color:var(--text-secondary)">实例锁</td>
-            <td style="padding:10px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--text-secondary)">~/.cc-connect/.config.toml.lock</td>
-          </tr>
-          <tr>
-            <td style="padding:10px 16px;color:var(--text-secondary)">API Socket</td>
-            <td style="padding:10px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--text-secondary)">~/.cc-connect/run/api.sock</td>
-          </tr>
+          <tr><td>编译产物</td><td class="blue">/d/WorkSpace/src/cc-connect/cc-connect</td></tr>
+          <tr><td>Release 包</td><td class="green">dist/cc-connect-v1.3.3-fork.1-windows-amd64.zip</td></tr>
+          <tr><td>npm 二进制（替换目标）</td><td class="green">$(npm root -g)/cc-connect/bin/cc-connect.exe</td></tr>
+          <tr><td>配置文件</td><td class="muted">~/.cc-connect/config.toml</td></tr>
+          <tr><td>日志目录</td><td class="muted">~/.cc-connect/logs/</td></tr>
+          <tr><td>Daemon 元数据</td><td class="muted">~/.cc-connect/daemon.json</td></tr>
+          <tr><td>实例锁</td><td class="muted">~/.cc-connect/.config.toml.lock</td></tr>
         </tbody>
       </table>
     </div>
   </div>
 
-  <!-- ── Footer ── -->
+  <!-- ══════════════════════════════════════════════ -->
+  <!-- Version Release Quick Ref                      -->
+  <!-- ══════════════════════════════════════════════ -->
+  <div style="margin-top:32px">
+    <div style="background:var(--surface);border:2px solid var(--green);border-radius:14px;overflow:hidden">
+      <div style="padding:14px 24px;background:var(--green);color:#0f1117;font-size:15px;font-weight:700">&#128260; 版本发布速查</div>
+      <div style="padding:18px 24px">
+        <div class="code-block" style="margin-bottom:0">
+          <div class="code-label"><span class="lang">bash — 每次发版必做</span><button class="copy-btn" onclick="copyCode(this)">复制</button></div>
+          <div class="code-content"><span class="comment"># 1. 改版本号</span>
+<span class="cmd">vi</span> <span class="path">Makefile</span>  <span class="comment"># VERSION := v1.3.3-fork.N</span>
+<span class="cmd">sed</span> <span class="flag">-i</span> <span class="flag">'s/"1.3.3-fork.旧"/"1.3.3-fork.新"/'</span> <span class="path">"$(npm root -g)/cc-connect/package.json"</span>
+
+<span class="comment"># 2. 编译 + 打包</span>
+<span class="cmd">make</span> release-noweb TARGET=windows/amd64
+<span class="cmd">cd</span> <span class="path">dist</span> && <span class="cmd">zip</span> *.zip *.exe && <span class="cmd">sha256sum</span> *.zip > checksums.txt
+
+<span class="comment"># 3. 提交 + Tag + Push</span>
+<span class="cmd">git</span> add -A && <span class="cmd">git</span> commit -m <span class="flag">"chore: bump version"</span>
+<span class="cmd">git</span> tag <span class="highlight">v1.3.3-fork.N</span>
+<span class="cmd">git</span> push fork feat/role-based-tool-permissions <span class="flag">--tags</span>
+
+<span class="comment"># 4. GitHub Release（浏览器）</span>
+<span class="comment"># https://github.com/game1991/cc-connect/releases/new</span>
+<span class="comment"># Tag=v1.3.3-fork.N  上传 .zip + checksums.txt  Publish</span>
+
+<span class="comment"># 5. 团队更新</span>
+<span class="cmd">npm</span> install <span class="flag">-g</span> <span class="path">github:game1991/cc-connect#feat/role-based-tool-permissions</span>
+<span class="cmd">cc-connect</span> daemon stop && <span class="cmd">cc-connect</span> daemon uninstall
+<span class="cmd">cc-connect</span> daemon install</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div class="footer">
-    cc-connect Fork 验收部署流程 &middot; 基于 v1.3.3-beta.4 &middot; Windows 11 + MSYS2
+    cc-connect Fork 验收部署流程 &middot; v1.3.3-fork.1 &middot; Windows 11 + MSYS2
   </div>
 
 </div>
 
 <script>
+function switchPath(id) {
+  document.querySelectorAll('.path-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.path-content').forEach(c => c.classList.remove('active'));
+  document.getElementById('tab-' + id).classList.add('active');
+  document.getElementById('path-' + id).classList.add('active');
+}
+
 function copyCode(btn) {
   const block = btn.closest('.code-block');
   const code = block.querySelector('.code-content');
-  const text = code.innerText
-    .replace(/\n\n/g, '\n')   // collapse double newlines
-    .replace(/^\$ /gm, '');  // strip prompt
+  const text = code.innerText.replace(/\n\n/g, '\n').replace(/^\$ /gm, '');
   navigator.clipboard.writeText(text).then(() => {
     btn.textContent = '已复制';
     btn.classList.add('copied');
-    setTimeout(() => {
-      btn.textContent = '复制';
-      btn.classList.remove('copied');
-    }, 1500);
+    setTimeout(() => { btn.textContent = '复制'; btn.classList.remove('copied'); }, 1500);
   });
 }
 
