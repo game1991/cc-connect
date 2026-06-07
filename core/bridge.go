@@ -53,9 +53,6 @@ type bridgeAdapter struct {
 
 	previewMu       sync.Mutex
 	previewRequests map[string]chan string // ref_id → channel receiving preview_handle
-
-	lastCardActionMu sync.Mutex
-	lastCardAction   bridgeCardAction // most recent card action for user identity lookup
 }
 
 // bridgeReplyCtx carries the information needed to route replies back to the adapter.
@@ -936,11 +933,6 @@ func (a *bridgeAdapter) handleCardAction(raw json.RawMessage) {
 
 	slog.Debug("bridge: card_action", "platform", a.platform, "action", ca.Action, "session_key", ca.SessionKey, "project", ca.Project)
 
-	// Save for identity lookup in dispatchAsMessage
-	a.lastCardActionMu.Lock()
-	a.lastCardAction = ca
-	a.lastCardActionMu.Unlock()
-
 	ref := a.server.resolveEngine(ca.SessionKey, ca.Project)
 	if ref == nil {
 		return
@@ -959,20 +951,20 @@ func (a *bridgeAdapter) handleCardAction(raw json.RawMessage) {
 		default:
 			return
 		}
-		a.dispatchAsMessage(ref, ca.SessionKey, ca.ReplyCtx, responseText)
+		a.dispatchAsMessage(ref, ca.SessionKey, ca.ReplyCtx, responseText, ca.UserID, ca.UserName)
 		return
 	}
 
 	// askq: — AskUserQuestion answer; forward as a regular message
 	if strings.HasPrefix(ca.Action, "askq:") {
-		a.dispatchAsMessage(ref, ca.SessionKey, ca.ReplyCtx, ca.Action)
+		a.dispatchAsMessage(ref, ca.SessionKey, ca.ReplyCtx, ca.Action, ca.UserID, ca.UserName)
 		return
 	}
 
 	// cmd: — command shortcut from a card button; forward as a message
 	if strings.HasPrefix(ca.Action, "cmd:") {
 		cmdText := strings.TrimPrefix(ca.Action, "cmd:")
-		a.dispatchAsMessage(ref, ca.SessionKey, ca.ReplyCtx, cmdText)
+		a.dispatchAsMessage(ref, ca.SessionKey, ca.ReplyCtx, cmdText, ca.UserID, ca.UserName)
 		return
 	}
 
@@ -1001,19 +993,15 @@ func (a *bridgeAdapter) handleCardAction(raw json.RawMessage) {
 
 // dispatchAsMessage converts a card action into a regular user message
 // and dispatches it to the engine's message handler.
-func (a *bridgeAdapter) dispatchAsMessage(ref *bridgeEngineRef, sessionKey, replyCtx, content string) {
+func (a *bridgeAdapter) dispatchAsMessage(ref *bridgeEngineRef, sessionKey, replyCtx, content, userID, userName string) {
 	if ref.platform.handler == nil {
 		return
 	}
-	userID := "web-admin"
-	userName := "Web Admin"
-	// Use real user identity from card action context when available
-	if ca := a.lastCardAction; ca.UserID != "" {
-		userID = ca.UserID
-		userName = ca.UserName
-		if userName == "" {
-			userName = userID
-		}
+	if userID == "" {
+		userID = "bridge-user"
+	}
+	if userName == "" {
+		userName = userID
 	}
 	msg := &Message{
 		SessionKey: sessionKey,

@@ -705,17 +705,24 @@ name = "my-backend"
 #
 # [projects.users.roles.admin]
 # user_ids = ["platform_user_id_1", "platform_user_id_2"]
-# mode = "yolo"              # admin uses yolo mode: all tools auto-approved
-# allowed_tools = []          # no tool restrictions (empty = all allowed when mode="yolo")
+# mode = "yolo"              # all tools auto-approved
+# allowed_tools = []          # no tool restrictions (yolo: allowed_tools is redundant)
 # disabled_commands = []     # no restrictions
 # rate_limit = { max_messages = 50, window_secs = 60 }
 #
 # [projects.users.roles.member]
 # user_ids = ["*"]                                           # matches all unassigned users
-# mode = "dontAsk"           # member uses dontAsk mode: only pre-approved tools auto-pass, others auto-denied
-# allowed_tools = ["Read", "Grep", "Glob", "LS", "LSP"]     # read-only tool whitelist
+# mode = "dontAsk"           # only allowed_tools auto-pass, others auto-denied
+# allowed_tools = ["Read", "Grep", "Glob", "LS", "LSP"]     # replace with your agent's tool names
 # disabled_commands = ["*"]                                  # disable all built-in commands
 # rate_limit = { max_messages = 10, window_secs = 60 }
+#
+# [projects.users.roles.developer]
+# user_ids = ["platform_user_id_3"]
+# mode = "default"           # allowed_tools auto-pass, others prompt user
+# allowed_tools = ["Read", "Grep", "Glob", "LS", "LSP", "Bash"]  # pre-approved tools
+# disabled_commands = ["mode", "shell"]                         # only restrict dangerous commands
+# rate_limit = { max_messages = 30, window_secs = 60 }
 
 # Heartbeat — periodic awareness check / 心跳 — 周期性巡检
 # The agent wakes up at a fixed interval to check the environment.
