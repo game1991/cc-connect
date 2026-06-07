@@ -2418,7 +2418,7 @@ func (e *Engine) handlePendingPermission(p Platform, msg *Message, content strin
 	// requesting user or an admin may approve/deny.
 	if pending.RequestingUserID != "" && msg.UserID != pending.RequestingUserID {
 		if !e.isAdmin(msg.UserID) {
-			e.reply(p, msg.ReplyCtx, "⚠️ Only the requesting user or an admin can approve this permission request.")
+			e.reply(p, msg.ReplyCtx, e.i18n.T(MsgPermIdentityDenied))
 			return true
 		}
 	}
@@ -6198,12 +6198,14 @@ func replyFooterHomeRelativePath(path, home string) (string, bool) {
 	if path == "" || home == "" {
 		return "", false
 	}
+	path = filepath.ToSlash(path)
+	home = filepath.ToSlash(home)
 	if path == home {
 		return "~", true
 	}
-	prefix := home + string(os.PathSeparator)
+	prefix := home + "/"
 	if strings.HasPrefix(path, prefix) {
-		return "~" + filepath.ToSlash(strings.TrimPrefix(path, home)), true
+		return "~" + strings.TrimPrefix(path, home), true
 	}
 	return "", false
 }

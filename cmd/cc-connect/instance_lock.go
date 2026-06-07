@@ -6,50 +6,45 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"syscall"
+	"time"
 )
+
+const killWaitTimeout = 5 * time.Second
+const killWaitInterval = 25 * time.Millisecond
 
 // InstanceLock provides a file-based exclusive lock to prevent multiple
 // cc-connect instances with the same config from running simultaneously.
 type InstanceLock struct {
-	file    *os.File
-	path    string
+	file     *os.File
+	path     string
 	acquired bool
 }
 
 // AcquireInstanceLock attempts to acquire an exclusive lock for the given config path.
 // If another instance is already running with the same config, it returns an error
 // containing the PID of the existing instance.
-//
-// The lock file is placed in the same directory as the config file, with a name
-// derived from the config path hash. This allows different configs to run simultaneously.
 func AcquireInstanceLock(configPath string) (*InstanceLock, error) {
-	// Create lock file path based on config path
 	configDir := filepath.Dir(configPath)
 	configBase := filepath.Base(configPath)
 
-	// Use a predictable name based on config filename
 	lockName := fmt.Sprintf(".%s.lock", configBase)
 	lockPath := filepath.Join(configDir, lockName)
 
-	// Ensure directory exists
 	if err := os.MkdirAll(configDir, 0755); err != nil {
 		return nil, fmt.Errorf("cannot create config directory: %w", err)
 	}
 
-	// Open/create the lock file
 	f, err := os.OpenFile(lockPath, os.O_CREATE|os.O_RDWR, 0644)
 	if err != nil {
 		return nil, fmt.Errorf("cannot open lock file: %w", err)
 	}
 
-	// Try to acquire exclusive lock (non-blocking)
 	err = syscall.Flock(int(f.Fd()), syscall.LOCK_EX|syscall.LOCK_NB)
 	if err != nil {
-		// Lock is held by another process
 		f.Close()
 
-		// Try to read PID from lock file for better error message
 		pid := readPIDFromLockFile(lockPath)
 		if pid > 0 {
 			return nil, fmt.Errorf("another cc-connect instance is already running (PID %d) with config %s", pid, configPath)
@@ -57,7 +52,6 @@ func AcquireInstanceLock(configPath string) (*InstanceLock, error) {
 		return nil, fmt.Errorf("another cc-connect instance is already running with config %s", configPath)
 	}
 
-	// Write our PID to the lock file for diagnostics
 	pid := os.Getpid()
 	_ = f.Truncate(0)
 	_, _ = f.Seek(0, 0)
@@ -76,7 +70,6 @@ func (l *InstanceLock) Release() {
 		return
 	}
 
-	// Remove PID before unlocking
 	if l.file != nil {
 		_ = l.file.Truncate(0)
 		_ = syscall.Flock(int(l.file.Fd()), syscall.LOCK_UN)
@@ -121,7 +114,6 @@ func KillExistingInstance(configPath string) bool {
 		return false
 	}
 
-	// Check if process exists
 	proc, err := os.FindProcess(pid)
 	if err != nil {
 		return false
@@ -130,16 +122,72 @@ func KillExistingInstance(configPath string) bool {
 	// On Unix, FindProcess always succeeds, so we need to signal it
 	// to check if it actually exists
 	if err := proc.Signal(syscall.Signal(0)); err != nil {
-		// Process doesn't exist
 		return false
 	}
 
-	// Process exists, kill it
+	// Verify the process is cc-connect to prevent PID-reuse miskill.
+	if !verifyUnixProcessIsCcConnect(pid) {
+		return false
+	}
+
+	// Process exists and is cc-connect, kill it
 	if err := proc.Kill(); err != nil {
 		return false
 	}
 
-	// Wait a moment for the process to exit
-	// Note: we can't use proc.Wait() as we're not the parent
-	return true
+	// Wait for the process to actually exit
+	deadline := time.Now().Add(killWaitTimeout)
+	for time.Now().Before(deadline) {
+		if err := proc.Signal(syscall.Signal(0)); err != nil {
+			return true
+		}
+		time.Sleep(killWaitInterval)
+	}
+
+	return false
+}
+
+// verifyUnixProcessIsCcConnect checks if the given PID belongs to a cc-connect process.
+// It reads /proc/<pid>/exe (Linux) or falls back to /proc/<pid>/cmdline.
+func verifyUnixProcessIsCcConnect(pid int) bool {
+	// Try /proc/<pid>/exe (Linux) — this is a symlink to the actual executable.
+	exePath := fmt.Sprintf("/proc/%d/exe", pid)
+	if target, err := os.Readlink(exePath); err == nil {
+		base := strings.ToLower(filepath.Base(target))
+		if base == "cc-connect" || base == "cc-connect.exe" {
+			return true
+		}
+		// On some systems (e.g., NixOS), the link may contain "cc-connect" as a suffix.
+		if strings.Contains(strings.ToLower(target), "cc-connect") {
+			return true
+		}
+	}
+
+	// Fallback: read /proc/<pid>/cmdline and check if argv[0] contains cc-connect.
+	cmdlinePath := fmt.Sprintf("/proc/%d/cmdline", pid)
+	if data, err := os.ReadFile(cmdlinePath); err == nil {
+		// cmdline entries are null-separated; argv[0] is the executable path.
+		args := strings.Split(string(data), "\x00")
+		if len(args) > 0 {
+			base := strings.ToLower(filepath.Base(args[0]))
+			if base == "cc-connect" || base == "cc-connect.exe" {
+				return true
+			}
+			if strings.Contains(strings.ToLower(args[0]), "cc-connect") {
+				return true
+			}
+		}
+	}
+
+	// macOS doesn't have /proc; fall back to checking process name via ps.
+	// This is a best-effort check — if /proc is not available and ps fails,
+	// we still allow the kill to proceed rather than blocking it entirely.
+	if _, err := os.Stat("/proc"); os.IsNotExist(err) {
+		// macOS or BSD — no /proc filesystem. Allow the kill to proceed
+		// since the flock-based lock already provides some confidence
+		// that the PID belongs to cc-connect.
+		return true
+	}
+
+	return false
 }

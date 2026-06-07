@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
+	"unsafe"
 )
 
 const killWaitTimeout = 5 * time.Second
@@ -96,11 +98,22 @@ func KillExistingInstance(configPath string) bool {
 		return false
 	}
 
-	handle, err := syscall.OpenProcess(syscall.PROCESS_TERMINATE, false, uint32(pid))
+	// Open process with both TERMINATE and QUERY access so we can
+	// verify the image name on the same handle before terminating.
+	handle, err := syscall.OpenProcess(
+		syscall.PROCESS_TERMINATE|processQueryLimitedInformation,
+		false, uint32(pid),
+	)
 	if err != nil {
 		return false
 	}
 	defer syscall.CloseHandle(handle)
+
+	// Verify the process is cc-connect to prevent PID-reuse miskill.
+	exePath, err := queryFullProcessImageName(handle)
+	if err == nil && !isCcConnectBinary(exePath) {
+		return false
+	}
 
 	if err := syscall.TerminateProcess(handle, 1); err != nil {
 		return false
@@ -114,7 +127,30 @@ func KillExistingInstance(configPath string) bool {
 		}
 		time.Sleep(killWaitInterval)
 	}
-	return true
+	return false
+}
+
+func queryFullProcessImageName(handle syscall.Handle) (string, error) {
+	var size uint32 = syscall.MAX_PATH
+	buf := make([]uint16, size)
+	// QueryFullProcessImageNameW is available since Windows Vista.
+	modkernel32 := syscall.NewLazyDLL("kernel32.dll")
+	proc := modkernel32.NewProc("QueryFullProcessImageNameW")
+	rc, _, e := proc.Call(
+		uintptr(handle),
+		0, // name format: Win32 path
+		uintptr(unsafe.Pointer(&buf[0])),
+		uintptr(unsafe.Pointer(&size)),
+	)
+	if rc == 0 {
+		return "", e
+	}
+	return syscall.UTF16ToString(buf[:size]), nil
+}
+
+func isCcConnectBinary(path string) bool {
+	base := strings.ToLower(filepath.Base(path))
+	return base == "cc-connect.exe" || base == "cc-connect"
 }
 
 func readPIDFromLockFile(path string) int {

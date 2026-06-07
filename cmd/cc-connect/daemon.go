@@ -98,10 +98,11 @@ func daemonInstall(args []string) {
 	}
 
 	if err := daemon.SaveMeta(&daemon.Meta{
-		LogFile:     cfg.LogFile,
+		LogFile:     filepath.ToSlash(cfg.LogFile),
 		LogMaxSize:  cfg.LogMaxSize,
-		WorkDir:     cfg.WorkDir,
-		BinaryPath:  cfg.BinaryPath,
+		WorkDir:     filepath.ToSlash(cfg.WorkDir),
+		BinaryPath:  filepath.ToSlash(cfg.BinaryPath),
+		ConfigFile:  filepath.ToSlash(cfg.ConfigFile),
 		InstalledAt: daemon.NowISO(),
 	}); err != nil {
 		fmt.Fprintf(os.Stderr, "Warning: failed to save metadata: %v\n", err)
@@ -247,13 +248,36 @@ func daemonStart() {
 }
 
 func daemonStop() {
-	mgr := mustManager()
-	requireInstalled(mgr)
-	if err := mgr.Stop(); err != nil {
-		fmt.Fprintf(os.Stderr, "Stop failed: %v\n", err)
+	if err := stopWithFallback(daemon.NewManager, daemon.LoadMeta, KillExistingInstance, os.Stderr); err != nil {
+		fmt.Fprintln(os.Stderr, err.Error())
 		os.Exit(1)
 	}
 	fmt.Println("cc-connect daemon stopped.")
+}
+
+func stopWithFallback(newMgr func() (daemon.Manager, error), loadMeta func() (*daemon.Meta, error), kill func(string) bool, stderr io.Writer) error {
+	mgr, err := newMgr()
+	if err != nil {
+		return fmt.Errorf("error: %v", err)
+	}
+	st, _ := mgr.Status()
+	if st == nil || !st.Installed {
+		return fmt.Errorf("service is not installed. Run first:\n  cc-connect daemon install --work-dir /path/to/config-dir")
+	}
+	if err := mgr.Stop(); err != nil {
+		killed := false
+		if meta, merr := loadMeta(); merr == nil {
+			configPath := metaConfigPath(meta)
+			killed = kill(configPath)
+			if killed {
+				fmt.Fprintln(stderr, "Warning: scheduled task stop failed; process killed via instance lock PID")
+			}
+		}
+		if !killed {
+			return fmt.Errorf("failed to stop daemon: %v\n  Try: cc-connect daemon restart --force", err)
+		}
+	}
+	return nil
 }
 
 func daemonRestart(args []string) {
@@ -269,8 +293,10 @@ func daemonRestart(args []string) {
 
 	if force {
 		if meta, err := daemon.LoadMeta(); err == nil {
-			configPath := meta.WorkDir + "/config.toml"
-			KillExistingInstance(configPath)
+			configPath := metaConfigPath(meta)
+			if KillExistingInstance(configPath) {
+				time.Sleep(500 * time.Millisecond)
+			}
 		}
 	}
 
@@ -279,6 +305,13 @@ func daemonRestart(args []string) {
 		os.Exit(1)
 	}
 	fmt.Println("cc-connect daemon restarted.")
+}
+
+func metaConfigPath(meta *daemon.Meta) string {
+	if meta.ConfigFile != "" {
+		return meta.ConfigFile
+	}
+	return filepath.Join(meta.WorkDir, "config.toml")
 }
 
 func requireInstalled(mgr daemon.Manager) {
