@@ -1,0 +1,904 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>cc-connect Windows 踩坑 QA</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+  :root {
+    --bg: #0f1117;
+    --surface: #161922;
+    --card: #1c1f2e;
+    --card-hover: #222639;
+    --border: #2a2e3f;
+    --border-accent: #3d4260;
+    --text: #e2e4ed;
+    --text-secondary: #9499b3;
+    --text-muted: #6b7094;
+    --accent: #7c6aef;
+    --accent-glow: rgba(124, 106, 239, 0.15);
+    --green: #3dd68c;
+    --green-bg: rgba(61, 214, 140, 0.08);
+    --red: #f06575;
+    --red-bg: rgba(240, 101, 117, 0.08);
+    --yellow: #f5c26b;
+    --yellow-bg: rgba(245, 194, 107, 0.08);
+    --blue: #6bb3f5;
+    --blue-bg: rgba(107, 179, 245, 0.08);
+    --code-bg: #121420;
+    --tag-bg: #252940;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Inter', -apple-system, system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 48px 32px 80px;
+  }
+
+  /* ── Hero ── */
+  .hero {
+    text-align: center;
+    padding: 56px 0 48px;
+    position: relative;
+  }
+
+  .hero::before {
+    content: '';
+    position: absolute;
+    top: -40px; left: 50%; transform: translateX(-50%);
+    width: 420px; height: 420px;
+    background: radial-gradient(circle, var(--accent-glow) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  .hero-icon {
+    font-size: 40px;
+    margin-bottom: 16px;
+    display: block;
+    filter: drop-shadow(0 0 12px rgba(124, 106, 239, 0.4));
+  }
+
+  .hero h1 {
+    font-size: 36px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    background: linear-gradient(135deg, #e2e4ed 30%, var(--accent) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .hero .subtitle {
+    margin-top: 12px;
+    font-size: 14px;
+    color: var(--text-muted);
+  }
+
+  .version-badge {
+    display: inline-block;
+    padding: 3px 10px;
+    background: var(--tag-bg);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    font-size: 12px;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--accent);
+    margin: 0 2px;
+  }
+
+  /* ── TOC ── */
+  .toc {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px 28px;
+    margin-bottom: 40px;
+  }
+
+  .toc-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 14px;
+  }
+
+  .toc-list {
+    list-style: none;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .toc-list li a {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-secondary);
+    text-decoration: none;
+    font-size: 13.5px;
+    padding: 6px 10px;
+    border-radius: 6px;
+    transition: all 0.15s;
+  }
+
+  .toc-list li a:hover {
+    background: var(--card);
+    color: var(--text);
+  }
+
+  .toc-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px; height: 22px;
+    border-radius: 6px;
+    background: var(--tag-bg);
+    font-size: 11px;
+    font-weight: 600;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--accent);
+    flex-shrink: 0;
+  }
+
+  /* ── Q&A Card ── */
+  .qa-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 0;
+    margin-bottom: 20px;
+    overflow: hidden;
+    transition: border-color 0.2s;
+  }
+
+  .qa-card:hover {
+    border-color: var(--border-accent);
+  }
+
+  .qa-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.15s;
+  }
+
+  .qa-header:hover {
+    background: var(--card-hover);
+  }
+
+  .qa-number {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 700;
+    font-family: 'JetBrains Mono', monospace;
+    flex-shrink: 0;
+  }
+
+  .qa-number.bug { background: var(--red-bg); color: var(--red); }
+  .qa-number.tip { background: var(--green-bg); color: var(--green); }
+  .qa-number.warn { background: var(--yellow-bg); color: var(--yellow); }
+  .qa-number.info { background: var(--blue-bg); color: var(--blue); }
+
+  .qa-title {
+    font-size: 15.5px;
+    font-weight: 600;
+    color: var(--text);
+    flex: 1;
+  }
+
+  .qa-tag {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 4px;
+    letter-spacing: 0.5px;
+    flex-shrink: 0;
+  }
+
+  .qa-tag.bug { background: var(--red-bg); color: var(--red); }
+  .qa-tag.tip { background: var(--green-bg); color: var(--green); }
+  .qa-tag.warn { background: var(--yellow-bg); color: var(--yellow); }
+  .qa-tag.fixed, .qa-tag.tip { background: var(--green-bg); color: var(--green); }
+
+  .qa-chevron {
+    color: var(--text-muted);
+    font-size: 12px;
+    transition: transform 0.25s;
+    flex-shrink: 0;
+  }
+
+  .qa-card.open .qa-chevron { transform: rotate(90deg); }
+
+  .qa-body {
+    display: none;
+    padding: 24px;
+  }
+
+  .qa-card.open .qa-body { display: block; }
+
+  .qa-body h3 {
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .qa-body h3.sym::before { content: ''; width: 8px; height: 8px; border-radius: 2px; background: var(--red); flex-shrink: 0; }
+  .qa-body h3.cause::before { content: ''; width: 8px; height: 8px; border-radius: 2px; background: var(--yellow); flex-shrink: 0; }
+  .qa-body h3.fix::before { content: ''; width: 8px; height: 8px; border-radius: 2px; background: var(--green); flex-shrink: 0; }
+  .qa-body h3.note::before { content: ''; width: 8px; height: 8px; border-radius: 2px; background: var(--blue); flex-shrink: 0; }
+
+  .qa-body p {
+    font-size: 14.5px;
+    color: var(--text-secondary);
+    margin-bottom: 16px;
+  }
+
+  .qa-body ul {
+    margin: 0 0 16px 20px;
+    font-size: 14.5px;
+    color: var(--text-secondary);
+  }
+
+  .qa-body ul li { margin-bottom: 6px; }
+
+  .qa-body ul li::marker { color: var(--accent); }
+
+  .qa-body ul li .ok { color: var(--green); font-weight: 500; }
+  .qa-body ul li .no { color: var(--red); font-weight: 500; }
+
+  .qa-section + .qa-section { margin-top: 24px; }
+
+  /* ── Code ── */
+  pre {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 18px;
+    overflow-x: auto;
+    margin: 10px 0 16px;
+    position: relative;
+  }
+
+  code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    line-height: 1.65;
+    color: var(--text);
+  }
+
+  pre code { display: block; }
+
+  :not(pre) > code {
+    background: var(--tag-bg);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 12.5px;
+    color: var(--accent);
+  }
+
+  .cmd-prefix { color: var(--green); user-select: none; }
+  .cmd-flag { color: var(--accent); }
+  .cmd-path { color: var(--yellow); }
+  .cmd-comment { color: var(--text-muted); font-style: italic; }
+  .cmd-error { color: var(--red); }
+
+  /* ── Note callout ── */
+  .callout {
+    padding: 12px 16px;
+    border-radius: 8px;
+    font-size: 13.5px;
+    margin: 12px 0 16px;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .callout.info { background: var(--blue-bg); border: 1px solid rgba(107,179,245,0.15); color: var(--blue); }
+  .callout.warn { background: var(--yellow-bg); border: 1px solid rgba(245,194,107,0.15); color: var(--yellow); }
+  .callout.ok { background: var(--green-bg); border: 1px solid rgba(61,214,140,0.15); color: var(--green); }
+
+  .callout-icon { font-size: 15px; flex-shrink: 0; margin-top: 1px; }
+  .callout-text { color: var(--text-secondary); }
+
+  /* ── Table ── */
+  .ref-section {
+    margin-top: 40px;
+  }
+
+  .ref-section h2 {
+    font-size: 22px;
+    font-weight: 700;
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .ref-section h2 .icon { font-size: 22px; }
+
+  .ref-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 20px;
+  }
+
+  .ref-card h3 {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .ref-card h3 .dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--accent);
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13.5px;
+  }
+
+  table th {
+    text-align: left;
+    padding: 10px 14px;
+    font-weight: 600;
+    color: var(--text-muted);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  table td {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text-secondary);
+  }
+
+  table tr:last-child td { border-bottom: none; }
+
+  table td:first-child { font-weight: 500; color: var(--text); white-space: nowrap; }
+
+  table td code {
+    background: var(--code-bg);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 12px;
+    color: var(--accent);
+  }
+
+  /* ── Footer ── */
+  .footer {
+    text-align: center;
+    padding: 40px 0;
+    font-size: 12px;
+    color: var(--text-muted);
+    border-top: 1px solid var(--border);
+    margin-top: 48px;
+  }
+
+  .footer a { color: var(--accent); text-decoration: none; }
+
+  /* ── Scrollbar ── */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--border-accent); }
+
+  /* ── Expand All / Collapse All ── */
+  .toolbar {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+
+  .toolbar button {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 7px 16px;
+    font-size: 13px;
+    font-family: 'Inter', sans-serif;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .toolbar button:hover {
+    background: var(--card);
+    color: var(--text);
+    border-color: var(--border-accent);
+  }
+</style>
+</head>
+<body>
+
+<div class="page">
+
+  <!-- ── Hero ── -->
+  <div class="hero">
+    <span class="hero-icon">&#x1F527;</span>
+    <h1>cc-connect Windows 踩坑 QA</h1>
+    <p class="subtitle">
+      <span class="version-badge">v1.3.2</span>
+      <span style="color:var(--text-muted);margin:0 6px">&#x27A1;</span>
+      <span class="version-badge">v1.3.3-beta.4</span>
+      &nbsp;&middot;&nbsp; Windows 11 &nbsp;&middot;&nbsp; MSYS2 / bash
+    </p>
+  </div>
+
+  <!-- ── TOC ── -->
+  <div class="toc">
+    <div class="toc-title">目录</div>
+    <ul class="toc-list">
+      <li><a href="#q1" onclick="toggle('q1',true)"><span class="toc-num">1</span>daemon install 找不到 config</a></li>
+      <li><a href="#q2" onclick="toggle('q2',true)"><span class="toc-num">2</span>Junction 软链接迁移</a></li>
+      <li><a href="#q3" onclick="toggle('q3',true)"><span class="toc-num">3</span>wps-xiezuo 平台 unknown</a></li>
+      <li><a href="#q4" onclick="toggle('q4',true)"><span class="toc-num">4</span>环境变量 unset</a></li>
+      <li><a href="#q5" onclick="toggle('q5',true)"><span class="toc-num">5</span>Windows daemon 到底能不能用</a></li>
+      <li><a href="#q6" onclick="toggle('q6',true)"><span class="toc-num">6</span>MSYS2 中 mklink 转义</a></li>
+      <li><a href="#q7" onclick="toggle('q7',true)"><span class="toc-num">7</span>角色级工具权限控制（自建 fork）</a></li>
+      <li><a href="#changelog" onclick="toggle('changelog',true)"><span class="toc-num" style="background:var(--green-bg);color:var(--green);">&#x1F4DD;</span>变更清单</a></li>
+    </ul>
+  </div>
+
+  <!-- ── Toolbar ── -->
+  <div class="toolbar">
+    <button onclick="openAll()">&#9661; 展开全部</button>
+    <button onclick="closeAll()">&#9651; 收起全部</button>
+  </div>
+
+  <!-- ══════════ Q1 ══════════ -->
+  <div class="qa-card open" id="q1">
+    <div class="qa-header" onclick="toggle('q1')">
+      <span class="qa-number bug">1</span>
+      <span class="qa-title">daemon install 找不到 config.toml</span>
+      <span class="qa-tag bug">BUG</span> <span class="qa-tag tip">FIXED</span>
+      <span class="qa-chevron">&#9654;</span>
+    </div>
+    <div class="qa-body">
+      <div class="qa-section">
+        <h3 class="sym">现象</h3>
+<pre><code><span class="cmd-error">Warning: config.toml not found in $HOME
+  Use --work-dir to specify the config directory or --config to point to the config file</span></code></pre>
+        <p>明明 <code>~/.cc-connect/config.toml</code> 存在，<code>cc-connect config path</code> 也能正确解析到它。</p>
+      </div>
+
+      <div class="qa-section">
+        <h3 class="cause">根因</h3>
+        <p><code>daemon install</code> 子命令的配置查找逻辑与主程序不同：</p>
+        <ul>
+          <li>主程序查找顺序：<code>./config.toml</code> &rarr; <code>~/.cc-connect/config.toml</code> <span class="ok">&#10003;</span></li>
+          <li><code>daemon install</code> 只查找：<code>$HOME/config.toml</code>（直接在 HOME 下，不进子目录）<span class="no">&#10007;</span></li>
+        </ul>
+        <p>这是一个 bug &mdash;&mdash; daemon 子命令没有复用主程序的配置解析逻辑。</p>
+      </div>
+
+      <div class="qa-section">
+        <h3 class="fix">解决</h3>
+<pre><code><span class="cmd-comment"># 临时方案 — 显式指定 --config</span>
+<span class="cmd-prefix">$ </span>cc-connect daemon install <span class="cmd-flag">--config</span> <span class="cmd-path">"C:\\Users\\KC\\.cc-connect\\config.toml"</span></code></pre>
+        <div class="callout info">
+          <span class="callout-icon">&#x2139;</span>
+          <span class="callout-text"><code>--work-dir</code> 也可以，但需要指向 <code>.cc-connect</code> 目录，而非 HOME 目录。</span>
+        </div>
+      </div>
+
+      <div class="qa-section">
+        <h3 class="fix">已在 fork 中修复</h3>
+        <p>分支 <code>feat/role-based-tool-permissions</code>，提交 <code>a4558147</code>：</p>
+        <ul>
+          <li><code>cmd/cc-connect/daemon.go</code>：增加与主程序一致的三级 fallback 配置解析（显式 <code>--config</code> &rarr; <code>WorkDir/config.toml</code> &rarr; <code>~/.cc-connect/config.toml</code>）</li>
+          <li><code>daemon/manager.go</code>：Config 新增 <code>ConfigFile</code> 字段</li>
+          <li>三平台 launcher 均传递 <code>--config</code>：Windows PowerShell / systemd ExecStart / launchd ProgramArguments</li>
+        </ul>
+        <div class="callout ok">
+          <span class="callout-icon">&#10003;</span>
+          <span class="callout-text">修复后 <code>daemon install</code> 无需 <code>--config</code> 即可自动定位 <code>~/.cc-connect/config.toml</code>。</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════ Q2 ══════════ -->
+  <div class="qa-card" id="q2">
+    <div class="qa-header" onclick="toggle('q2')">
+      <span class="qa-number tip">2</span>
+      <span class="qa-title">配置文件迁移到其他盘后，用 Junction 链接回来行不行？</span>
+      <span class="qa-tag tip">TIP</span>
+      <span class="qa-chevron">&#9654;</span>
+    </div>
+    <div class="qa-body">
+      <div class="callout ok">
+        <span class="callout-icon">&#10003;</span>
+        <span class="callout-text">结论：可行，Go 二进制和 Node.js 都能正常穿透 Junction 读取文件。</span>
+      </div>
+
+      <div class="qa-section">
+        <h3 class="fix">操作步骤</h3>
+<pre><code><span class="cmd-comment"># 1. 移动实际数据</span>
+<span class="cmd-prefix">$ </span>mv ~/.cc-connect/config.toml /other-drive/path/.cc-connect/config.toml
+
+<span class="cmd-comment"># 2. 删除空的源目录</span>
+<span class="cmd-prefix">$ </span>rmdir ~/.cc-connect
+
+<span class="cmd-comment"># 3. 创建 Junction（无需管理员权限）</span>
+<span class="cmd-prefix">$ </span>cmd //c mklink //J <span class="cmd-path">"C:\\Users\\KC\\.cc-connect"</span> <span class="cmd-path">"D:\\msys64\\home\\KC\\.cc-connect"</span></code></pre>
+      </div>
+
+      <div class="qa-section">
+        <h3 class="note">注意事项</h3>
+        <ul>
+          <li>Windows Junction（<code>mklink /J</code>）<strong>不需要管理员权限</strong>，符号链接（<code>mklink /D</code>）需要</li>
+          <li><code>cc-connect config path</code> 正确返回 <code>$HOME\.cc-connect\config.toml</code></li>
+          <li>Junction 是文件系统级别的重解析点，所有程序透明访问，无兼容性问题</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════ Q3 ══════════ -->
+  <div class="qa-card" id="q3">
+    <div class="qa-header" onclick="toggle('q3')">
+      <span class="qa-number warn">3</span>
+      <span class="qa-title">平台 type "wps-xiezuo" 报 "unknown platform"</span>
+      <span class="qa-tag warn">VERSION</span>
+      <span class="qa-chevron">&#9654;</span>
+    </div>
+    <div class="qa-body">
+      <div class="qa-section">
+        <h3 class="sym">现象</h3>
+<pre><code><span class="cmd-error">failed to create platform type=wps-xiezuo
+  error="unknown platform \"wps-xiezuo\",
+  available: [dingtalk discord lark qq qqbot telegram wecom weixin feishu line weibo slack]"</span></code></pre>
+      </div>
+
+      <div class="qa-section">
+        <h3 class="cause">根因</h3>
+        <p>v1.3.2 稳定版尚未包含 <code>wps-xiezuo</code> 平台支持。该平台在 GitHub 主分支 / beta 版中已支持。</p>
+      </div>
+
+      <div class="qa-section">
+        <h3 class="fix">解决</h3>
+<pre><code><span class="cmd-prefix">$ </span>npm install -g cc-connect@beta
+<span class="cmd-comment"># 当前 beta 版为 v1.3.3-beta.4</span></code></pre>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════ Q4 ══════════ -->
+  <div class="qa-card" id="q4">
+    <div class="qa-header" onclick="toggle('q4')">
+      <span class="qa-number warn">4</span>
+      <span class="qa-title">环境变量 ${WPS_XIEZUO_APP_SECRET} 报 "references unset variable"</span>
+      <span class="qa-tag warn">ENV</span>
+      <span class="qa-chevron">&#9654;</span>
+    </div>
+    <div class="qa-body">
+      <div class="qa-section">
+        <h3 class="sym">现象</h3>
+<pre><code><span class="cmd-error">WARN config: env var placeholder references unset variable
+  var=WPS_XIEZUO_APP_SECRET placeholder=${WPS_XIEZUO_APP_SECRET}</span></code></pre>
+        <p>明明已在 <code>~/.bashrc</code> 中 <code>export</code> 了该变量。</p>
+      </div>
+
+      <div class="qa-section">
+        <h3 class="cause">根因</h3>
+        <p>MSYS2/bash 环境的特殊性：</p>
+        <ul>
+          <li><strong>交互式登录 shell</strong> 才会 source <code>.bashrc</code></li>
+          <li>Claude Code 的 Bash 工具每次在<strong>独立子 shell</strong> 中执行，不一定加载 <code>.bashrc</code></li>
+          <li>Go 二进制（cc-connect.exe）继承的是<strong>调用进程的环境变量</strong>，不是 bash 的</li>
+        </ul>
+      </div>
+
+      <div class="qa-section">
+        <h3 class="fix">解决</h3>
+        <p><code>daemon install --config</code> 后，cc-connect 会自动在 <code>~/.cc-connect</code> 下生成一个 PowerShell launcher 脚本，该脚本正确加载环境变量。Task Scheduler 通过该 launcher 启动，环境变量可正常传递。</p>
+        <p>手动启动时需确保先 source：</p>
+<pre><code><span class="cmd-prefix">$ </span>source ~/.bashrc && cc-connect</code></pre>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════ Q5 ══════════ -->
+  <div class="qa-card" id="q5">
+    <div class="qa-header" onclick="toggle('q5')">
+      <span class="qa-number bug">5</span>
+      <span class="qa-title">Windows 上 daemon install 到底能不能用？</span>
+      <span class="qa-tag bug">BUG</span>
+      <span class="qa-chevron">&#9654;</span>
+    </div>
+    <div class="qa-body">
+      <div class="qa-section">
+        <h3 class="cause">v1.3.2 的误导</h3>
+        <p>v1.3.2 报 <code>daemon management is not supported on windows</code>，但这其实是<strong>配置找不到导致的连锁错误</strong>，并非 Windows 不支持 daemon。</p>
+      </div>
+
+      <div class="qa-section">
+        <h3 class="fix">v1.3.3-beta.4 正确行为</h3>
+        <p>配合 <code>--config</code> 参数可以正常安装，使用 Windows <strong>Task Scheduler</strong>（schtasks）实现开机自启：</p>
+<pre><code>cc-connect daemon installed and started.
+
+  Platform:  schtasks
+  Binary:    &lt;path-to-cc-connect.exe&gt;
+  WorkDir:   $HOME\.cc-connect
+  Log:       $HOME\.cc-connect\logs\cc-connect.log
+  LogMax:    10 MB</code></pre>
+      </div>
+
+      <div class="qa-section">
+        <h3 class="note">管理命令</h3>
+        <ul>
+          <li><code>cc-connect daemon status</code> &mdash; 查看状态</li>
+          <li><code>cc-connect daemon logs -f</code> &mdash; 实时日志</li>
+          <li><code>cc-connect daemon stop</code> &mdash; 停止</li>
+          <li><code>cc-connect daemon restart</code> &mdash; 重启</li>
+          <li><code>cc-connect daemon uninstall</code> &mdash; 卸载服务</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════ Q6 ══════════ -->
+  <div class="qa-card" id="q6">
+    <div class="qa-header" onclick="toggle('q6')">
+      <span class="qa-number tip">6</span>
+      <span class="qa-title">MSYS2 bash 中执行 mklink 的正确姿势</span>
+      <span class="qa-tag tip">TIP</span>
+      <span class="qa-chevron">&#9654;</span>
+    </div>
+    <div class="qa-body">
+      <div class="qa-section">
+        <h3 class="cause">问题</h3>
+        <p>MSYS2 bash 使用 Unix 风格路径，<code>mklink</code> 是 Windows 原生命令，路径需要 Windows 风格（反斜杠）。</p>
+      </div>
+
+      <div class="qa-section">
+        <h3 class="fix">正确写法</h3>
+<pre><code><span class="cmd-comment"># 正确：用 //c 调用 cmd，路径用双反斜杠转义</span>
+<span class="cmd-prefix">$ </span>cmd //c mklink //J <span class="cmd-path">"C:\\Users\\KC\\.cc-connect"</span> <span class="cmd-path">"D:\\msys64\\home\\KC\\.cc-connect"</span>
+
+<span class="cmd-comment"># 错误：单反斜杠会被 bash 转义吞掉</span>
+<span class="cmd-prefix">$ </span>cmd //c mklink //J <span class="cmd-error">"$HOME\.cc-connect"</span> <span class="cmd-error">"D:\msys64\home\KC\.cc-connect"</span></code></pre>
+      </div>
+
+      <div class="qa-section">
+        <h3 class="note">备忘</h3>
+        <ul>
+          <li><code>cmd //c</code> &mdash; MSYS2 调用 Windows cmd 的标准写法（双斜杠转义）</li>
+          <li><code>mklink //J</code> &mdash; Junction 类型（<code>/J</code> 在 MSYS2 中写成 <code>//J</code>）</li>
+          <li>路径中的 <code>\</code> &mdash; 在 bash 双引号中需要 <code>\\</code> 转义</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════ Q7 ══════════ -->
+  <div class="qa-card" id="q7">
+    <div class="qa-header" onclick="toggle('q7')">
+      <span class="qa-number tip">7</span>
+      <span class="qa-title">角色级工具权限控制（自建 fork）</span>
+      <span class="qa-tag tip">FORK</span>
+      <span class="qa-chevron">&#9654;</span>
+    </div>
+    <div class="qa-body">
+      <div class="qa-section">
+        <h3 class="cause">背景</h3>
+        <p>cc-connect 默认的 <code>mode</code>/<code>allowed_tools</code> 是 agent 级别配置，全角色共享。源码分析发现：</p>
+        <ul>
+          <li>权限审批（<code>handlePendingPermission</code>）不校验回复者身份，任何用户回复"允许"都能批准 <span class="no">&#10007;</span></li>
+          <li><code>admin_from</code> 只控制特权斜杠命令（<code>/shell</code> 等），与工具权限审批无关 <span class="no">&#10007;</span></li>
+        </ul>
+      </div>
+      <div class="qa-section">
+        <h3 class="fix">解决方案</h3>
+        <p>三个核心改动：</p>
+        <ul>
+          <li><strong>角色级 <code>mode</code> 和 <code>allowed_tools</code></strong> &mdash; admin 用 <code>yolo</code>，readonly 用 <code>dontAsk</code> + 只读工具白名单</li>
+          <li><strong>权限审批身份校验</strong> &mdash; 只有发起请求的用户或 admin 才能批准/拒绝</li>
+          <li><strong>Bridge 卡片身份修复</strong> &mdash; 通过参数传递真实 userID，默认身份为中性的 <code>bridge-user</code></li>
+        </ul>
+<pre><code><span class="cmd-comment"># 角色配置示例</span>
+[projects.users.roles.admin]
+user_ids = ["your_admin_user_id"]
+mode = "yolo"
+disabled_commands = []
+
+[projects.users.roles.readonly]
+user_ids = ["*"]
+mode = "dontAsk"
+allowed_tools = ["Read", "Grep", "Glob", "LS", "LSP"]
+disabled_commands = ["mode", "dir", "cd", "memory", "provider", "cron", "shell", "bind"]</code></pre>
+      </div>
+      <div class="qa-section">
+        <h3 class="note">修改文件</h3>
+        <table>
+          <thead><tr><th>文件</th><th>改动</th></tr></thead>
+          <tbody>
+            <tr><td><code>config/config.go</code></td><td>RoleConfig 新增 Mode、AllowedTools 字段</td></tr>
+            <tr><td><code>core/user_roles.go</code></td><td>RoleInput/UserRole 新增 Mode、AllowedTools</td></tr>
+            <tr><td><code>core/engine.go</code></td><td>pendingPermission 记录 RequestingUserID、身份校验、角色级 mode 和 allowed_tools 注入</td></tr>
+            <tr><td><code>core/bridge.go</code></td><td>bridgeCardAction 新增 UserID/UserName、传递真实身份</td></tr>
+            <tr><td><code>config.example.toml</code></td><td>新增 mode/allowed_tools 配置示例</td></tr>
+          </tbody>
+        </table>
+        <div class="callout info">
+          <span class="callout-icon">&#x2139;</span>
+          <span class="callout-text">Fork 仓库：<code></code>，分支 <code>feat/role-based-tool-permissions</code></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  
+  <!-- ══════════ Changelog ══════════ -->
+  <div class="qa-card" id="changelog">
+    <div class="qa-header" onclick="toggle('changelog')">
+      <span class="qa-number" style="background:var(--green-bg);color:var(--green);">&#x1F4DD;</span>
+      <span class="qa-title">Fork 变更清单（feat/role-based-tool-permissions）</span>
+      <span class="qa-tag fixed">CHANGELOG</span>
+      <span class="qa-chevron">&#9654;</span>
+    </div>
+    <div class="qa-body">
+      <p>基于上游 <code>main</code> 分支，共 2 个提交 + 工作区通用性改进</p>
+
+      <div class="qa-section">
+        <h3 class="cause">提交 1：<code>42f343a</code> 角色级权限特性</h3>
+        <table>
+          <thead><tr><th>#</th><th>问题</th><th>修复</th><th>影响文件</th><th>通用性</th></tr></thead>
+          <tbody>
+            <tr><td>F-1</td><td>权限审批无身份校验：任何用户可批准工具请求</td><td><code>handlePendingPermission</code> 加 RequestingUserID 校验</td><td><code>core/engine.go</code></td><td>多用户必需</td></tr>
+            <tr><td>F-2</td><td><code>mode</code>/<code>allowed_tools</code> 为 agent 级配置，角色共享</td><td>角色级 <code>mode</code> + <code>allowed_tools</code></td><td><code>config/config.go</code>, <code>core/user_roles.go</code>, <code>core/engine.go</code></td><td>yolo/dontAsk/default 三模式全覆盖</td></tr>
+            <tr><td>F-3</td><td>Bridge 硬编码 <code>web-admin</code> 身份</td><td><code>dispatchAsMessage</code> 参数传递真实 userID</td><td><code>core/bridge.go</code></td><td>消除身份/权限语义脱钩</td></tr>
+            <tr><td>F-4</td><td>配置无角色权限示例</td><td><code>config.example.toml</code> 新增三角色示例</td><td><code>config.example.toml</code></td><td>工具名可替换</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="qa-section">
+        <h3 class="cause">提交 2：<code>a455814</code> daemon install 配置路径修复</h3>
+        <table>
+          <thead><tr><th>#</th><th>问题</th><th>修复</th><th>影响文件</th><th>通用性</th></tr></thead>
+          <tbody>
+            <tr><td>B-1</td><td><code>daemon install</code> 只查 <code>$HOME/config.toml</code></td><td>三级 fallback 与 <code>resolveConfigPath</code> 一致</td><td><code>cmd/cc-connect/daemon.go</code></td><td>所有平台</td></tr>
+            <tr><td>B-2</td><td><code>--config</code> 消耗路径只取 WorkDir</td><td>Config 新增 ConfigFile 字段</td><td><code>daemon/manager.go</code></td><td>launcher 需完整路径</td></tr>
+            <tr><td>B-3</td><td>三平台 launcher 不传 <code>--config</code></td><td>PowerShell/systemd/launchd 启动命令加 <code>--config</code></td><td><code>daemon/windows.go</code>, <code>daemon/systemd.go</code>, <code>daemon/launchd.go</code></td><td>守护进程 CWD 不确定</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="qa-section">
+        <h3 class="fix">工作区改进（未提交）</h3>
+        <table>
+          <thead><tr><th>#</th><th>原问题</th><th>改进</th><th>影响文件</th><th>通用性</th></tr></thead>
+          <tbody>
+            <tr><td>G-1</td><td><code>lastCardAction</code> 共享状态传递身份，并发竞态</td><td>参数传递替代共享可变状态</td><td><code>core/bridge.go</code></td><td>消除并发 bug</td></tr>
+            <tr><td>G-2</td><td>默认身份 <code>web-admin</code> 暗示管理员权限</td><td>默认改为 <code>bridge-user</code></td><td><code>core/bridge.go</code></td><td>最小权限原则</td></tr>
+            <tr><td>G-3</td><td><code>AllowedTools</code> 注释说"only with dontAsk"误导</td><td>注释精确描述三模式交互</td><td><code>config/config.go</code>, <code>config.example.toml</code></td><td>注释须与代码一致</td></tr>
+            <tr><td>G-4</td><td>示例含个人 user_ids</td><td>替换为通用占位符</td><td>QA 文档 Q7</td><td>开源项目示例通用化</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="qa-section">
+        <h3 class="note">mode &times; allowed_tools 交互速查</h3>
+        <table>
+          <thead><tr><th>mode</th><th>allowed_tools 为空</th><th>allowed_tools 有值</th><th>不在白名单</th></tr></thead>
+          <tbody>
+            <tr><td><code>yolo</code></td><td>全部自动通过</td><td>冗余，效果等同为空</td><td>无影响，仍自动通过</td></tr>
+            <tr><td><code>default</code></td><td>全部弹窗确认</td><td>白名单内自动通过</td><td>弹窗确认</td></tr>
+            <tr><td><code>dontAsk</code></td><td>全部自动拒绝</td><td>白名单内自动通过</td><td>自动拒绝（不弹窗）</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+<!-- ══════════ Quick Reference ══════════ -->
+  <div class="ref-section">
+    <h2><span class="icon">&#x1F4CB;</span> 快速参考</h2>
+
+    <div class="ref-card">
+      <h3><span class="dot"></span>安装与启动</h3>
+<pre><code><span class="cmd-comment"># 安装最新 beta 版（含 wps-xiezuo 支持）</span>
+<span class="cmd-prefix">$ </span>npm install -g cc-connect@beta
+
+<span class="cmd-comment"># 直接前台运行（测试用）</span>
+<span class="cmd-prefix">$ </span>source ~/.bashrc && cc-connect
+
+<span class="cmd-comment"># 安装为后台服务（开机自启）</span>
+<span class="cmd-prefix">$ </span>cc-connect daemon install <span class="cmd-flag">--config</span> <span class="cmd-path">"C:\\Users\\KC\\.cc-connect\\config.toml"</span>
+
+<span class="cmd-comment"># 管理命令</span>
+<span class="cmd-prefix">$ </span>cc-connect daemon status          <span class="cmd-comment"># 查看状态</span>
+<span class="cmd-prefix">$ </span>cc-connect daemon logs -f        <span class="cmd-comment"># 实时日志</span>
+<span class="cmd-prefix">$ </span>cc-connect daemon stop           <span class="cmd-comment"># 停止</span>
+<span class="cmd-prefix">$ </span>cc-connect daemon restart        <span class="cmd-comment"># 重启</span>
+<span class="cmd-prefix">$ </span>cc-connect daemon uninstall      <span class="cmd-comment"># 卸载服务</span></code></pre>
+    </div>
+
+    <div class="ref-card">
+      <h3><span class="dot"></span>配置文件路径速查</h3>
+      <table>
+        <thead>
+          <tr><th>场景</th><th>路径</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>cc-connect 默认查找</td><td><code>~/.cc-connect/config.toml</code></td></tr>
+          <tr><td>daemon install 查找（原 bug）</td><td><code>$HOME/config.toml</code>（不进子目录）</td></tr>
+          <tr><td>daemon install 查找（fork 已修复）</td><td>WorkDir/config.toml → <code>~/.cc-connect/config.toml</code> 三级 fallback</td></tr>
+          <tr><td>绕过方案（原版仍需）</td><td><code>--config "C:\\Users\\KC\\.cc-connect\\config.toml"</code></td></tr>
+          <tr><td>日志目录</td><td><code>~/.cc-connect/logs/</code></td></tr>
+          <tr><td>运行时锁文件</td><td><code>~/.cc-connect/.config.toml.lock</code></td></tr>
+          <tr><td>API socket</td><td><code>~/.cc-connect/run/api.sock</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── Footer ── -->
+  <div class="footer">
+    Generated on 2026-06-05 &nbsp;&middot;&nbsp; cc-connect v1.3.3-beta.4 &nbsp;&middot;&nbsp; Windows 11 + MSYS2
+  </div>
+
+</div>
+
+<script>
+function toggle(id, forceOpen) {
+  const card = document.getElementById(id);
+  if (!card) return;
+  if (forceOpen === true) {
+    card.classList.add('open');
+  } else if (forceOpen === false) {
+    card.classList.remove('open');
+  } else {
+    card.classList.toggle('open');
+  }
+}
+
+function openAll() {
+  document.querySelectorAll('.qa-card').forEach(c => c.classList.add('open'));
+}
+
+function closeAll() {
+  document.querySelectorAll('.qa-card').forEach(c => c.classList.remove('open'));
+}
+</script>
+
+</body>
+</html>
