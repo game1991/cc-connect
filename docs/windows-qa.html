@@ -666,8 +666,9 @@
         <ul>
           <li><code>cc-connect daemon status</code> &mdash; 查看状态</li>
           <li><code>cc-connect daemon logs -f</code> &mdash; 实时日志</li>
-          <li><code>cc-connect daemon stop</code> &mdash; 停止</li>
+          <li><code>cc-connect daemon stop</code> &mdash; 停止（失败时自动回退杀进程）</li>
           <li><code>cc-connect daemon restart</code> &mdash; 重启</li>
+          <li><code>cc-connect daemon restart --force</code> &mdash; 强制重启（杀旧进程 → 等 500ms → 重启）</li>
           <li><code>cc-connect daemon uninstall</code> &mdash; 卸载服务</li>
         </ul>
       </div>
@@ -816,6 +817,27 @@ disabled_commands = ["mode", "dir", "cd", "memory", "provider", "cron", "shell",
       </div>
 
       <div class="qa-section">
+        <h3 class="fix">Daemon 安全加固（工作区改进，通用性提升）</h3>
+        <table>
+          <thead><tr><th>#</th><th>问题</th><th>修复</th><th>影响文件</th><th>通用性</th></tr></thead>
+          <tbody>
+            <tr><td>D-1</td><td><code>daemon stop</code> 回退全失败仍打印 "stopped"</td><td><code>stopWithFallback</code> 返回 error，失败时 <code>os.Exit(1)</code> + 提示 <code>--force</code></td><td><code>cmd/cc-connect/daemon.go</code></td><td>防止用户以为已停而做破坏性操作</td></tr>
+            <tr><td>D-2</td><td>Unix <code>KillExistingInstance</code> 不等待进程退出</td><td>5s 轮询等待，超时返回 false</td><td><code>cmd/cc-connect/instance_lock.go</code></td><td>与 Windows 对齐，防止端口冲突</td></tr>
+            <tr><td>D-3</td><td>PID 重用导致可能误杀无关进程</td><td>Windows: <code>QueryFullProcessImageNameW</code>; Unix: <code>/proc/&lt;pid&gt;/exe</code> 验证</td><td><code>instance_lock_windows.go</code>, <code>instance_lock.go</code></td><td>OS 级安全防护</td></tr>
+            <tr><td>D-4</td><td><code>daemon.json</code> 权限 0644 过宽</td><td>改为 0600</td><td><code>daemon/manager.go</code></td><td>含 ConfigFile 路径信息</td></tr>
+            <tr><td>D-5</td><td>Windows <code>daemon.json</code> 保存反斜杠路径</td><td><code>filepath.ToSlash</code></td><td><code>cmd/cc-connect/daemon.go</code></td><td>跨平台可移植性</td></tr>
+            <tr><td>D-6</td><td><code>daemon restart --force</code> 路径硬编码 + 竞态窗口</td><td><code>metaConfigPath()</code> 解析路径；Kill 后 sleep 500ms</td><td><code>cmd/cc-connect/daemon.go</code></td><td>修复 <code>--config</code> 非标准名称时杀错进程</td></tr>
+            <tr><td>D-7</td><td><code>KillExistingInstance</code> 超时后仍返回 true</td><td>超时返回 false</td><td><code>instance_lock_windows.go</code>, <code>instance_lock.go</code></td><td>统一行为</td></tr>
+            <tr><td>D-8</td><td><code>handlePendingPermission</code> 硬编码英文字符串</td><td><code>MsgPermIdentityDenied</code> + 五语翻译</td><td><code>core/engine.go</code>, <code>core/i18n.go</code></td><td>i18n 规范</td></tr>
+            <tr><td>D-9</td><td><code>normalizeWorkspacePath</code> Windows 返回反斜杠路径</td><td><code>filepath.ToSlash</code></td><td><code>core/workspace_state.go</code></td><td>workspace key 跨平台一致</td></tr>
+            <tr><td>D-10</td><td><code>replyFooterHomeRelativePath</code> Windows 前缀比较失败</td><td>统一正斜杠比较</td><td><code>core/engine.go</code></td><td>修复 ~ 缩写 Windows 不生效</td></tr>
+            <tr><td>D-11</td><td><code>doctor_runas_test.go</code> 缺少 <code>!windows</code> build tag</td><td>补上</td><td><code>cmd/cc-connect/doctor_runas_test.go</code></td><td>修复 Windows 编译失败</td></tr>
+            <tr><td>D-12</td><td><code>daemonStop</code> 不可测试</td><td>提取 <code>stopWithFallback</code>（依赖注入 + 返回 error）</td><td><code>cmd/cc-connect/daemon.go</code></td><td>6 个单元测试覆盖所有分支</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="qa-section">
         <h3 class="note">mode &times; allowed_tools 交互速查</h3>
         <table>
           <thead><tr><th>mode</th><th>allowed_tools 为空</th><th>allowed_tools 有值</th><th>不在白名单</th></tr></thead>
@@ -864,16 +886,95 @@ disabled_commands = ["mode", "dir", "cd", "memory", "provider", "cron", "shell",
           <tr><td>daemon install 查找（fork 已修复）</td><td>WorkDir/config.toml → <code>~/.cc-connect/config.toml</code> 三级 fallback</td></tr>
           <tr><td>绕过方案（原版仍需）</td><td><code>--config "C:\\Users\\KC\\.cc-connect\\config.toml"</code></td></tr>
           <tr><td>日志目录</td><td><code>~/.cc-connect/logs/</code></td></tr>
-          <tr><td>运行时锁文件</td><td><code>~/.cc-connect/.config.toml.lock</code></td></tr>
+          <tr><td>运行时锁文件（含 PID）</td><td><code>~/.cc-connect/.config.toml.lock</code></td></tr>
+          <tr><td>Daemon 元数据</td><td><code>~/.cc-connect/daemon.json</code>（正斜杠路径，权限 0600）</td></tr>
           <tr><td>API socket</td><td><code>~/.cc-connect/run/api.sock</code></td></tr>
         </tbody>
       </table>
     </div>
   </div>
 
+  <!-- ══════════ Q9 ══════════ -->
+  <div class="qa-card" id="q9">
+    <div class="qa-header" onclick="toggle('q9')">
+      <span class="qa-num">Q9</span>
+      <span class="qa-title">daemon stop 停不掉进程怎么办？</span>
+      <span class="qa-toggle"></span>
+    </div>
+    <div class="qa-body">
+      <div class="qa-scenario">
+        <p><strong>现象</strong></p>
+        <pre><code>cc-connect daemon stop
+# 无错误输出，但进程仍在运行
+# 或: Stop failed: ...（schtasks 报错）</code></pre>
+      </div>
+      <div class="qa-root">
+        <p><strong>根因</strong>：上游 v1.3.3-beta.4 的 <code>daemon stop</code> 仅通过 <code>schtasks /End</code> 或 <code>systemctl stop</code> 发停止信号。进程非 schtasks 启动、或进程卡死时均会失败。</p>
+      </div>
+      <div class="qa-solution">
+        <p><strong>Fork 修复</strong>：增加 PID 回退杀进程逻辑</p>
+        <pre><code><span class="cmd-prefix">$ </span>cc-connect daemon stop          <span class="cmd-comment"># 优先级 1：schtasks 正常停止</span>
+<span class="cmd-prefix">$ </span>cc-connect daemon restart --force  <span class="cmd-comment"># 优先级 2：杀进程 → 等 500ms → 重启</span>
+<span class="cmd-prefix">$ </span>ps -W | grep -i cc-connect     <span class="cmd-comment"># 优先级 3：手动杀进程</span>
+<span class="cmd-prefix">$ </span>taskkill /PID &lt;PID&gt; /F</code></pre>
+        <p>回退流程：<code>mgr.Stop()</code> 失败 → <code>LoadMeta()</code> 读 ConfigFile → <code>metaConfigPath()</code> 解析 lock 路径 → <code>KillExistingInstance()</code> 验证进程映像名后终止。安全防护：KillExistingInstance 验证进程为 <code>cc-connect.exe</code>（Windows）或 <code>cc-connect</code>（Linux），防止 PID 重用误杀。</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════ Q10 ══════════ -->
+  <div class="qa-card" id="q10">
+    <div class="qa-header" onclick="toggle('q10')">
+      <span class="qa-num">Q10</span>
+      <span class="qa-title">daemon restart --force 为什么更安全了？</span>
+      <span class="qa-toggle"></span>
+    </div>
+    <div class="qa-body">
+      <div class="qa-root">
+        <p><strong>旧版问题</strong></p>
+        <table>
+          <thead><tr><th>问题</th><th>场景</th><th>后果</th></tr></thead>
+          <tbody>
+            <tr><td>路径硬编码</td><td><code>--config my-config.toml</code></td><td>lock 文件名应为 <code>.my-config.toml.lock</code>，旧版用 <code>.config.toml.lock</code></td></tr>
+            <tr><td>不等进程退出</td><td>Kill 后立即 Restart</td><td>旧进程占端口，新进程启动失败</td></tr>
+            <tr><td>PID 误杀风险</td><td>PID 被新进程复用</td><td>可能杀掉不相关进程</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="qa-solution">
+        <p><strong>Fork 修复</strong></p>
+        <ul>
+          <li><code>metaConfigPath()</code> — 从 <code>daemon.json</code> 读取 ConfigFile，支持任意配置文件名</li>
+          <li>500ms sleep — Kill 后等待资源释放（端口、锁文件），再 Restart</li>
+          <li>进程映像名验证 — Windows: <code>QueryFullProcessImageNameW</code>; Linux: <code>/proc/&lt;pid&gt;/exe</code></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════ Q11 ══════════ -->
+  <div class="qa-card" id="q11">
+    <div class="qa-header" onclick="toggle('q11')">
+      <span class="qa-num">Q11</span>
+      <span class="qa-title">daemon.json 中为什么路径是正斜杠？</span>
+      <span class="qa-toggle"></span>
+    </div>
+    <div class="qa-body">
+      <div class="qa-solution">
+        <p>Fork 版在 <code>daemon install</code> 保存 Meta 时对所有路径执行 <code>filepath.ToSlash()</code>，统一为正斜杠。理由：</p>
+        <ul>
+          <li><strong>跨平台一致性</strong> — daemon.json 可能被 WSL、SSH 远程、CI 等不同系统读取，正斜杠所有平台通用</li>
+          <li><strong>JSON 可移植性</strong> — 反斜杠在 JSON 字符串中需要转义（<code>\\</code>），正斜杠无需转义</li>
+          <li><strong>TOML 配置兼容</strong> — cc-connect 的 <code>config.toml</code> 也使用正斜杠，保持一致</li>
+        </ul>
+        <p><em>Go 的 <code>filepath.Join</code> 和 <code>os.Open</code> 在 Windows 上同时接受 <code>/</code> 和 <code>\</code>，正斜杠路径不影响功能。</em></p>
+      </div>
+    </div>
+  </div>
+
   <!-- ── Footer ── -->
   <div class="footer">
-    Generated on 2026-06-05 &nbsp;&middot;&nbsp; cc-connect v1.3.3-beta.4 &nbsp;&middot;&nbsp; Windows 11 + MSYS2
+    Generated on 2026-06-08 &nbsp;&middot;&nbsp; cc-connect v1.3.3-beta.4 &nbsp;&middot;&nbsp; Windows 11 + MSYS2
   </div>
 
 </div>

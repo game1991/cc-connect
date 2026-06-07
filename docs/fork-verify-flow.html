@@ -500,8 +500,8 @@
   <div class="hero">
     <h1>Fork 验收部署流程</h1>
     <p class="subtitle">
-      两条路径：GitHub Release 一键安装 &nbsp;|&nbsp; cp 替换快速验证 &nbsp;
-      <span class="version-badge">v1.3.3-fork.1</span>
+      两条路径：GitHub Packages 一键安装 &nbsp;|&nbsp; cp 替换快速验证 &nbsp;
+      <span class="version-badge">v1.3.3-fork.3</span>
       <span class="version-badge">Windows 11</span>
     </p>
   </div>
@@ -547,8 +547,8 @@
   <!-- ── Path Tabs ── -->
   <div class="path-tabs">
     <div class="path-tab active" onclick="switchPath('a')" id="tab-a">
-      <span class="tab-label">路径 A：GitHub Release</span>
-      <span class="tab-desc">一键 npm install，团队可用</span>
+      <span class="tab-label">路径 A：GitHub Packages</span>
+      <span class="tab-desc">CI 自动构建 + 一键 npm install</span>
     </div>
     <div class="path-tab" onclick="switchPath('b')" id="tab-b">
       <span class="tab-label">路径 B：cp 替换</span>
@@ -557,7 +557,7 @@
   </div>
 
   <!-- ══════════════════════════════════════════════ -->
-  <!-- PATH A: GitHub Release                        -->
+  <!-- PATH A: GitHub Packages (CI Automated)       -->
   <!-- ══════════════════════════════════════════════ -->
   <div class="path-content active" id="path-a">
 
@@ -586,222 +586,110 @@
       </div>
     </div>
 
-    <!-- A-2: 改版本号 -->
+    <!-- A-2: 改版本号 + 提交 + 打 Tag + Push -->
     <div class="step-card">
       <div class="step-header">
         <span class="step-num">2</span>
-        <span class="step-title">修改 Fork 版本号</span>
+        <span class="step-title">修改版本号 → 提交 → 打 Tag → Push</span>
         <span class="step-tag critical">关键</span>
       </div>
       <div class="step-body">
-        <p class="step-desc">将 Makefile 中的 <code>VERSION</code> 改为 fork 专用版本号，避免与上游 npm 包版本冲突。</p>
-        <div class="code-block">
-          <div class="code-label"><span class="lang">Makefile</span><button class="copy-btn" onclick="copyCode(this)">复制</button></div>
-          <div class="code-content"><span class="comment"># 修改前（上游版本）</span>
-VERSION := v1.3.3-beta.4
+        <p class="step-desc">将 Makefile 中的 <code>VERSION</code> 改为 fork 专用版本号。CI 会在 tag push 时自动构建全平台二进制、创建 GitHub Release、发布 npm 包。</p>
 
-<span class="comment"># 修改后（fork 版本）</span>
-<span class="cmd">VERSION</span> := <span class="highlight">v1.3.3-fork.1</span></div>
+        <div class="code-block">
+          <div class="code-label"><span class="lang">bash — 一条龙完成</span><button class="copy-btn" onclick="copyCode(this)">复制</button></div>
+          <div class="code-content"><span class="comment"># ═══ 1. 修改版本号 ═══</span>
+<span class="comment"># 编辑 Makefile，将 VERSION 递增</span>
+<span class="cmd">VERSION</span> := <span class="highlight">v1.3.3-fork.3</span>   <span class="comment"># fork.1 → fork.2 → fork.3 ...</span>
+
+<span class="comment"># ═══ 2. 提交 + 打 Tag + Push ═══</span>
+<span class="prompt">$</span> <span class="cmd">git</span> add -A && \
+    <span class="cmd">git</span> commit -m <span class="flag">"chore: bump version to v1.3.3-fork.3"</span>
+<span class="prompt">$</span> <span class="cmd">git</span> tag <span class="highlight">v1.3.3-fork.3</span>
+<span class="prompt">$</span> <span class="cmd">git</span> push fork feat/role-based-tool-permissions <span class="flag">--tags</span>
+
+<span class="comment"># ═══ 3. CI 自动执行（约 7 分钟） ═══</span>
+<span class="comment"># ✅ 构建 6 平台二进制 (linux/darwin/windows × amd64/arm64)</span>
+<span class="comment"># ✅ 创建 GitHub Release + 上传产物 + checksums</span>
+<span class="comment"># ✅ 发布 npm 包 @game1991/cc-connect 到 GitHub Packages</span>
+<span class="comment">#</span>
+<span class="comment"># 监控进度：</span>
+<span class="prompt">$</span> <span class="cmd">gh</span> run list --repo game1991/cc-connect --limit 1
+<span class="prompt">$</span> <span class="cmd">gh</span> run watch &lt;run-id&gt; --repo game1991/cc-connect</div>
         </div>
+
         <div class="checkpoint warn">
           <span class="checkpoint-icon">&#9888;</span>
-          <span class="checkpoint-text"><strong>版本号规则</strong>：使用 <code>vX.Y.Z-fork.N</code> 格式。<code>run.js</code> 会比较 <code>bin/cc-connect.exe</code> 的输出与 <code>package.json</code> 中的版本号。如果 fork 版本号 ≥ 官方版本号，就不会触发自动重装覆盖你的二进制。</span>
+          <span class="checkpoint-text"><strong>版本号规则</strong>：使用 <code>vX.Y.Z-fork.N</code> 格式。<code>run.js</code> 会比较 <code>bin/cc-connect.exe</code> 的输出与 <code>package.json</code> 中的版本号。如果 fork 版本号 ≥ 官方版本号，就不会触发自动重装覆盖你的二进制。CI 会自动将 npm package.json 版本同步为 tag 版本。</span>
         </div>
       </div>
     </div>
 
-    <!-- A-3: 编译 Release 包 -->
+    <!-- A-3: 配置 npm + 安装 -->
     <div class="step-card">
       <div class="step-header">
         <span class="step-num">3</span>
-        <span class="step-title">编译 Release 包</span>
+        <span class="step-title">配置 npm 仓库 + 安装 Fork 版本</span>
         <span class="step-tag required">必须</span>
       </div>
       <div class="step-body">
-        <div class="code-block">
-          <div class="code-label"><span class="lang">bash</span><button class="copy-btn" onclick="copyCode(this)">复制</button></div>
-          <div class="code-content"><span class="comment"># 编译 Windows amd64 包（跳过 Web 前端）</span>
-<span class="prompt">$</span> <span class="cmd">make</span> release-noweb TARGET=windows/amd64
-<span class="output">Built: dist/cc-connect-v1.3.3-fork.1-windows-amd64.exe</span>
+        <p class="step-desc">GitHub Packages 需要认证。每个团队成员需一次性配置 <code>~/.npmrc</code>，之后一条命令即可安装。</p>
 
-<span class="comment"># 打包 zip</span>
-<span class="prompt">$</span> <span class="cmd">cd</span> <span class="path">dist</span>
-<span class="prompt">$</span> <span class="cmd">zip</span> cc-connect-v1.3.3-fork.1-windows-amd64.zip \
-    cc-connect-v1.3.3-fork.1-windows-amd64.exe
-<span class="prompt">$</span> <span class="cmd">sha256sum</span> cc-connect-v1.3.3-fork.1-windows-amd64.zip &gt; checksums.txt</div>
+        <div class="code-block">
+          <div class="code-label"><span class="lang">bash — 首次：配置 ~/.npmrc（Windows + MSYS2 软连接方案）</span><button class="copy-btn" onclick="copyCode(this)">复制</button></div>
+          <div class="code-content"><span class="comment"># npm (Windows 原生) 读取 C:\Users\&lt;you&gt;\.npmrc</span>
+<span class="comment"># MSYS2 终端读取 /home/&lt;you&gt;/.npmrc（即 D:\msys64\home\KC\.npmrc）</span>
+<span class="comment"># 两个路径不同步 → 配一个忘一个 → 安装失败</span>
+<span class="comment"># 解决方案：MSYS2 的 .npmrc 软连接到 Windows 的，一劳永逸</span>
+
+<span class="comment"># 1. 写入 Windows 用户目录下的 .npmrc</span>
+<span class="prompt">$</span> <span class="cmd">cat</span> > /c/Users/KC/.npmrc &lt;&lt;'EOF'
+<span class="highlight">@game1991:registry=https://npm.pkg.github.com</span>
+<span class="highlight">//npm.pkg.github.com/:_authToken=YOUR_GITHUB_PAT</span>
+EOF
+
+<span class="comment"># 2. 删掉 MSYS2 的旧 .npmrc，创建软连接</span>
+<span class="prompt">$</span> <span class="cmd">rm</span> <span class="flag">-f</span> ~/.npmrc
+<span class="prompt">$</span> <span class="cmd">ln</span> <span class="flag">-s</span> /c/Users/KC/.npmrc ~/.npmrc
+
+<span class="comment"># PAT 需要有 read:packages 权限</span>
+<span class="comment"># 生成方式：GitHub → Settings → Developer settings → Personal access tokens → Fine-grained token</span></div>
         </div>
+
+        <div class="code-block">
+          <div class="code-label"><span class="lang">bash — 安装</span><button class="copy-btn" onclick="copyCode(this)">复制</button></div>
+          <div class="code-content"><span class="prompt">$</span> <span class="cmd">npm</span> install <span class="flag">-g</span> <span class="path">@game1991/cc-connect</span>
+
+<span class="comment"># postinstall 自动从 GitHub Release 下载对应平台的二进制</span>
+<span class="output">[cc-connect] Downloading from https://github.com/game1991/cc-connect/releases/download/v1.3.3-fork.3/...</span>
+<span class="output">[cc-connect] Installed to D:\nodejs\node_global\node_modules\@game1991\cc-connect\bin\cc-connect.exe</span></div>
+        </div>
+
         <div class="checkpoint">
           <span class="checkpoint-icon">&#10003;</span>
-          <span class="checkpoint-text"><strong>产物确认</strong>：<code>dist/cc-connect-v1.3.3-fork.1-windows-amd64.zip</code> 已生成</span>
+          <span class="checkpoint-text"><strong>一键安装</strong>：以后团队成员只需 <code>npm install -g @game1991/cc-connect</code> 即可安装最新 fork 版本</span>
         </div>
       </div>
     </div>
 
-    <!-- A-4: 提交 + 打 Tag + Push -->
+    <!-- A-4: 重装 Daemon -->
     <div class="step-card">
       <div class="step-header">
         <span class="step-num">4</span>
-        <span class="step-title">提交、打 Tag 并 Push 到 Fork</span>
-        <span class="step-tag required">必须</span>
-      </div>
-      <div class="step-body">
-        <div class="code-block">
-          <div class="code-label"><span class="lang">bash</span><button class="copy-btn" onclick="copyCode(this)">复制</button></div>
-          <div class="code-content"><span class="comment"># 提交所有修改</span>
-<span class="prompt">$</span> <span class="cmd">git</span> add -A
-<span class="prompt">$</span> <span class="cmd">git</span> commit -m <span class="flag">"feat: fork version v1.3.3-fork.1"</span>
-
-<span class="comment"># 打 tag（与 VERSION 一致）</span>
-<span class="prompt">$</span> <span class="cmd">git</span> tag v1.3.3-fork.1
-
-<span class="comment"># Push 到 fork 仓库（非 origin 上游）</span>
-<span class="prompt">$</span> <span class="cmd">git</span> push fork feat/role-based-tool-permissions
-<span class="prompt">$</span> <span class="cmd">git</span> push fork v1.3.3-fork.1</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- A-5: 创建 GitHub Release -->
-    <div class="step-card">
-      <div class="step-header">
-        <span class="step-num">5</span>
-        <span class="step-title">在 Fork 仓库创建 GitHub Release</span>
-        <span class="step-tag required">必须</span>
-      </div>
-      <div class="step-body">
-        <p class="step-desc">Release 是 npm install 的下载源——<code>install.js</code> 会拼出 URL 并从中下载 zip。以下是完整的浏览器操作步骤：</p>
-
-        <div class="structure-box"><span class="highlight">操作步骤：</span>
-
-<span class="comment">1. 打开 Release 创建页面</span>
-   浏览器访问：
-   <span class="highlight">https://github.com/game1991/cc-connect/releases/new</span>
-   <span class="comment">（或从仓库首页 → Releases → Draft a new release）</span>
-
-<span class="comment">2. 填写 Release 信息</span>
-   Choose a tag:     <span class="highlight">v1.3.3-fork.1</span>     <span class="comment">（选择刚 push 的 tag）</span>
-   Release title:   <span class="highlight">cc-connect v1.3.3-fork.1</span>
-   Describe this release:  <span class="comment">（参考下方模板）</span>
-
-<span class="comment">3. 上传产物</span>
-   拖入或选择文件：
-   <span class="target">dist/cc-connect-v1.3.3-fork.1-windows-amd64.zip</span>
-   <span class="target">dist/checksums.txt</span>
-
-<span class="comment">4. 点击 "Publish release"</span></div>
-
-        <div class="code-block">
-          <div class="code-label"><span class="lang">Release Description 模板（直接复制）</span><button class="copy-btn" onclick="copyCode(this)">复制</button></div>
-          <div class="code-content"><span class="comment">## cc-connect v1.3.3-fork.1</span>
-
-Fork of cc-connect v1.3.3-beta.4
-
-### Bug 修复
-- **daemon install** 配置 fallback：三级查找（--config → WorkDir/config.toml → ~/.cc-connect/config.toml）
-- **launcher --config 传递**：PowerShell / systemd / launchd 启动命令均传递 --config 参数
-
-### 新功能
-- **角色级权限模式**：per-role mode + allowed_tools（yolo / default / dontAsk）
-- **权限审批身份校验**：仅发起者或 admin 可批准工具请求
-- **Bridge 卡片身份修复**：传递真实 userID，默认身份改为 bridge-user
-
-### 安装
-<span class="cmd">npm install -g github:game1991/cc-connect#feat/role-based-tool-permissions</span>
-
-### 校验
-<span class="cmd">sha256sum -c checksums.txt</span></div>
-        </div>
-
-        <div class="checkpoint warn">
-          <span class="checkpoint-icon">&#9888;</span>
-          <span class="checkpoint-text"><strong>关键</strong>：Release 中的 zip 文件名必须匹配 <code>install.js</code> 的拼装规则 <code>{name}-{version}-{platform}-{arch}{ext}</code>。如果 VERSION 是 <code>v1.3.3-fork.1</code>，则 zip 中 exe 名称必须为 <code>cc-connect-v1.3.3-fork.1-windows-amd64.exe</code>。<code>make release-noweb</code> 已自动按此格式命名。</span>
-        </div>
-
-        <div class="checkpoint">
-          <span class="checkpoint-icon">&#10003;</span>
-          <span class="checkpoint-text"><strong>下载 URL 确认</strong>：发布后 npm install 将从以下地址下载二进制：<br>
-          <code>https://github.com/game1991/cc-connect/releases/download/v1.3.3-fork.1/cc-connect-v1.3.3-fork.1-windows-amd64.zip</code></span>
-        </div>
-      </div>
-    </div>
-
-    <!-- A-6: 修改 install.js 指向 Fork -->
-    <div class="step-card">
-      <div class="step-header">
-        <span class="step-num">6</span>
-        <span class="step-title">修改 package.json + install.js 指向 Fork</span>
-        <span class="step-tag critical">关键</span>
-      </div>
-      <div class="step-body">
-        <p class="step-desc">npm 包的 <code>install.js</code> 硬编码了上游仓库地址，需改为你的 fork。同时 <code>package.json</code> 版本号需与 fork VERSION 一致。这两个文件不在 Go 源码仓库中，需要从官方 npm 包复制后修改，或者将它们加入 fork 仓库。</p>
-
-        <div class="code-block">
-          <div class="code-label"><span class="lang">package.json — 改 3 处</span><button class="copy-btn" onclick="copyCode(this)">复制</button></div>
-          <div class="code-content">{
-  <span class="highlight">"version": "1.3.3-fork.1"</span>,
-  <span class="highlight">"homepage": "https://github.com/game1991/cc-connect"</span>,
-  "repository": {
-    "type": "git",
-    <span class="highlight">"url": "https://github.com/game1991/cc-connect.git"</span>
-  }
-}</div>
-        </div>
-
-        <div class="code-block">
-          <div class="code-label"><span class="lang">install.js — 改 2 处</span><button class="copy-btn" onclick="copyCode(this)">复制</button></div>
-          <div class="code-content"><span class="comment">// 上游原值：</span>
-const GITHUB_REPO = "chenhg5/cc-connect";
-const GITEE_REPO = "cg33/cc-connect";
-
-<span class="comment">// 改为 fork：</span>
-const <span class="highlight">GITHUB_REPO</span> = "<span class="highlight">game1991/cc-connect</span>";
-const <span class="highlight">GITEE_REPO</span> = "<span class="highlight">game1991/cc-connect</span>";  <span class="comment">// 或保留 Gitee 上游</span></div>
-        </div>
-
-        <div class="checkpoint warn">
-          <span class="checkpoint-icon">&#9888;</span>
-          <span class="checkpoint-text"><strong>文件来源</strong>：<code>package.json</code> 和 <code>install.js</code> 不在 Go 源码仓库中。它们随 <code>npm install -g cc-connect@beta</code> 安装到 <code>$(npm root -g)/cc-connect/</code>。首次安装官方包后直接修改该目录下的这两个文件即可。</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- A-7: 安装 Fork 版本 -->
-    <div class="step-card">
-      <div class="step-header">
-        <span class="step-num">7</span>
-        <span class="step-title">通过 npm 安装 Fork 版本</span>
-        <span class="step-tag required">必须</span>
-      </div>
-      <div class="step-body">
-        <div class="code-block">
-          <div class="code-label"><span class="lang">bash — 从 GitHub 仓库直接安装</span><button class="copy-btn" onclick="copyCode(this)">复制</button></div>
-          <div class="code-content"><span class="comment"># 从 fork 仓库安装指定分支</span>
-<span class="prompt">$</span> <span class="cmd">npm</span> install <span class="flag">-g</span> <span class="path">github:game1991/cc-connect#feat/role-based-tool-permissions</span>
-
-<span class="comment"># 安装后 postinstall 自动从 GitHub Release 下载二进制</span>
-<span class="output">[cc-connect] Downloading from https://github.com/game1991/cc-connect/releases/download/v1.3.3-fork.1/...</span>
-<span class="output">[cc-connect] Installed to D:\nodejs\node_global\node_modules\cc-connect\bin\cc-connect.exe</span></div>
-        </div>
-
-        <div class="checkpoint">
-          <span class="checkpoint-icon">&#10003;</span>
-          <span class="checkpoint-text"><strong>一键安装</strong>：以后团队成员只需一行 npm install 即可安装 fork 版本</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- A-8: 重装 Daemon -->
-    <div class="step-card">
-      <div class="step-header">
-        <span class="step-num">8</span>
         <span class="step-title">卸载旧 Daemon → 重装</span>
         <span class="step-tag required">必须</span>
       </div>
       <div class="step-body">
         <div class="code-block">
           <div class="code-label"><span class="lang">bash</span><button class="copy-btn" onclick="copyCode(this)">复制</button></div>
-          <div class="code-content"><span class="comment"># 停止旧 daemon</span>
+          <div class="code-content"><span class="comment"># 停止旧 daemon（fork 版自动回退杀进程）</span>
 <span class="prompt">$</span> <span class="cmd">cc-connect</span> daemon stop
+
+<span class="comment"># 如果 stop 失败，使用 --force 强制</span>
+<span class="prompt">$</span> <span class="cmd">cc-connect</span> daemon restart --force
+
+<span class="comment"># 卸载 schtasks 计划任务</span>
+<span class="prompt">$</span> <span class="cmd">cc-connect</span> daemon uninstall
 
 <span class="comment"># 卸载 schtasks 计划任务</span>
 <span class="prompt">$</span> <span class="cmd">cc-connect</span> daemon uninstall
@@ -809,19 +697,23 @@ const <span class="highlight">GITEE_REPO</span> = "<span class="highlight">game1
 <span class="comment"># 确认无残留进程</span>
 <span class="prompt">$</span> <span class="cmd">ps</span> <span class="flag">-W</span> | <span class="cmd">grep</span> <span class="flag">-i</span> cc-connect | <span class="cmd">grep</span> <span class="flag">-v</span> grep
 
-<span class="comment"># 重装 daemon（fork 修复后无需 --config）</span>
+<span class="comment"># 重装 daemon（fork 自动检测 config.toml，无需 --config）</span>
 <span class="prompt">$</span> <span class="cmd">cc-connect</span> daemon install
 <span class="output">cc-connect daemon installed and started.</span>
 <span class="output">  Platform:  schtasks</span>
 <span class="output">  Binary:    ...cc-connect.exe</span></div>
         </div>
+        <div class="checkpoint">
+          <span class="checkpoint-icon">&#10003;</span>
+          <span class="checkpoint-text"><strong>launcher 包含 --config</strong>：fork 修复后 <code>daemon install</code> 自动检测 <code>~/.cc-connect/config.toml</code>，并在 PowerShell/systemd/launchd 启动命令中写入 <code>--config</code> 参数</span>
+        </div>
       </div>
     </div>
 
-    <!-- A-9: 验证 -->
+    <!-- A-5: 验证 -->
     <div class="step-card">
       <div class="step-header">
-        <span class="step-num">9</span>
+        <span class="step-num">5</span>
         <span class="step-title">验证</span>
         <span class="step-tag critical">关键</span>
       </div>
@@ -829,68 +721,19 @@ const <span class="highlight">GITEE_REPO</span> = "<span class="highlight">game1
         <div class="code-block">
           <div class="code-label"><span class="lang">bash</span><button class="copy-btn" onclick="copyCode(this)">复制</button></div>
           <div class="code-content"><span class="prompt">$</span> <span class="cmd">cc-connect</span> <span class="flag">--version</span>
-<span class="output">cc-connect v1.3.3-fork.1</span>
-<span class="output">commit:  a4558147</span>
+<span class="output">cc-connect v1.3.3-fork.3</span>
+<span class="output">commit:  7f7fe13</span>
 
 <span class="prompt">$</span> <span class="cmd">cc-connect</span> daemon status
-<span class="output">  Status:    Running</span></div>
-        </div>
-      </div>
-    </div>
+<span class="output">  Status:    Running</span>
 
-    <!-- A-10: 维护：发布新版本 -->
-    <div class="step-card" style="border-color:var(--accent)">
-      <div class="step-header" style="background:var(--accent-glow)">
-        <span class="step-num" style="background:var(--green)">&#8635;</span>
-        <span class="step-title">维护：发布新版本（后续迭代）</span>
-        <span class="step-tag optional">持续</span>
-      </div>
-      <div class="step-body">
-        <p class="step-desc">当 fork 有新修改需要发布时，只需重复以下流程：</p>
+<span class="comment"># 确认 launcher 传递了 --config</span>
+<span class="prompt">$</span> <span class="cmd">cat</span> <span class="path">~/.cc-connect/cc-connect-daemon.ps1</span> | <span class="cmd">grep</span> <span class="flag">--</span> <span class="flag">--config</span>
+<span class="output">  & '...\cc-connect.exe' --config 'C:\Users\KC\.cc-connect\config.toml'</span>
 
-        <div class="code-block">
-          <div class="code-label"><span class="lang">bash — 发布新版本完整流程</span><button class="copy-btn" onclick="copyCode(this)">复制</button></div>
-          <div class="code-content"><span class="comment"># ═══ 1. 修改版本号 ═══</span>
-<span class="comment"># 编辑 Makefile，将 VERSION 递增</span>
-<span class="cmd">VERSION</span> := <span class="highlight">v1.3.3-fork.2</span>   <span class="comment"># fork.1 → fork.2 → fork.3 ...</span>
-
-<span class="comment"># 同步修改 $(npm root -g)/cc-connect/package.json</span>
-<span class="prompt">$</span> <span class="cmd">sed</span> <span class="flag">-i</span> <span class="flag">'s/"1.3.3-fork.1"/"1.3.3-fork.2"/'</span> \
-    <span class="path">"$(npm root -g)/cc-connect/package.json"</span>
-
-<span class="comment"># ═══ 2. 编译 + 打包 ═══</span>
-<span class="prompt">$</span> <span class="cmd">make</span> release-noweb TARGET=windows/amd64
-<span class="prompt">$</span> <span class="cmd">cd</span> <span class="path">dist</span> && \
-    <span class="cmd">zip</span> cc-connect-v1.3.3-fork.2-windows-amd64.zip \
-    cc-connect-v1.3.3-fork.2-windows-amd64.exe && \
-    <span class="cmd">sha256sum</span> *.zip > checksums.txt
-
-<span class="comment"># ═══ 3. 提交 + 打 Tag + Push ═══</span>
-<span class="prompt">$</span> <span class="cmd">git</span> add -A && \
-    <span class="cmd">git</span> commit -m <span class="flag">"chore: bump version to v1.3.3-fork.2"</span>
-<span class="prompt">$</span> <span class="cmd">git</span> tag v1.3.3-fork.2
-<span class="prompt">$</span> <span class="cmd">git</span> push fork feat/role-based-tool-permissions
-<span class="prompt">$</span> <span class="cmd">git</span> push fork v1.3.3-fork.2
-
-<span class="comment"># ═══ 4. 创建 GitHub Release ═══</span>
-<span class="comment"># 浏览器打开 https://github.com/game1991/cc-connect/releases/new</span>
-<span class="comment"># Tag: v1.3.3-fork.2</span>
-<span class="comment"># Title: cc-connect v1.3.3-fork.2</span>
-<span class="comment"># 上传: .zip + checksums.txt</span>
-<span class="comment"># Description: 列出本次变更</span>
-
-<span class="comment"># ═══ 5. 团队成员更新 ═══</span>
-<span class="prompt">$</span> <span class="cmd">npm</span> install <span class="flag">-g</span> <span class="path">github:game1991/cc-connect#feat/role-based-tool-permissions</span>
-<span class="comment"># postinstall 自动下载 v1.3.3-fork.2 的二进制</span>
-
-<span class="comment"># ═══ 6. 重装 daemon ═══</span>
-<span class="prompt">$</span> <span class="cmd">cc-connect</span> daemon stop && <span class="cmd">cc-connect</span> daemon uninstall
-<span class="prompt">$</span> <span class="cmd">cc-connect</span> daemon install</div>
-        </div>
-
-        <div class="checkpoint">
-          <span class="checkpoint-icon">&#10003;</span>
-          <span class="checkpoint-text"><strong>版本号递增规则</strong>：小修改 <code>fork.N+1</code>，合并上游新版本 <code>vX.Y.Z-fork.1</code>（重置 N）。始终保持 <code>fork</code> 版本号 ≥ 上游最新版本号，防止 <code>run.js</code> 触发自动重装。</span>
+<span class="comment"># 确认平台连接正常</span>
+<span class="prompt">$</span> <span class="cmd">cc-connect</span> daemon logs <span class="flag">-n</span> 5
+<span class="output">platform ready ... wps-xiezuo: connected</span></div>
         </div>
       </div>
     </div>
@@ -997,7 +840,7 @@ const <span class="highlight">GITEE_REPO</span> = "<span class="highlight">game1
         </div>
         <div class="checkpoint warn">
           <span class="checkpoint-icon">&#9888;</span>
-          <span class="checkpoint-text"><strong>npm update 会覆盖</strong>：<code>npm install -g cc-connect@beta</code> 会重下官方二进制。升级后需重新 cp。</span>
+          <span class="checkpoint-text"><strong>npm update 会覆盖</strong>：<code>npm update -g cc-connect</code> 会从官方源重下二进制。升级后需重新 cp。</span>
         </div>
       </div>
     </div>
@@ -1113,8 +956,127 @@ const <span class="highlight">GITEE_REPO</span> = "<span class="highlight">game1
     </div>
     <div class="acceptance-item" onclick="toggleCheck(this)">
       <div class="checkbox">&#10003;</div>
+      <span class="item-id">D-1</span>
+      <span><code>daemon stop</code> 回退全失败时报错退出（不再静默打印 "stopped"）</span>
+    </div>
+    <div class="acceptance-item" onclick="toggleCheck(this)">
+      <div class="checkbox">&#10003;</div>
+      <span class="item-id">D-2</span>
+      <span>KillExistingInstance 终止前验证进程映像名，防止 PID 重用误杀</span>
+    </div>
+    <div class="acceptance-item" onclick="toggleCheck(this)">
+      <div class="checkbox">&#10003;</div>
+      <span class="item-id">D-3</span>
+      <span>daemon.json 路径统一正斜杠、权限 0600</span>
+    </div>
+    <div class="acceptance-item" onclick="toggleCheck(this)">
+      <div class="checkbox">&#10003;</div>
+      <span class="item-id">D-4</span>
+      <span><code>daemon restart --force</code> Kill 后 sleep 500ms 再重启</span>
+    </div>
+    <div class="acceptance-item" onclick="toggleCheck(this)">
+      <div class="checkbox">&#10003;</div>
+      <span class="item-id">D-5</span>
+      <span>权限审批拒绝消息走 i18n 五语翻译</span>
+    </div>
+    <div class="acceptance-item" onclick="toggleCheck(this)">
+      <div class="checkbox">&#10003;</div>
+      <span class="item-id">D-6</span>
+      <span><code>daemon restart --force</code> 使用 <code>metaConfigPath()</code> 解析配置路径，不再硬编码</span>
+    </div>
+    <div class="acceptance-item" onclick="toggleCheck(this)">
+      <div class="checkbox">&#10003;</div>
+      <span class="item-id">D-7</span>
+      <span><code>KillExistingInstance</code> 超时返回 false（Windows + Unix 统一）</span>
+    </div>
+    <div class="acceptance-item" onclick="toggleCheck(this)">
+      <div class="checkbox">&#10003;</div>
+      <span class="item-id">D-8</span>
+      <span><code>handlePendingPermission</code> 硬编码字符串改走 i18n</span>
+    </div>
+    <div class="acceptance-item" onclick="toggleCheck(this)">
+      <div class="checkbox">&#10003;</div>
+      <span class="item-id">D-9</span>
+      <span><code>normalizeWorkspacePath</code> 返回正斜杠路径</span>
+    </div>
+    <div class="acceptance-item" onclick="toggleCheck(this)">
+      <div class="checkbox">&#10003;</div>
+      <span class="item-id">D-10</span>
+      <span><code>replyFooterHomeRelativePath</code> 统一正斜杠前缀比较</span>
+    </div>
+    <div class="acceptance-item" onclick="toggleCheck(this)">
+      <div class="checkbox">&#10003;</div>
+      <span class="item-id">D-11</span>
+      <span><code>doctor_runas_test.go</code> 补上 <code>!windows</code> build tag</span>
+    </div>
+    <div class="acceptance-item" onclick="toggleCheck(this)">
+      <div class="checkbox">&#10003;</div>
+      <span class="item-id">D-12</span>
+      <span><code>daemonStop</code> 提取 <code>stopWithFallback</code>（依赖注入 + 返回 error），补充 6 个单元测试</span>
+    </div>
+    <div class="acceptance-item" onclick="toggleCheck(this)">
+      <div class="checkbox">&#10003;</div>
       <span class="item-id">GEN</span>
       <span>平台连接正常（日志 platform ready + connected）</span>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════ -->
+  <!-- Complete Uninstall Guide                       -->
+  <!-- ══════════════════════════════════════════════ -->
+  <div style="margin-top:40px">
+    <div style="background:var(--surface);border:2px solid var(--red);border-radius:14px;overflow:hidden">
+      <div style="padding:14px 24px;background:var(--red);color:#fff;font-size:15px;font-weight:700">&#128465; 完全卸载 cc-connect</div>
+      <div style="padding:18px 24px">
+        <p style="font-size:13px;color:var(--text-secondary);margin-bottom:14px">切换 fork 版本或重新安装前，建议执行完整清理，避免残留导致不可预期行为。以下按顺序执行：</p>
+
+        <div class="code-block">
+          <div class="code-label"><span class="lang">bash — Step 1: 停止 daemon + 卸载计划任务</span><button class="copy-btn" onclick="copyCode(this)">复制</button></div>
+          <div class="code-content"><span class="prompt">$</span> <span class="cmd">cc-connect</span> daemon stop
+<span class="prompt">$</span> <span class="cmd">cc-connect</span> daemon uninstall
+
+<span class="comment"># 确认 schtasks 中已无条目</span>
+<span class="prompt">$</span> schtasks /query /tn <span class="string">"cc-connect"</span> 2>&1 || echo <span class="string">"已清除"</span></div>
+        </div>
+
+        <div class="code-block">
+          <div class="code-label"><span class="lang">bash — Step 2: 强制杀残留进程</span><button class="copy-btn" onclick="copyCode(this)">复制</button></div>
+          <div class="code-content"><span class="comment"># MSYS2 / Git Bash</span>
+<span class="prompt">$</span> <span class="cmd">ps</span> <span class="flag">-W</span> | <span class="cmd">grep</span> <span class="flag">-i</span> cc-connect | <span class="cmd">grep</span> <span class="flag">-v</span> grep | <span class="cmd">awk</span> <span class="string">'{print $1}'</span> | <span class="cmd">xargs</span> -I{} taskkill /PID {} /F
+
+<span class="comment"># 或管理员 PowerShell 中：</span>
+<span class="error"># Get-Process cc-connect -ErrorAction SilentlyContinue | Stop-Process -Force</span></div>
+        </div>
+
+        <div class="code-block">
+          <div class="code-label"><span class="lang">bash — Step 3: 卸载 npm 包（两条都执行，确保无残留）</span><button class="copy-btn" onclick="copyCode(this)">复制</button></div>
+          <div class="code-content"><span class="prompt">$</span> <span class="cmd">npm</span> uninstall <span class="flag">-g</span> <span class="path">@game1991/cc-connect</span>
+<span class="prompt">$</span> <span class="cmd">npm</span> uninstall <span class="flag">-g</span> cc-connect
+
+<span class="comment"># 确认已清除</span>
+<span class="prompt">$</span> <span class="cmd">npm</span> list <span class="flag">-g</span> --depth=0 | <span class="cmd">grep</span> cc-connect
+<span class="comment">#（无输出 = 已清除）</span></div>
+        </div>
+
+        <div class="code-block">
+          <div class="code-label"><span class="lang">bash — Step 4: 清理用户数据目录（可选，重新安装可保留配置）</span><button class="copy-btn" onclick="copyCode(this)">复制</button></div>
+          <div class="code-content"><span class="comment"># 仅清理运行时数据（保留 config.toml）</span>
+<span class="prompt">$</span> <span class="cmd">rm</span> <span class="flag">-rf</span> ~/.cc-connect/logs/ ~/.cc-connect/run/ ~/.cc-connect/sessions/
+<span class="prompt">$</span> <span class="cmd">rm</span> <span class="flag">-f</span> ~/.cc-connect/daemon.json ~/.cc-connect/.config.toml.lock
+
+<span class="comment"># 彻底清除（含配置，从零开始）</span>
+<span class="prompt">$</span> <span class="cmd">rm</span> <span class="flag">-rf</span> ~/.cc-connect/</div>
+        </div>
+
+        <div class="checkpoint warn">
+          <span class="checkpoint-icon">&#9888;</span>
+          <span class="checkpoint-text"><strong>关键检查点</strong>：卸载完成后依次验证 — <code>schtasks</code> 无条目、<code>ps -W</code> 无进程、<code>npm list -g</code> 无 cc-connect、<code>which cc-connect</code> 找不到命令。全部通过才算干净。</span>
+        </div>
+        <div class="checkpoint warn" style="margin-top:12px">
+          <span class="checkpoint-icon">&#9888;</span>
+          <span class="checkpoint-text"><strong>隐藏残留坑：npm 两个 prefix</strong>。如果你改过 <code>npm config set prefix</code>，新包装到自定义路径，但旧包可能还在默认路径 <code>C:\Users\&lt;you&gt;\AppData\Roaming\npm\</code> 下。<code>npm uninstall -g</code> 只删当前 prefix 下的包，不会清理另一个。手动检查：<code>ls "$APPDATA/npm/node_modules/" | grep cc-connect</code>，如有残留直接 <code>rm -rf</code>。</span>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -1129,19 +1091,55 @@ const <span class="highlight">GITEE_REPO</span> = "<span class="highlight">game1
     </div>
     <div class="issue-card">
       <div class="issue-q">daemon install 报 "config.toml not found"</div>
-      <div class="issue-a">当前二进制仍是上游旧版。确认 <code>cc-connect --version</code> 显示 fork commit 后重新安装。路径 A 用户确认 package.json 版本号已改为 <code>1.3.3-fork.1</code>。</div>
+      <div class="issue-a">当前二进制仍是上游旧版。确认 <code>cc-connect --version</code> 显示 fork commit 后重新安装 daemon。fork 版本已修复三级 fallback 自动写入 <code>--config</code>。</div>
     </div>
     <div class="issue-card">
-      <div class="issue-q">npm update 后版本回退</div>
-      <div class="issue-a">路径 B：<code>npm install -g cc-connect@beta</code> 会覆盖 fork 二进制，需重新 cp。路径 A 不受影响，因为 package.json 版本号已改。</div>
+      <div class="issue-q">npm install 报 E403 Forbidden</div>
+      <div class="issue-a">GitHub Packages 需要 PAT 认证。确保 <code>~/.npmrc</code>（Windows 用户目录下的）包含 <code>//npm.pkg.github.com/:_authToken=</code> 且 token 有 <code>read:packages</code> 权限。可用 <code>gh auth refresh -h github.com -s read:packages</code> 刷新权限。</div>
+    </div>
+    <div class="issue-card">
+      <div class="issue-q">npm 读的是哪个 .npmrc？</div>
+      <div class="issue-a">Windows 下 npm 读取 <code>C:\Users\&lt;you&gt;\.npmrc</code>，MSYS2 终端读取 <code>D:\msys64\home\&lt;you&gt;\.npmrc</code>，两个路径不同！建议将 MSYS2 的 <code>~/.npmrc</code> 做软连接到 Windows 的：<code>ln -s /c/Users/&lt;you&gt;/.npmrc ~/.npmrc</code>。这样无论在哪个终端修改，两边始终同步。</div>
     </div>
     <div class="issue-card">
       <div class="issue-q">taskkill 提示 Permission denied</div>
       <div class="issue-a">需在管理员终端（右键 → 以管理员身份运行）执行。</div>
     </div>
     <div class="issue-card">
-      <div class="issue-q">GitHub Release 下载失败</div>
-      <div class="issue-a">检查 install.js 中的 GITHUB_REPO 是否指向你的 fork。检查 Release 中 zip 文件名是否匹配 <code>{name}-{version}-{os}-{arch}.zip</code>。中国大陆用户可配 GITEE_REPO 备用源。</div>
+      <div class="issue-q">CI tag push 后 npm 版本号不对</div>
+      <div class="issue-a">fork-release.yml 中有 "Sync package.json version to tag" 步骤，会自动将 npm package.json 版本同步为 git tag（去掉 <code>v</code> 前缀）。确保 tag 名与 Makefile VERSION 一致即可。</div>
+    </div>
+    <div class="issue-card">
+      <div class="issue-q">daemon status 显示 Queued 而非 Running</div>
+      <div class="issue-a">Windows schtasks AtLogOn 触发器在开机后不会立即运行，而是排队等待下次登录。手动运行 launcher 脚本即可：<code>powershell -File ~/.cc-connect/cc-connect-daemon.ps1</code></div>
+    </div>
+    <div class="issue-card">
+      <div class="issue-q">卸载后 AppData\Roaming\npm 下仍有 cc-connect 残留</div>
+      <div class="issue-a">npm 有两个全局 prefix：你当前配置的（<code>npm config get prefix</code>）和默认的 <code>C:\Users\&lt;you&gt;\AppData\Roaming\npm</code>。<code>npm uninstall -g</code> 只删当前 prefix 下的包，旧 prefix 下的残留需手动清理：<code>rm -rf "$APPDATA/npm/node_modules/cc-connect" "$APPDATA/npm/cc-connect.ps1" "$APPDATA/npm/cc-connect.cmd"</code>。如果 <code>$APPDATA/npm/node_modules/</code> 已空，可整个删掉 <code>rm -rf "$APPDATA/npm"</code>。</div>
+    </div>
+    <div class="issue-card">
+      <div class="issue-q">daemon stop 停不掉进程</div>
+      <div class="issue-a">fork 版 <code>daemon stop</code> 已增加 PID 回退杀进程逻辑：schtasks/systemctl 失败时，读取 <code>daemon.json</code> 中的 ConfigFile → 定位 <code>.lock</code> 文件中的 PID → 验证进程映像名为 cc-connect → TerminateProcess/Kill。如仍失败，输出错误提示 <code>cc-connect daemon restart --force</code>。此场景通常发生在进程非 schtasks 启动或进程卡死时。</div>
+    </div>
+    <div class="issue-card">
+      <div class="issue-q">daemon restart --force 新进程启动报端口占用</div>
+      <div class="issue-a">旧版 <code>--force</code> Kill 进程后立即 Restart，旧进程可能尚未释放端口。fork 版在 Kill 成功后 sleep 500ms 等待资源释放。如果 500ms 不够（大型项目清理较慢），可先手动 <code>daemon stop</code> 等几秒再 <code>daemon start</code>。</div>
+    </div>
+    <div class="issue-card">
+      <div class="issue-q">daemon.json 路径是正斜杠，这正常吗？</div>
+      <div class="issue-a">正常。fork 版在 <code>daemon install</code> 保存 Meta 时对所有路径执行 <code>filepath.ToSlash()</code>，统一为正斜杠。Go 在 Windows 上同时接受 <code>/</code> 和 <code>\</code>，正斜杠更利于跨平台可移植（WSL、CI、SSH 等）。</div>
+    </div>
+    <div class="issue-card">
+      <div class="issue-q">workspace key 在 Windows 上不一致</div>
+      <div class="issue-a">上游 <code>normalizeWorkspacePath</code> 在 Windows 上返回反斜杠路径，导致同一目录不同写法的 workspace 无法命中同一条记录。fork 版已加 <code>filepath.ToSlash</code>，所有 workspace key 统一为正斜杠。</div>
+    </div>
+    <div class="issue-card">
+      <div class="issue-q">~ 路径缩写在 Windows 上不生效</div>
+      <div class="issue-a">上游 <code>replyFooterHomeRelativePath</code> 用反斜杠做前缀比较，Windows 上 <code>filepath.Clean</code> 会把 <code>/</code> 转 <code>\</code>，导致 <code>strings.HasPrefix(path, home + "/")</code> 永远为 false。fork 版统一用 <code>filepath.ToSlash</code> 后再比较。</div>
+    </div>
+    <div class="issue-card">
+      <div class="issue-q">daemon restart --force 用自定义 --config 时杀错进程</div>
+      <div class="issue-a">旧版 <code>--force</code> 用 <code>WorkDir + "/config.toml"</code> 硬编码构造 lock 文件路径，当 <code>--config</code> 指定非标准文件名时找错文件。fork 版改用 <code>metaConfigPath()</code> 从 <code>daemon.json</code> 读取 ConfigFile 字段，正确解析任意配置文件名。</div>
     </div>
   </div>
 
@@ -1155,12 +1153,14 @@ const <span class="highlight">GITEE_REPO</span> = "<span class="highlight">game1
         <thead><tr><th>项目</th><th>路径</th></tr></thead>
         <tbody>
           <tr><td>编译产物</td><td class="blue">/d/WorkSpace/src/cc-connect/cc-connect</td></tr>
-          <tr><td>Release 包</td><td class="green">dist/cc-connect-v1.3.3-fork.1-windows-amd64.zip</td></tr>
-          <tr><td>npm 二进制（替换目标）</td><td class="green">$(npm root -g)/cc-connect/bin/cc-connect.exe</td></tr>
+          <tr><td>Release 包</td><td class="green">dist/cc-connect-v1.3.3-fork.3-windows-amd64.zip</td></tr>
+          <tr><td>npm 二进制（路径 A）</td><td class="green">$(npm root -g)/@game1991/cc-connect/bin/cc-connect.exe</td></tr>
+          <tr><td>npm 二进制（路径 B）</td><td class="green">$(npm root -g)/cc-connect/bin/cc-connect.exe</td></tr>
+          <tr><td>npm 旧 prefix 残留</td><td style="color:var(--red)">%APPDATA%\npm\node_modules\cc-connect\</td></tr>
           <tr><td>配置文件</td><td class="muted">~/.cc-connect/config.toml</td></tr>
           <tr><td>日志目录</td><td class="muted">~/.cc-connect/logs/</td></tr>
           <tr><td>Daemon 元数据</td><td class="muted">~/.cc-connect/daemon.json</td></tr>
-          <tr><td>实例锁</td><td class="muted">~/.cc-connect/.config.toml.lock</td></tr>
+          <tr><td>实例锁（含 PID）</td><td class="muted">~/.cc-connect/.config.toml.lock</td></tr>
         </tbody>
       </table>
     </div>
@@ -1174,35 +1174,43 @@ const <span class="highlight">GITEE_REPO</span> = "<span class="highlight">game1
       <div style="padding:14px 24px;background:var(--green);color:#0f1117;font-size:15px;font-weight:700">&#128260; 版本发布速查</div>
       <div style="padding:18px 24px">
         <div class="code-block" style="margin-bottom:0">
-          <div class="code-label"><span class="lang">bash — 每次发版必做</span><button class="copy-btn" onclick="copyCode(this)">复制</button></div>
+          <div class="code-label"><span class="lang">bash — 路径 A：CI 自动发布</span><button class="copy-btn" onclick="copyCode(this)">复制</button></div>
           <div class="code-content"><span class="comment"># 1. 改版本号</span>
 <span class="cmd">vi</span> <span class="path">Makefile</span>  <span class="comment"># VERSION := v1.3.3-fork.N</span>
-<span class="cmd">sed</span> <span class="flag">-i</span> <span class="flag">'s/"1.3.3-fork.旧"/"1.3.3-fork.新"/'</span> <span class="path">"$(npm root -g)/cc-connect/package.json"</span>
 
-<span class="comment"># 2. 编译 + 打包</span>
-<span class="cmd">make</span> release-noweb TARGET=windows/amd64
-<span class="cmd">cd</span> <span class="path">dist</span> && <span class="cmd">zip</span> *.zip *.exe && <span class="cmd">sha256sum</span> *.zip > checksums.txt
-
-<span class="comment"># 3. 提交 + Tag + Push</span>
+<span class="comment"># 2. 提交 + Tag + Push（CI 自动完成全部后续）</span>
 <span class="cmd">git</span> add -A && <span class="cmd">git</span> commit -m <span class="flag">"chore: bump version"</span>
 <span class="cmd">git</span> tag <span class="highlight">v1.3.3-fork.N</span>
 <span class="cmd">git</span> push fork feat/role-based-tool-permissions <span class="flag">--tags</span>
 
-<span class="comment"># 4. GitHub Release（浏览器）</span>
-<span class="comment"># https://github.com/game1991/cc-connect/releases/new</span>
-<span class="comment"># Tag=v1.3.3-fork.N  上传 .zip + checksums.txt  Publish</span>
+<span class="comment"># 3. CI 自动（约 7 分钟）</span>
+<span class="comment"># ✅ 构建 6 平台二进制</span>
+<span class="comment"># ✅ 创建 GitHub Release + checksums</span>
+<span class="comment"># ✅ 发布 @game1991/cc-connect 到 GitHub Packages</span>
 
-<span class="comment"># 5. 团队更新</span>
-<span class="cmd">npm</span> install <span class="flag">-g</span> <span class="path">github:game1991/cc-connect#feat/role-based-tool-permissions</span>
+<span class="comment"># 4. 团队成员更新</span>
+<span class="cmd">npm</span> install <span class="flag">-g</span> <span class="path">@game1991/cc-connect@latest</span>
 <span class="cmd">cc-connect</span> daemon stop && <span class="cmd">cc-connect</span> daemon uninstall
 <span class="cmd">cc-connect</span> daemon install</div>
+        </div>
+        <div style="margin-top:16px;border-top:1px solid var(--border);padding-top:16px">
+        <div class="code-block" style="margin-bottom:0">
+          <div class="code-label"><span class="lang">bash — 路径 B：手动 cp 替换</span><button class="copy-btn" onclick="copyCode(this)">复制</button></div>
+          <div class="code-content"><span class="comment"># 编译 → 停卸 → 杀进程 → 替换 → 重装</span>
+<span class="cmd">cd</span> <span class="path">/d/WorkSpace/src/cc-connect</span> && <span class="cmd">make</span> build-noweb
+<span class="cmd">cc-connect</span> daemon stop && <span class="cmd">cc-connect</span> daemon uninstall
+<span class="cmd">ps</span> <span class="flag">-W</span> | <span class="cmd">grep</span> <span class="flag">-i</span> cc-connect | <span class="cmd">grep</span> <span class="flag">-v</span> grep
+<span class="cmd">cp</span> <span class="path">/d/WorkSpace/src/cc-connect/cc-connect</span> <span class="path">"$(npm root -g)/cc-connect/bin/cc-connect.exe"</span>
+<span class="cmd">cc-connect</span> daemon install
+<span class="cmd">cc-connect</span> <span class="flag">--version</span> && <span class="cmd">cc-connect</span> daemon status</div>
+        </div>
         </div>
       </div>
     </div>
   </div>
 
   <div class="footer">
-    cc-connect Fork 验收部署流程 &middot; v1.3.3-fork.1 &middot; Windows 11 + MSYS2
+    cc-connect Fork 验收部署流程 &middot; v1.3.3-fork.3 &middot; Windows 11 + MSYS2
   </div>
 
 </div>

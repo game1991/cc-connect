@@ -175,8 +175,9 @@ cc-connect daemon install --config "$HOME\\.cc-connect\\config.toml"
 # 管理命令
 cc-connect daemon status          # 查看状态
 cc-connect daemon logs -f        # 实时日志
-cc-connect daemon stop           # 停止
+cc-connect daemon stop           # 停止（失败时自动回退杀进程）
 cc-connect daemon restart        # 重启
+cc-connect daemon restart --force  # 强制重启（杀旧进程 → 等 500ms → 重启）
 cc-connect daemon uninstall      # 卸载服务
 ```
 
@@ -188,15 +189,16 @@ cc-connect daemon uninstall      # 卸载服务
 | daemon install 查找（原 bug） | `$HOME/config.toml`（不进子目录） |
 | daemon install 查找（fork 已修复） | `WorkDir/config.toml` → `~/.cc-connect/config.toml` 三级 fallback |
 | 绕过方案（原版仍需） | `--config "$HOME\\.cc-connect\\config.toml"` |
+| daemon 元数据 | `~/.cc-connect/daemon.json`（路径统一为正斜杠，权限 0600） |
 | 日志目录 | `~/.cc-connect/logs/` |
-| 运行时锁文件 | `~/.cc-connect/.config.toml.lock` |
+| 运行时锁文件 | `~/.cc-connect/.config.toml.lock`（含 PID，用于 stop 回退杀进程） |
 | API socket | `~/.cc-connect/run/api.sock` |
 
 ---
 
 ## Fork 变更清单（feat/role-based-tool-permissions）
 
-> 基于上游 `main` 分支，共 2 个提交 + 工作区通用性改进
+> 基于上游 `main` 分支，共 2 个提交 + 工作区通用性改进 + daemon 安全加固
 
 ### 提交 1：`42f343a` feat: role-based agent permission mode and tool whitelist
 
@@ -223,6 +225,23 @@ cc-connect daemon uninstall      # 卸载服务
 | G-2 | 默认身份 `"web-admin"` 暗示管理员权限 | 默认身份改为 `"bridge-user"`，不暗示任何权限 | `core/bridge.go` | 最小权限原则：未配置身份时不应自动获得语义上的 admin 身份 |
 | G-3 | `AllowedTools` 注释称"only effective with dontAsk"，误导用户 | 注释改为精确描述三种模式交互：yolo 冗余、default 预授权、dontAsk 仅白名单通过 | `config/config.go`, `config.example.toml` | 注释是用户理解行为的主要入口，必须与代码一致 |
 | G-4 | 示例中 `user_ids` 含个人 ID（`"your_admin_user_id"`） | 替换为 `"your_admin_user_id"` 等通用占位符 | QA 文档 Q7 | 开源项目示例不应含个人配置 |
+
+### Daemon 安全加固（工作区改进，通用性提升）
+
+| # | 问题 | 修复 | 影响文件 | 通用性说明 |
+|---|------|------|----------|-----------|
+| D-1 | `daemon stop` 回退全失败仍打印 "stopped"，静默误导用户 | `stopWithFallback` 返回 error，失败时 `os.Exit(1)` + 提示 `--force` | `cmd/cc-connect/daemon.go` | 所有平台，防止用户以为已停而做破坏性操作 |
+| D-2 | Unix `KillExistingInstance` 不等待进程退出 | 添加 5s 轮询等待，超时返回 false | `cmd/cc-connect/instance_lock.go` | 与 Windows 行为对齐，防止端口冲突 |
+| D-3 | PID 重用导致可能误杀无关进程 | Windows: `QueryFullProcessImageNameW` + `isCcConnectBinary`; Unix: `/proc/<pid>/exe` + `/proc/<pid>/cmdline` 验证 | `cmd/cc-connect/instance_lock_windows.go`, `cmd/cc-connect/instance_lock.go` | 操作系统级安全防护 |
+| D-4 | `daemon.json` 权限 0644 过宽 | 改为 0600（仅属主可读写） | `daemon/manager.go` | 含 ConfigFile 路径信息，不应全局可读 |
+| D-5 | Windows `daemon.json` 保存反斜杠路径 | `filepath.ToSlash` 统一为正斜杠 | `cmd/cc-connect/daemon.go` | 跨平台可移植性 |
+| D-6 | `daemon restart --force` 路径硬编码 + 竞态窗口 | 使用 `metaConfigPath()` 解析路径；Kill 后 sleep 500ms | `cmd/cc-connect/daemon.go` | 修复 `--config` 非标准名称时杀错进程的 bug |
+| D-7 | `KillExistingInstance` 超时后仍返回 true | 超时返回 false（Windows + Unix 统一） | `instance_lock_windows.go`, `instance_lock.go` | 让调用方正确判断进程是否真正退出 |
+| D-8 | `handlePendingPermission` 硬编码英文字符串 | `MsgPermIdentityDenied` + EN/ZH/ZH-TW/JA/ES 五语翻译 | `core/engine.go`, `core/i18n.go` | 项目规范要求所有用户可见字符串走 i18n |
+| D-9 | `normalizeWorkspacePath` Windows 返回反斜杠路径 | `filepath.ToSlash` 统一返回正斜杠 | `core/workspace_state.go` | workspace key 跨平台一致性 |
+| D-10 | `replyFooterHomeRelativePath` Windows 前缀比较失败 | 统一用正斜杠比较 | `core/engine.go` | 修复 home 目录缩写 `~` 在 Windows 上不生效的 bug |
+| D-11 | `doctor_runas_test.go` 缺少 `!windows` build tag | 补上 `//go:build !windows` | `cmd/cc-connect/doctor_runas_test.go` | 修复 Windows 编译失败 |
+| D-12 | `daemonStop` 不可测试（含 `os.Exit`） | 提取 `stopWithFallback`（依赖注入 + 返回 error） | `cmd/cc-connect/daemon.go` | 补充 6 个单元测试覆盖所有分支 |
 
 ### 各模式与 allowed_tools 交互速查
 
@@ -467,3 +486,108 @@ cc-connect --version && cc-connect daemon status
 | `daemon install` 报 config not found | 未替换二进制，用的仍是旧版 | 确认 `cc-connect --version` 显示 fork commit |
 | `npm update` 后版本回退 | npm 重装了官方二进制 | 重新执行 `cp` |
 | `Permission denied` (taskkill) | 需要管理员权限 | 在管理员终端执行 taskkill |
+| `daemon stop` 无反应 | 进程非 schtasks 启动，或进程卡死 | 使用 `daemon restart --force` 或 `taskkill /PID <PID> /F` |
+
+---
+
+## Q9: `daemon stop` 停不掉进程怎么办？
+
+**现象**
+
+```bash
+cc-connect daemon stop
+# 无错误输出，但进程仍在运行
+# 或: Stop failed: ...（schtasks 报错）
+```
+
+**根因**
+
+v1.3.3-beta.4 上游的 `daemon stop` 仅通过 `schtasks /End` 或 `systemctl stop` 发送停止信号。以下场景会失败：
+
+1. **进程不是由 schtasks 启动的** — 你手动运行了 launcher 脚本或前台 `cc-connect`
+2. **进程卡死** — 不响应关闭信号
+3. **进程已退出但 schtasks 未刷新状态** — 状态显示 "Running" 但实际无进程
+
+**解决**
+
+Fork 版已增加回退机制（PID 直杀）：
+
+```bash
+# 优先级 1：正常停止（schtasks 管理）
+cc-connect daemon stop
+
+# 优先级 2：强制重启（杀进程 → 等 500ms → 重启）
+cc-connect daemon restart --force
+
+# 优先级 3：手动杀进程
+ps -W | grep -i cc-connect | grep -v grep
+# 找到 PID 后
+taskkill /PID <PID> /F
+```
+
+**回退逻辑详解**
+
+Fork 版 `daemon stop` 的执行流程：
+
+```
+1. mgr.Stop()        ← schtasks /End 或 systemctl stop
+   ├─ 成功 → 打印 "stopped" 退出
+   └─ 失败 → 进入回退
+2. LoadMeta()        ← 读取 daemon.json 中的 ConfigFile/WorkDir
+3. metaConfigPath()  ← 解析 .lock 文件路径
+4. KillExistingInstance()  ← 读 PID → 验证进程映像名 → TerminateProcess
+   ├─ 成功 → 打印 "Warning: process killed via instance lock PID" 退出
+   └─ 全失败 → 报错退出码 1，提示 "Try: cc-connect daemon restart --force"
+```
+
+**安全防护**：KillExistingInstance 在终止进程前会验证进程映像名为 `cc-connect.exe`（Windows）或 `cc-connect`（Linux/macOS），防止 PID 重用导致误杀其他程序。
+
+---
+
+## Q10: `daemon restart --force` 为什么更安全了？
+
+**现象**
+
+旧版 `daemon restart --force` 直接用 `WorkDir + "/config.toml"` 构造路径，且 Kill 后不等进程退出就 Restart。
+
+**旧版问题**
+
+| 问题 | 场景 | 后果 |
+|------|------|------|
+| 路径硬编码 | `--config my-config.toml` 时 lock 文件名应该是 `.my-config.toml.lock` | KillExistingInstance 找错文件，无法杀进程 |
+| 不等进程退出 | Kill 后立即 Restart | 旧进程可能仍占端口，新进程启动失败 |
+| PID 误杀风险 | PID 被新进程复用 | 可能杀掉不相关的进程 |
+
+**Fork 修复**
+
+1. **`metaConfigPath()`**：从 `daemon.json` 读取 `ConfigFile`，正确解析任意配置文件名
+2. **500ms sleep**：Kill 成功后等待资源释放（端口、锁文件），再执行 Restart
+3. **进程映像名验证**：
+   - Windows：`QueryFullProcessImageNameW` 检查 `.exe` 文件名
+   - Linux：读取 `/proc/<pid>/exe` 符号链接
+   - macOS：无 `/proc`，flock 锁已提供基本置信度，允许通过
+
+---
+
+## Q11: daemon.json 中为什么路径是正斜杠？
+
+**现象**
+
+```json
+// ~/.cc-connect/daemon.json
+{
+  "work_dir": "C:/Users/KC/.cc-connect",
+  "binary_path": "D:/nodejs/node_global/node_modules/cc-connect/bin/cc-connect.exe",
+  "config_file": "C:/Users/KC/.cc-connect/config.toml"
+}
+```
+
+**原因**
+
+Fork 版在 `daemon install` 保存 Meta 时对所有路径执行 `filepath.ToSlash()`，统一为正斜杠。理由：
+
+1. **跨平台一致性**：daemon.json 可能被不同系统读取（WSL、SSH 远程、CI），正斜杠所有平台通用
+2. **JSON 可移植性**：反斜杠在 JSON 字符串中需要转义（`\\`），正斜杠无需转义
+3. **TOML 配置兼容**：cc-connect 的 `config.toml` 也使用正斜杠，daemon.json 保持一致
+
+> Go 的 `filepath.Join` 和 `os.Open` 在 Windows 上同时接受 `/` 和 `\`，正斜杠路径不影响功能。
