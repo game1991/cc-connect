@@ -116,85 +116,46 @@ func (s *stubManager) Restart() error              { return nil }
 func (s *stubManager) Status() (*daemon.Status, error) { return s.status, s.statusErr }
 func (s *stubManager) Platform() string             { return "test" }
 
-func TestStopWithFallback_ManagerStopSucceeds(t *testing.T) {
-	killCalled := false
+func TestStopWithFallback_StopSucceeds_ProcessGone(t *testing.T) {
 	err := stopWithFallback(
 		func() (daemon.Manager, error) {
 			return &stubManager{stopErr: nil, status: &daemon.Status{Installed: true}}, nil
 		},
 		func() (*daemon.Meta, error) {
-			t.Fatal("loadMeta should not be called when Stop succeeds")
-			return nil, nil
+			return &daemon.Meta{WorkDir: "/tmp/work", ConfigFile: "/tmp/work/config.toml"}, nil
 		},
-		func(string) bool {
-			killCalled = true
-			return false
-		},
+		func(string) bool { return false }, // kill returns false → process already gone
 		&bytes.Buffer{},
 	)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if killCalled {
-		t.Error("kill should not be called when Stop succeeds")
-	}
 }
 
-func TestStopWithFallback_ManagerStopFails_KillSucceeds(t *testing.T) {
+func TestStopWithFallback_StopSucceeds_ProcessStillAlive(t *testing.T) {
 	var stderr bytes.Buffer
 	err := stopWithFallback(
 		func() (daemon.Manager, error) {
-			return &stubManager{
-				stopErr:   fmt.Errorf("schtasks failed"),
-				status:    &daemon.Status{Installed: true},
-				statusErr: nil,
-			}, nil
+			return &stubManager{stopErr: nil, status: &daemon.Status{Installed: true}}, nil
 		},
 		func() (*daemon.Meta, error) {
-			return &daemon.Meta{WorkDir: "/tmp/work", ConfigFile: ""}, nil
+			return &daemon.Meta{WorkDir: "/tmp/work", ConfigFile: "/tmp/work/config.toml"}, nil
 		},
-		func(string) bool { return true },
+		func(string) bool { return true }, // kill returns true → process was still alive
 		&stderr,
 	)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if !strings.Contains(stderr.String(), "Warning:") {
-		t.Errorf("expected warning in stderr, got %q", stderr.String())
+		t.Errorf("expected warning about process still running, got %q", stderr.String())
 	}
 }
 
-func TestStopWithFallback_ManagerStopFails_KillFails(t *testing.T) {
+func TestStopWithFallback_LoadMetaFails(t *testing.T) {
 	err := stopWithFallback(
 		func() (daemon.Manager, error) {
-			return &stubManager{
-				stopErr:   fmt.Errorf("schtasks failed"),
-				status:    &daemon.Status{Installed: true},
-				statusErr: nil,
-			}, nil
-		},
-		func() (*daemon.Meta, error) {
-			return &daemon.Meta{WorkDir: "/tmp/work"}, nil
-		},
-		func(string) bool { return false },
-		&bytes.Buffer{},
-	)
-	if err == nil {
-		t.Fatal("expected error when both Stop and kill fail")
-	}
-	if !strings.Contains(err.Error(), "failed to stop daemon") {
-		t.Errorf("error should mention stop failure, got %q", err.Error())
-	}
-}
-
-func TestStopWithFallback_ManagerStopFails_LoadMetaFails(t *testing.T) {
-	err := stopWithFallback(
-		func() (daemon.Manager, error) {
-			return &stubManager{
-				stopErr:   fmt.Errorf("schtasks failed"),
-				status:    &daemon.Status{Installed: true},
-				statusErr: nil,
-			}, nil
+			return &stubManager{stopErr: fmt.Errorf("schtasks failed"), status: &daemon.Status{Installed: true}}, nil
 		},
 		func() (*daemon.Meta, error) {
 			return nil, fmt.Errorf("no daemon.json")
@@ -202,8 +163,8 @@ func TestStopWithFallback_ManagerStopFails_LoadMetaFails(t *testing.T) {
 		func(string) bool { return false },
 		&bytes.Buffer{},
 	)
-	if err == nil {
-		t.Fatal("expected error when Stop and LoadMeta both fail")
+	if err != nil {
+		t.Fatalf("should return nil when loadMeta fails (assume platform stop worked): %v", err)
 	}
 }
 

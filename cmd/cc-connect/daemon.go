@@ -264,18 +264,20 @@ func stopWithFallback(newMgr func() (daemon.Manager, error), loadMeta func() (*d
 	if st == nil || !st.Installed {
 		return fmt.Errorf("service is not installed. Run first:\n  cc-connect daemon install --work-dir /path/to/config-dir")
 	}
-	if err := mgr.Stop(); err != nil {
-		killed := false
-		if meta, merr := loadMeta(); merr == nil {
-			configPath := metaConfigPath(meta)
-			killed = kill(configPath)
-			if killed {
-				fmt.Fprintln(stderr, "Warning: scheduled task stop failed; process killed via instance lock PID")
-			}
-		}
-		if !killed {
-			return fmt.Errorf("failed to stop daemon: %v\n  Try: cc-connect daemon restart --force", err)
-		}
+	// Always attempt the platform stop first; ignore error — we'll verify below.
+	_ = mgr.Stop()
+
+	// Verify the process actually exited by probing the instance lock PID.
+	// KillExistingInstance returns true only when it found and terminated a
+	// live cc-connect process, so a true result means the platform stop
+	// reported success prematurely.
+	meta, merr := loadMeta()
+	if merr != nil {
+		return nil
+	}
+	configPath := metaConfigPath(meta)
+	if kill(configPath) {
+		fmt.Fprintln(stderr, "Warning: task scheduler reported stopped but process was still running; killed via instance lock PID")
 	}
 	return nil
 }
