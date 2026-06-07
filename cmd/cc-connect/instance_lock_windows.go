@@ -13,9 +13,9 @@ import (
 )
 
 const killWaitTimeout = 5 * time.Second
-const killWaitInterval = 25 * time.Millisecond
 
 const processQueryLimitedInformation = 0x1000
+const processSynchronize = 0x100000
 
 type InstanceLock struct {
 	handle   syscall.Handle
@@ -98,10 +98,11 @@ func KillExistingInstance(configPath string) bool {
 		return false
 	}
 
-	// Open process with both TERMINATE and QUERY access so we can
-	// verify the image name on the same handle before terminating.
+	// Open process with TERMINATE (for TerminateProcess), QUERY (for
+	// image name verification), and SYNCHRONIZE (for WaitForSingleObject)
+	// access rights.
 	handle, err := syscall.OpenProcess(
-		syscall.PROCESS_TERMINATE|processQueryLimitedInformation,
+		syscall.PROCESS_TERMINATE|processQueryLimitedInformation|processSynchronize,
 		false, uint32(pid),
 	)
 	if err != nil {
@@ -119,15 +120,13 @@ func KillExistingInstance(configPath string) bool {
 		return false
 	}
 
-	deadline := time.Now().Add(killWaitTimeout)
-	for time.Now().Before(deadline) {
-		_, err := syscall.OpenProcess(processQueryLimitedInformation, false, uint32(pid))
-		if err != nil {
-			return true
-		}
-		time.Sleep(killWaitInterval)
-	}
-	return false
+	// On Windows, terminated processes become zombies: OpenProcess still
+	// succeeds on the dead handle. Use WaitForSingleObject on the process
+	// handle instead — it transitions to signaled state when the process
+	// actually exits.
+	timeoutMs := uint32(killWaitTimeout.Milliseconds())
+	event, _ := syscall.WaitForSingleObject(handle, timeoutMs)
+	return event == syscall.WAIT_OBJECT_0
 }
 
 func queryFullProcessImageName(handle syscall.Handle) (string, error) {
