@@ -129,7 +129,7 @@ jobs:
         run: |
           mkdir -p npm/bin
           cd dist
-          unzip cc-connect-*-windows-amd64.zip
+          unzip -o cc-connect-*-windows-amd64.zip
           mv cc-connect-*-windows-amd64.exe ../npm/bin/cc-connect.exe
           cd ..
           # Also extract Linux/macOS binaries for universal npm install.js
