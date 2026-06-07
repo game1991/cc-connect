@@ -501,7 +501,7 @@
     <h1>Fork 验收部署流程</h1>
     <p class="subtitle">
       两条路径：GitHub Packages 一键安装 &nbsp;|&nbsp; cp 替换快速验证 &nbsp;
-      <span class="version-badge">v1.3.3-fork.3</span>
+      <span class="version-badge">v1.3.3-fork.4</span>
       <span class="version-badge">Windows 11</span>
     </p>
   </div>
@@ -600,12 +600,12 @@
           <div class="code-label"><span class="lang">bash — 一条龙完成</span><button class="copy-btn" onclick="copyCode(this)">复制</button></div>
           <div class="code-content"><span class="comment"># ═══ 1. 修改版本号 ═══</span>
 <span class="comment"># 编辑 Makefile，将 VERSION 递增</span>
-<span class="cmd">VERSION</span> := <span class="highlight">v1.3.3-fork.3</span>   <span class="comment"># fork.1 → fork.2 → fork.3 ...</span>
+<span class="cmd">VERSION</span> := <span class="highlight">v1.3.3-fork.4</span>   <span class="comment"># fork.1 → fork.2 → fork.3 ...</span>
 
 <span class="comment"># ═══ 2. 提交 + 打 Tag + Push ═══</span>
 <span class="prompt">$</span> <span class="cmd">git</span> add -A && \
-    <span class="cmd">git</span> commit -m <span class="flag">"chore: bump version to v1.3.3-fork.3"</span>
-<span class="prompt">$</span> <span class="cmd">git</span> tag <span class="highlight">v1.3.3-fork.3</span>
+    <span class="cmd">git</span> commit -m <span class="flag">"chore: bump version to v1.3.3-fork.4"</span>
+<span class="prompt">$</span> <span class="cmd">git</span> tag <span class="highlight">v1.3.3-fork.4</span>
 <span class="prompt">$</span> <span class="cmd">git</span> push fork feat/role-based-tool-permissions <span class="flag">--tags</span>
 
 <span class="comment"># ═══ 3. CI 自动执行（约 7 分钟） ═══</span>
@@ -661,7 +661,7 @@ EOF
           <div class="code-content"><span class="prompt">$</span> <span class="cmd">npm</span> install <span class="flag">-g</span> <span class="path">@game1991/cc-connect</span>
 
 <span class="comment"># postinstall 自动从 GitHub Release 下载对应平台的二进制</span>
-<span class="output">[cc-connect] Downloading from https://github.com/game1991/cc-connect/releases/download/v1.3.3-fork.3/...</span>
+<span class="output">[cc-connect] Downloading from https://github.com/game1991/cc-connect/releases/download/v1.3.3-fork.4/...</span>
 <span class="output">[cc-connect] Installed to D:\nodejs\node_global\node_modules\@game1991\cc-connect\bin\cc-connect.exe</span></div>
         </div>
 
@@ -721,7 +721,7 @@ EOF
         <div class="code-block">
           <div class="code-label"><span class="lang">bash</span><button class="copy-btn" onclick="copyCode(this)">复制</button></div>
           <div class="code-content"><span class="prompt">$</span> <span class="cmd">cc-connect</span> <span class="flag">--version</span>
-<span class="output">cc-connect v1.3.3-fork.3</span>
+<span class="output">cc-connect v1.3.3-fork.4</span>
 <span class="output">commit:  7f7fe13</span>
 
 <span class="prompt">$</span> <span class="cmd">cc-connect</span> daemon status
@@ -1153,7 +1153,7 @@ EOF
         <thead><tr><th>项目</th><th>路径</th></tr></thead>
         <tbody>
           <tr><td>编译产物</td><td class="blue">/d/WorkSpace/src/cc-connect/cc-connect</td></tr>
-          <tr><td>Release 包</td><td class="green">dist/cc-connect-v1.3.3-fork.3-windows-amd64.zip</td></tr>
+          <tr><td>Release 包</td><td class="green">dist/cc-connect-v1.3.3-fork.4-windows-amd64.zip</td></tr>
           <tr><td>npm 二进制（路径 A）</td><td class="green">$(npm root -g)/@game1991/cc-connect/bin/cc-connect.exe</td></tr>
           <tr><td>npm 二进制（路径 B）</td><td class="green">$(npm root -g)/cc-connect/bin/cc-connect.exe</td></tr>
           <tr><td>npm 旧 prefix 残留</td><td style="color:var(--red)">%APPDATA%\npm\node_modules\cc-connect\</td></tr>
@@ -1210,7 +1210,7 @@ EOF
   </div>
 
   <div class="footer">
-    cc-connect Fork 验收部署流程 &middot; v1.3.3-fork.3 &middot; Windows 11 + MSYS2
+    cc-connect Fork 验收部署流程 &middot; v1.3.3-fork.4 &middot; Windows 11 + MSYS2
   </div>
 
 </div>
