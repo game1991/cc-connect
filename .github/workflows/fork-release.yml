@@ -113,6 +113,12 @@ jobs:
           node-version: 20
           registry-url: https://npm.pkg.github.com
 
+      - name: Sync package.json version to tag
+        working-directory: npm
+        run: |
+          TAG_VER="${GITHUB_REF_NAME#v}"
+          node -e "const p=require('./package.json');p.version='$TAG_VER';require('fs').writeFileSync('package.json',JSON.stringify(p,null,2)+'\n')"
+
       - name: Publish to GitHub Packages
         working-directory: npm
         run: npm publish
