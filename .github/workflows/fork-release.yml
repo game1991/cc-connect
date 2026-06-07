@@ -25,17 +25,31 @@ jobs:
             goarch: arm64
           - goos: windows
             goarch: amd64
-          - goos: windows
-            goarch: arm64
 
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-go@v5
         with:
-          go-version-file: go.mod
+          go-version: "1.24"
 
-      - name: Build binary
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+
+      - name: Build web frontend
+        run: |
+          cd web
+          pnpm install --frozen-lockfile
+          pnpm build
+
+      - name: Build Go binary (with web)
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
@@ -47,7 +61,7 @@ jobs:
           EXT=${{ matrix.goos == 'windows' && '.exe' || '' }}
           OUT=dist/cc-connect-${VERSION}-${{ matrix.goos }}-${{ matrix.goarch }}${EXT}
           mkdir -p dist
-          go build -tags 'no_web' -ldflags "-s -w \
+          go build -ldflags "-s -w \
             -X main.version=${VERSION} \
             -X main.commit=${COMMIT} \
             -X main.buildTime=${BUILD_TIME}" \
@@ -65,11 +79,10 @@ jobs:
           else
             tar czf ${BASENAME}.tar.gz ${BASENAME}
           fi
-          echo "archive=dist/${BASENAME}${EXT}" >> $GITHUB_OUTPUT
 
       - uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.goos }}-${{ matrix.goarch }}
+          name: cc-connect-${{ matrix.goos }}-${{ matrix.goarch }}
           path: dist/cc-connect-*
 
   github-release:
@@ -92,7 +105,6 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.ref_name }}
           name: cc-connect ${{ github.ref_name }}
           draft: false
           generate_release_notes: true
@@ -108,16 +120,34 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      - uses: actions/download-artifact@v4
         with:
-          node-version: 20
-          registry-url: https://npm.pkg.github.com
+          path: dist
+          merge-multiple: true
+
+      - name: Extract Windows binary for npm package
+        run: |
+          mkdir -p npm/bin
+          cd dist
+          unzip cc-connect-*-windows-amd64.zip
+          mv cc-connect-*-windows-amd64.exe ../npm/bin/cc-connect.exe
+          cd ..
+          # Also extract Linux/macOS binaries for universal npm install.js
+          for f in dist/*.tar.gz; do
+            tar xzf "$f" -C npm/bin/ --strip-components=0 || true
+          done
+          ls -la npm/bin/
 
       - name: Sync package.json version to tag
         working-directory: npm
         run: |
           TAG_VER="${GITHUB_REF_NAME#v}"
           node -e "const p=require('./package.json');p.version='$TAG_VER';require('fs').writeFileSync('package.json',JSON.stringify(p,null,2)+'\n')"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: https://npm.pkg.github.com
 
       - name: Publish to GitHub Packages
         working-directory: npm
