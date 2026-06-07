@@ -78,6 +78,7 @@ func daemonInstall(args []string) {
 		fmt.Fprintf(os.Stderr, "Warning: config.toml not found in %s or ~/.cc-connect/\n", cfg.WorkDir)
 		fmt.Fprintf(os.Stderr, "  Use --work-dir to specify the config directory or --config to point to the config file\n")
 	}
+	cfg.ConfigFile = configPath
 
 	mgr, err := daemon.NewManager()
 	if err != nil {
