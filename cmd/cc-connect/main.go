@@ -114,6 +114,9 @@ func main() {
 		case "clean":
 			runClean(os.Args[2:])
 			return
+		case "reinstall":
+			runReinstall(os.Args[2:])
+			return
 		case "web":
 			runWeb(os.Args[2:])
 			return
@@ -1401,6 +1404,8 @@ Commands:
   clean              Remove runtime state (lock, sock, logs) preserving config
     reset            Remove ALL user data (config backed up first)
 
+  reinstall          Full reinstall: clean + generate completion script
+
   update             Check for updates and upgrade the binary (--pre for beta)
   check-update       Check if a newer version is available
   config-example     (deprecated: use 'config example' instead)
@@ -1419,6 +1424,7 @@ Examples:
   cc-connect config example > c.toml  Save example config to a file
   cc-connect clean                     Remove runtime state, keep config
   cc-connect clean reset               Factory reset (config backed up)
+  cc-connect reinstall                 Full reinstall (two-step: prepare then run script)
 
 `, v, updateHint)
 }

@@ -344,15 +344,19 @@ cc-connect clean reset
 **一键重装**（清理 + npm 重装 + 恢复配置 + daemon install）：
 
 ```bash
-# Git Bash / Linux / macOS
-bash scripts/reinstall.sh
+# 第一步：准备（备份配置、清理运行时、卸载 daemon）
+cc-connect reinstall --yes
 
-# Windows PowerShell
-powershell -File scripts\reinstall.ps1
-
-# 支持 --yes 跳过确认，--dry-run 仅预览
-bash scripts/reinstall.sh --dry-run
+# 第二步：运行补全脚本完成 npm 重装 + 恢复配置 + daemon install
+# （Unix 上自动执行，Windows 上需要手动运行脚本）
 ```
+
+`cc-connect reinstall` 是两阶段命令：
+- **Phase 1**（Go 代码）：备份配置 → 清理运行时 → 卸载 daemon → 生成补全脚本
+- **Phase 2**（补全脚本）：npm uninstall → npm install → 恢复配置 → daemon install
+
+在 Unix/macOS 上 Phase 1 完成后自动 exec 进入 Phase 2，实现一条命令完成。
+在 Windows 上因文件锁限制需两步：先 `cc-connect reinstall`，再运行打印的补全脚本命令。
 
 ---
 

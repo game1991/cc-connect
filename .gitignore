@@ -72,8 +72,7 @@ web/tsconfig.tsbuildinfo
 # Testing & temporary files
 # ============================================================================
 test/
-scripts/*
-!scripts/reinstall.*
+scripts/
 tmp/
 temp/
 *.tmp

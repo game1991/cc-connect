@@ -86,26 +86,17 @@ func cleanRuntime() {
 	fmt.Println("Preserved: config.toml, crons/")
 }
 
-// cleanReset performs a full reset: clean + back up user data + remove everything.
+// cleanReset performs a full reset: back up user data + clean + remove everything.
 func cleanReset() {
 	dataDir := daemon.DefaultDataDir()
 
-	// 1. Run clean first.
-	cleanRuntime()
-
-	// 2. Confirm with user — reset deletes config and cron jobs.
-	fmt.Println("\nReset will remove config.toml and crons/ (backups will be created).")
-	if !confirmPrompt("Continue with reset? [y/N] ") {
-		fmt.Println("Reset cancelled.")
-		return
-	}
-
-	// 3. Create timestamped backup directory.
+	// 1. Back up user data BEFORE clean (cleanRuntime deletes dir_history.json).
 	backupDir := filepath.Join(filepath.Dir(dataDir), ".cc-connect-backup", time.Now().Format("20060102-150405"))
 	if err := os.MkdirAll(backupDir, 0700); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: cannot create backup directory: %v\n", err)
 		os.Exit(1)
 	}
+	_ = os.Chmod(backupDir, 0700)
 
 	backedUp := 0
 	type backupItem struct {
@@ -140,6 +131,16 @@ func cleanReset() {
 		fmt.Printf("  Backup directory: %s\n", shortPath(backupDir))
 	} else {
 		fmt.Println("  No user data to back up.")
+	}
+
+	// 2. Run clean.
+	cleanRuntime()
+
+	// 3. Confirm with user — reset deletes config and cron jobs.
+	fmt.Println("\nReset will remove config.toml and crons/ (backups have been created).")
+	if !confirmPrompt("Continue with reset? [y/N] ") {
+		fmt.Println("Reset cancelled.")
+		return
 	}
 
 	// 4. Remove remaining user data.

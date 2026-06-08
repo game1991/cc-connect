@@ -1011,14 +1011,14 @@
       <p style="color:var(--text-sec);font-size:13px;margin-bottom:8px">
         清理 + npm 重装 + 恢复配置 + daemon install：
       </p>
-<pre><span class="comment"># Git Bash / Linux / macOS</span>
-<span class="cmd">bash scripts/reinstall.sh</span>
+<pre><span class="comment"># 第一步：准备（备份配置、清理运行时、卸载 daemon）</span>
+<span class="cmd">cc-connect reinstall --yes</span>
 
-<span class="comment"># Windows PowerShell</span>
-<span class="cmd">powershell -File scripts\reinstall.ps1</span>
-
-<span class="comment"># 支持 --yes 跳过确认，--dry-run 仅预览</span>
-<span class="cmd">bash scripts/reinstall.sh --dry-run</span></pre>
+<span class="comment"># 第二步：运行补全脚本完成 npm 重装 + 恢复配置 + daemon install</span>
+<span class="comment">#（Unix 上自动执行，Windows 上需手动运行打印的脚本命令）</span></pre>
+      <p style="color:var(--text-sec);font-size:12.5px;margin-top:6px">
+        <code>cc-connect reinstall</code> 是两阶段命令：Phase 1（Go 代码）完成备份、清理、卸载 daemon；Phase 2（补全脚本）完成 npm 重装、恢复配置、daemon install。Unix 上自动一条命令完成，Windows 上因文件锁需两步。
+      </p>
     </div>
   </div>
 </div>
