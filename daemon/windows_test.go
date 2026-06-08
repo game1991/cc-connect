@@ -83,6 +83,8 @@ func TestWindowsTaskCreateUsesLimitedInteractivePrincipal(t *testing.T) {
 		`Register-ScheduledTask`,
 		`-LogonType Interactive`,
 		`-RunLevel Limited`,
+		`New-ScheduledTaskSettingsSet -Hidden`,
+		`-Settings $settings`,
 		`-WindowStyle Hidden`,
 		`C:\Users\me\.cc-connect\cc-connect-daemon.ps1`,
 	} {
