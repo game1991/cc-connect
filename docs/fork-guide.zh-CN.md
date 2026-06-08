@@ -1,6 +1,6 @@
 # cc-connect Fork 说明书
 
-> `@game1991/cc-connect` v1.3.3-fork.9 | 最后更新 2026-06-08
+> `@game1991/cc-connect` v1.3.3-fork.10 | 最后更新 2026-06-08
 
 ---
 
@@ -264,7 +264,7 @@ npm install -g @game1991/cc-connect
 
 ```bash
 cc-connect --version
-# 预期: cc-connect v1.3.3-fork.9
+# 预期: cc-connect v1.3.3-fork.10
 ```
 
 ### 第三步：创建配置
@@ -513,7 +513,7 @@ cc-connect daemon logs -n 100   # 最近 100 行
 - `fork.N` 独立于上游 `-beta.N` 递增
 - **必须满足** `fork.N` ≥ 上游 npm beta 版的 pre-release 排序值
   - 当前上游 npm：`1.3.3-beta.4`
-  - 当前 fork：`1.3.3-fork.9`
+  - 当前 fork：`1.3.3-fork.10`
   - semver 排序：`fork.8 > beta.4` ✅（否则 `run.js` 会覆盖你的二进制）
 
 ### 发版命令
