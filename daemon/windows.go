@@ -69,6 +69,8 @@ func (m *schtasksManager) Install(cfg Config) error {
 		return err
 	}
 
+	ensureCmdFileAssociation()
+
 	if err := m.Start(); err != nil {
 		return fmt.Errorf("start task: %w", err)
 	}
@@ -202,6 +204,26 @@ func buildWindowsTaskScript(cfg Config) string {
 
 func writePowerShellEnv(sb *strings.Builder, key, value string) {
 	fmt.Fprintf(sb, "$env:%s = %s\r\n", key, powerShellLiteral(value))
+}
+
+func ensureCmdFileAssociation() {
+	out, err := runPowerShell(`
+$base = 'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\FileExts\.cmd'
+if (-not (Test-Path $base)) {
+	New-Item -Path $base -Force | Out-Null
+	New-Item -Path "$base\OpenWithList" -Force | Out-Null
+	New-Item -Path "$base\OpenWithProgids" -Force | Out-Null
+	New-ItemProperty -Path "$base\OpenWithProgids" -Name 'cmdfile' -Value ([byte[]]::new(0)) -PropertyType None -Force | Out-Null
+	Write-Output 'fixed'
+} else {
+	Write-Output 'ok'
+}
+`)
+	if err != nil {
+		slog.Warn("schtasks: failed to check/fix .cmd file association", "error", err, "output", out)
+	} else if strings.EqualFold(strings.TrimSpace(out), "fixed") {
+		slog.Warn("schtasks: .cmd file association was missing, created Explorer\\FileExts\\.cmd registry key")
+	}
 }
 
 func powerShellLiteral(value string) string {

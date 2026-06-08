@@ -65,6 +65,50 @@ func TestWindowsTaskActionRunsHidden(t *testing.T) {
 	}
 }
 
+func TestEnsureCmdFileAssociationSkipsWhenPresent(t *testing.T) {
+	orig := runPowerShell
+	t.Cleanup(func() { runPowerShell = orig })
+
+	var called bool
+	runPowerShell = func(s string) (string, error) {
+		called = true
+		if !strings.Contains(s, "Test-Path $base") {
+			t.Fatalf("script should check if key exists:\n%s", s)
+		}
+		if !strings.Contains(s, "else") {
+			t.Fatalf("script should have else branch for existing key:\n%s", s)
+		}
+		return "ok", nil
+	}
+
+	ensureCmdFileAssociation()
+	if !called {
+		t.Fatal("runPowerShell should have been called")
+	}
+}
+
+func TestEnsureCmdFileAssociationFixesWhenMissing(t *testing.T) {
+	orig := runPowerShell
+	t.Cleanup(func() { runPowerShell = orig })
+
+	var script string
+	runPowerShell = func(s string) (string, error) {
+		script = s
+		return "fixed", nil
+	}
+
+	ensureCmdFileAssociation()
+	if !strings.Contains(script, "New-Item -Path $base -Force") {
+		t.Fatalf("script should create missing key:\n%s", script)
+	}
+	if !strings.Contains(script, "OpenWithProgids") {
+		t.Fatalf("script should create OpenWithProgids:\n%s", script)
+	}
+	if !strings.Contains(script, "cmdfile") {
+		t.Fatalf("script should set cmdfile progid:\n%s", script)
+	}
+}
+
 func TestWindowsTaskCreateUsesLimitedInteractivePrincipal(t *testing.T) {
 	orig := runPowerShell
 	t.Cleanup(func() { runPowerShell = orig })
