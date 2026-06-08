@@ -131,6 +131,7 @@ func TestWindowsTaskCreateUsesLimitedInteractivePrincipal(t *testing.T) {
 		`-Settings $settings`,
 		`-WindowStyle Hidden`,
 		`C:\Users\me\.cc-connect\cc-connect-daemon.ps1`,
+		`$trigger.Delay = 'PT30S'`,
 	} {
 		if !strings.Contains(script, want) {
 			t.Fatalf("create script missing %q:\n%s", want, script)

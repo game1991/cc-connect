@@ -144,6 +144,7 @@ func createWindowsTask(scriptPath string) error {
 	out, err := runPowerShell(fmt.Sprintf(`
 $action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument %s
 $trigger = New-ScheduledTaskTrigger -AtLogOn -User $env:USERNAME
+$trigger.Delay = 'PT30S'
 $principal = New-ScheduledTaskPrincipal -UserId $env:USERNAME -LogonType Interactive -RunLevel Limited
 $settings = New-ScheduledTaskSettingsSet -Hidden
 Register-ScheduledTask -TaskName %s -Action $action -Trigger $trigger -Principal $principal -Settings $settings -Force | Out-Null
