@@ -1,0 +1,1293 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>cc-connect Fork 说明书</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --card: #1c2333;
+    --card-hover: #22293a;
+    --border: #30363d;
+    --border-accent: #3d4450;
+    --text: #e6edf3;
+    --text-sec: #8b949e;
+    --text-muted: #6e7681;
+    --accent: #7c6aef;
+    --accent-glow: rgba(124,106,239,.12);
+    --green: #3fb950;
+    --green-bg: rgba(63,185,80,.08);
+    --green-dim: rgba(63,185,80,.35);
+    --red: #f85149;
+    --red-bg: rgba(248,81,73,.08);
+    --yellow: #d29922;
+    --yellow-bg: rgba(210,153,34,.08);
+    --blue: #58a6ff;
+    --blue-bg: rgba(88,166,255,.08);
+    --cyan: #56d4dd;
+    --orange: #f0883e;
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  body {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ── hero ── */
+  .hero {
+    text-align: center;
+    padding: 56px 24px 40px;
+    border-bottom: 1px solid var(--border);
+    background: linear-gradient(180deg, rgba(124,106,239,.06) 0%, transparent 100%);
+  }
+  .hero-badge {
+    display: inline-block;
+    padding: 4px 14px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-family: 'JetBrains Mono', monospace;
+    background: var(--accent-glow);
+    color: var(--accent);
+    border: 1px solid rgba(124,106,239,.3);
+    margin-bottom: 16px;
+  }
+  .hero h1 {
+    font-size: 32px;
+    font-weight: 700;
+    letter-spacing: -.5px;
+    margin-bottom: 8px;
+  }
+  .hero p {
+    color: var(--text-sec);
+    font-size: 15px;
+    max-width: 600px;
+    margin: 0 auto;
+  }
+
+  /* ── nav ── */
+  .toc {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 24px 24px 0;
+  }
+  .toc-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 10px;
+  }
+  .toc-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    border-radius: 8px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    text-decoration: none;
+    color: var(--text);
+    font-size: 14px;
+    font-weight: 500;
+    transition: all .15s;
+  }
+  .toc-item:hover {
+    background: var(--card);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  .toc-num {
+    width: 26px; height: 26px;
+    border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px;
+    font-weight: 700;
+    font-family: 'JetBrains Mono', monospace;
+    background: var(--accent-glow);
+    color: var(--accent);
+    flex-shrink: 0;
+  }
+
+  /* ── sections ── */
+  .container {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 0 24px 80px;
+  }
+  .section {
+    margin-top: 48px;
+  }
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 20px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--border);
+  }
+  .section-num {
+    width: 36px; height: 36px;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 15px;
+    font-weight: 700;
+    font-family: 'JetBrains Mono', monospace;
+    background: var(--accent-glow);
+    color: var(--accent);
+    border: 1px solid rgba(124,106,239,.3);
+    flex-shrink: 0;
+  }
+  .section-title {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -.3px;
+  }
+
+  /* subsection */
+  .subsection {
+    margin-top: 28px;
+  }
+  .subsection-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .subsection-title .tag {
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-weight: 600;
+    font-family: 'JetBrains Mono', monospace;
+    letter-spacing: .5px;
+  }
+  .tag-sec { background: var(--red-bg); color: var(--red); }
+  .tag-feat { background: var(--green-bg); color: var(--green); }
+  .tag-fix { background: var(--blue-bg); color: var(--blue); }
+  .tag-win { background: var(--yellow-bg); color: var(--yellow); }
+
+  /* ── table ── */
+  .table-wrap {
+    overflow-x: auto;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13.5px;
+  }
+  thead { background: var(--card); }
+  th {
+    text-align: left;
+    padding: 10px 14px;
+    font-weight: 600;
+    color: var(--text-sec);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    border-bottom: 1px solid var(--border);
+  }
+  td {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(124,106,239,.03); }
+  td code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: var(--accent-glow);
+    color: var(--accent);
+  }
+
+  /* ── callout ── */
+  .callout {
+    margin: 16px 0;
+    padding: 14px 18px;
+    border-radius: 8px;
+    font-size: 14px;
+    line-height: 1.65;
+  }
+  .callout-warn {
+    background: var(--yellow-bg);
+    border-left: 3px solid var(--yellow);
+    color: #e3b341;
+  }
+  .callout-danger {
+    background: var(--red-bg);
+    border-left: 3px solid var(--red);
+    color: #f0883e;
+  }
+  .callout-info {
+    background: var(--blue-bg);
+    border-left: 3px solid var(--blue);
+    color: var(--blue);
+  }
+  .callout strong { color: inherit; }
+
+  /* ── code block ── */
+  pre {
+    margin: 12px 0;
+    padding: 16px 20px;
+    border-radius: 10px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    overflow-x: auto;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    line-height: 1.55;
+    color: var(--text);
+  }
+  code {
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .cmd { color: var(--cyan); }
+  .flag { color: var(--yellow); }
+  .path { color: var(--green); }
+  .comment { color: var(--text-muted); font-style: italic; }
+  .str { color: var(--orange); }
+
+  /* ── flow diagram ── */
+  .flow-diagram {
+    margin: 16px 0;
+    padding: 20px 24px;
+    border-radius: 10px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    white-space: pre;
+    overflow-x: auto;
+    color: var(--text-sec);
+  }
+  .flow-diagram .hl-accent { color: var(--accent); }
+  .flow-diagram .hl-green { color: var(--green); }
+  .flow-diagram .hl-yellow { color: var(--yellow); }
+  .flow-diagram .hl-red { color: var(--red); }
+
+  /* ── scenario card ── */
+  .scenario {
+    margin: 14px 0;
+    padding: 14px 18px;
+    border-radius: 8px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    font-size: 13.5px;
+    color: var(--text-sec);
+    line-height: 1.65;
+  }
+  .scenario .emoji { font-size: 16px; margin-right: 6px; }
+
+  /* ── steps ── */
+  .steps {
+    counter-reset: step;
+    margin: 16px 0;
+  }
+  .step {
+    counter-increment: step;
+    margin-bottom: 20px;
+    padding: 16px 20px 16px 56px;
+    border-radius: 10px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    position: relative;
+  }
+  .step::before {
+    content: counter(step);
+    position: absolute;
+    left: 16px; top: 16px;
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px;
+    font-weight: 700;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .step-title {
+    font-size: 15px;
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+
+  /* ── faq accordion ── */
+  .faq-item {
+    margin: 10px 0;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    overflow: hidden;
+  }
+  .faq-q {
+    padding: 12px 18px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-weight: 500;
+    font-size: 14px;
+    color: var(--text);
+    transition: background .12s;
+    user-select: none;
+  }
+  .faq-q:hover { background: var(--card); }
+  .faq-chevron {
+    transition: transform .2s;
+    color: var(--text-muted);
+    font-size: 12px;
+  }
+  .faq-item.open .faq-chevron { transform: rotate(90deg); }
+  .faq-a {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height .3s ease;
+  }
+  .faq-item.open .faq-a {
+    max-height: 800px;
+  }
+  .faq-a-inner {
+    padding: 0 18px 16px;
+    font-size: 13.5px;
+    color: var(--text-sec);
+    line-height: 1.7;
+  }
+
+  /* ── mode matrix ── */
+  .mode-matrix {
+    display: grid;
+    grid-template-columns: 120px 1fr 1fr 1fr;
+    gap: 1px;
+    background: var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    margin: 14px 0;
+    font-size: 13px;
+  }
+  .mm-cell {
+    padding: 10px 12px;
+    background: var(--surface);
+    display: flex;
+    align-items: center;
+  }
+  .mm-header {
+    background: var(--card);
+    font-weight: 600;
+    color: var(--text-sec);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: .3px;
+  }
+  .mm-mode {
+    font-weight: 600;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .mm-pass { color: var(--green); }
+  .mm-confirm { color: var(--yellow); }
+  .mm-deny { color: var(--red); }
+
+  /* ── ci flow ── */
+  .ci-flow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 14px 0;
+    padding: 14px 18px;
+    border-radius: 10px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    flex-wrap: wrap;
+  }
+  .ci-node {
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .ci-trigger { background: var(--accent-glow); color: var(--accent); border: 1px solid rgba(124,106,239,.3); }
+  .ci-build { background: var(--blue-bg); color: var(--blue); border: 1px solid rgba(88,166,255,.25); }
+  .ci-release { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-dim); }
+  .ci-arrow { color: var(--text-muted); font-size: 14px; }
+
+  /* ── path comparison ── */
+  .path-compare {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin: 14px 0;
+  }
+  .path-card {
+    padding: 16px 18px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+  }
+  .path-card-recommended {
+    background: var(--green-bg);
+    border-color: var(--green-dim);
+  }
+  .path-card-deprecated {
+    background: var(--red-bg);
+    border-color: rgba(248,81,73,.25);
+  }
+  .path-label {
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+  .path-label-ok { color: var(--green); }
+  .path-label-bad { color: var(--red); }
+  .path-cmd {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12.5px;
+    color: var(--cyan);
+    margin-bottom: 6px;
+  }
+  .path-desc {
+    font-size: 12.5px;
+    color: var(--text-sec);
+    line-height: 1.6;
+  }
+
+  /* ── footer ── */
+  .footer {
+    text-align: center;
+    padding: 32px 24px;
+    border-top: 1px solid var(--border);
+    color: var(--text-muted);
+    font-size: 13px;
+  }
+
+  @media (max-width: 640px) {
+    .hero h1 { font-size: 24px; }
+    .toc-grid { grid-template-columns: 1fr; }
+    .path-compare { grid-template-columns: 1fr; }
+    .mode-matrix { font-size: 12px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ══════════ Hero ══════════ -->
+<div class="hero">
+  <div class="hero-badge">@game1991/cc-connect v1.3.3-fork.9</div>
+  <h1>cc-connect Fork 说明书</h1>
+  <p>角色权限系统 + Windows daemon 加固 — 上游 cc-connect 的生产级增强</p>
+</div>
+
+<!-- ══════════ TOC ══════════ -->
+<div class="toc">
+  <div class="toc-grid">
+    <a href="#why" class="toc-item"><span class="toc-num">1</span>为什么 Fork</a>
+    <a href="#changes" class="toc-item"><span class="toc-num">2</span>改造清单</a>
+    <a href="#features" class="toc-item"><span class="toc-num">3</span>核心功能总览</a>
+    <a href="#rbac" class="toc-item"><span class="toc-num">4</span>角色权限系统</a>
+    <a href="#install" class="toc-item"><span class="toc-num">5</span>安装与部署</a>
+    <a href="#build" class="toc-item"><span class="toc-num">6</span>开发者编译</a>
+    <a href="#upgrade" class="toc-item"><span class="toc-num">7</span>升级</a>
+    <a href="#troubleshoot" class="toc-item"><span class="toc-num">8</span>故障排查</a>
+    <a href="#paths" class="toc-item"><span class="toc-num">9</span>路径速查</a>
+    <a href="#release" class="toc-item"><span class="toc-num">10</span>发布流程</a>
+  </div>
+</div>
+
+<div class="container">
+
+<!-- ══════════ Section 1 ══════════ -->
+<div class="section" id="why">
+  <div class="section-header">
+    <div class="section-num">1</div>
+    <div class="section-title">为什么 Fork</div>
+  </div>
+
+  <p style="color:var(--text-sec);margin-bottom:20px">
+    上游 cc-connect 是优秀的 AI agent &harr; IM 桥接工具，但在实际部署中暴露了两个系统性缺陷：
+  </p>
+
+  <!-- 权限问题 -->
+  <div class="subsection">
+    <div class="subsection-title">
+      权限模型粗糙
+      <span class="tag tag-sec">SECURITY</span>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>问题</th><th>影响</th></tr></thead>
+        <tbody>
+          <tr><td><code>mode</code> / <code>allowed_tools</code> 是 agent 级配置，所有用户共享</td><td>admin 和普通用户看到的弹窗确认行为完全一样</td></tr>
+          <tr><td><code>handlePendingPermission</code> 不校验回复者身份</td><td>任何人在群聊回复"允许"就能批准别人的工具请求</td></tr>
+          <tr><td>Bridge Web 默认身份 <code>"web-admin"</code></td><td>暗示拥有管理员权限，违反最小权限原则</td></tr>
+          <tr><td>配置文件无角色权限示例</td><td>用户不知道如何配置差异化权限</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="scenario">
+      <span class="emoji">&#x1F41B;</span> 典型场景：团队飞书群里，实习生回复"允许"就批准了 admin 发起的 <code>Bash rm</code> 请求。
+    </div>
+  </div>
+
+  <!-- Windows 问题 -->
+  <div class="subsection">
+    <div class="subsection-title">
+      Windows daemon 不可靠
+      <span class="tag tag-win">WINDOWS</span>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>问题</th><th>影响</th></tr></thead>
+        <tbody>
+          <tr><td><code>daemon install</code> 只查 <code>$HOME/config.toml</code>，不进 <code>.cc-connect</code></td><td>Windows 几乎必然报 "config not found"</td></tr>
+          <tr><td>三平台 launcher 不传 <code>--config</code></td><td>daemon 启动后找不到配置文件</td></tr>
+          <tr><td><code>daemon stop</code> 仅依赖 <code>schtasks /End</code></td><td>手动或卡死进程无法停止</td></tr>
+          <tr><td><code>KillExistingInstance</code> 不等待/不验证</td><td>端口冲突或误杀无关进程</td></tr>
+          <tr><td><code>.cmd</code> 文件关联注册表键可能缺失</td><td>弹出"你想如何打开此文件？"</td></tr>
+          <tr><td>schtasks 未设 <code>-Hidden</code></td><td>每次登录闪 CMD 窗口</td></tr>
+          <tr><td>AtLogOn 触发无延迟</td><td>Shell 未就绪就启动 daemon</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="scenario">
+      <span class="emoji">&#x1F4A5;</span> 典型场景：<code>daemon install</code> 后重启，弹出文件关联对话框，daemon 未能启动。
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ Section 2 ══════════ -->
+<div class="section" id="changes">
+  <div class="section-header">
+    <div class="section-num">2</div>
+    <div class="section-title">Fork 改造清单</div>
+  </div>
+
+  <!-- F 系列 -->
+  <div class="subsection">
+    <div class="subsection-title">
+      F 系列：角色权限系统
+      <span class="tag tag-feat">FEATURE</span>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>#</th><th>改造</th><th>影响文件</th><th>说明</th></tr></thead>
+        <tbody>
+          <tr><td>F-1</td><td>权限审批身份校验</td><td><code>core/engine.go</code></td><td><code>handlePendingPermission</code> 增加 <code>RequestingUserID</code> 校验</td></tr>
+          <tr><td>F-2</td><td>角色级 <code>mode</code> + <code>allowed_tools</code></td><td><code>config/config.go</code>, <code>core/user_roles.go</code>, <code>core/engine.go</code></td><td>不同角色独立的权限策略</td></tr>
+          <tr><td>F-3</td><td>Bridge 卡片身份参数化</td><td><code>core/bridge.go</code></td><td>传递真实 userID，移除共享可变状态</td></tr>
+          <tr><td>F-4</td><td>默认身份 <code>bridge-user</code></td><td><code>core/bridge.go</code></td><td>不暗示管理员权限</td></tr>
+          <tr><td>F-5</td><td>配置示例补全</td><td><code>config.example.toml</code></td><td>三种角色完整示例</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- B 系列 -->
+  <div class="subsection">
+    <div class="subsection-title">
+      B 系列：daemon 配置路径修复
+      <span class="tag tag-fix">FIX</span>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>#</th><th>改造</th><th>影响文件</th></tr></thead>
+        <tbody>
+          <tr><td>B-1</td><td>三级 fallback 配置查找</td><td><code>cmd/cc-connect/daemon.go</code></td></tr>
+          <tr><td>B-2</td><td>Meta 新增 <code>ConfigFile</code> 字段</td><td><code>daemon/manager.go</code></td></tr>
+          <tr><td>B-3</td><td>三平台 launcher 传 <code>--config</code></td><td><code>daemon/windows.go</code>, <code>systemd.go</code>, <code>launchd.go</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- D 系列 -->
+  <div class="subsection">
+    <div class="subsection-title">
+      D 系列：daemon 安全加固
+      <span class="tag tag-sec">SECURITY</span>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>#</th><th>改造</th><th>影响文件</th></tr></thead>
+        <tbody>
+          <tr><td>D-1</td><td><code>daemon stop</code> 回退直杀 + 诚实报错</td><td><code>cmd/cc-connect/daemon.go</code></td></tr>
+          <tr><td>D-2</td><td>Unix <code>KillExistingInstance</code> 等待进程退出</td><td><code>instance_lock.go</code></td></tr>
+          <tr><td>D-3</td><td>进程映像名验证防误杀</td><td><code>instance_lock_windows.go</code>, <code>instance_lock.go</code></td></tr>
+          <tr><td>D-4</td><td><code>daemon.json</code> 权限 0600</td><td><code>daemon/manager.go</code></td></tr>
+          <tr><td>D-5</td><td>路径统一正斜杠</td><td><code>cmd/cc-connect/daemon.go</code></td></tr>
+          <tr><td>D-6</td><td><code>restart --force</code> 路径修复 + 竞态消除</td><td><code>cmd/cc-connect/daemon.go</code></td></tr>
+          <tr><td>D-7</td><td><code>KillExistingInstance</code> 超时返回 false</td><td>同 D-2/D-3</td></tr>
+          <tr><td>D-8</td><td>权限拒绝 i18n 五语翻译</td><td><code>core/engine.go</code>, <code>core/i18n.go</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- W 系列 -->
+  <div class="subsection">
+    <div class="subsection-title">
+      W 系列：Windows 专项修复
+      <span class="tag tag-win">WINDOWS</span>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>#</th><th>改造</th><th>影响文件</th></tr></thead>
+        <tbody>
+          <tr><td>W-1</td><td><code>OpenProcess</code> 加 <code>SYNCHRONIZE</code> 权限</td><td><code>instance_lock_windows.go</code></td></tr>
+          <tr><td>W-2</td><td><code>.cmd</code> 文件关联自动修复</td><td><code>daemon/windows.go</code></td></tr>
+          <tr><td>W-3</td><td>schtasks 设 <code>-Hidden</code></td><td><code>daemon/windows.go</code></td></tr>
+          <tr><td>W-4</td><td>AtLogOn 延迟 30s</td><td><code>daemon/windows.go</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- G 系列 -->
+  <div class="subsection">
+    <div class="subsection-title">
+      G 系列：跨平台通用修复
+      <span class="tag tag-fix">FIX</span>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>#</th><th>改造</th><th>影响文件</th></tr></thead>
+        <tbody>
+          <tr><td>G-1</td><td><code>normalizeWorkspacePath</code> 统一正斜杠</td><td><code>core/workspace_state.go</code></td></tr>
+          <tr><td>G-2</td><td><code>replyFooterHomeRelativePath</code> 正斜杠比较</td><td><code>core/engine.go</code></td></tr>
+          <tr><td>G-3</td><td><code>AllowedTools</code> 注释精确化</td><td><code>config/config.go</code></td></tr>
+          <tr><td>G-4</td><td><code>doctor_runas_test.go</code> 补 build tag</td><td><code>cmd/cc-connect/</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ Section 3 ══════════ -->
+<div class="section" id="features">
+  <div class="section-header">
+    <div class="section-num">3</div>
+    <div class="section-title">核心功能总览</div>
+  </div>
+
+  <p style="color:var(--text-sec);font-size:14px;line-height:1.7;margin-bottom:18px">
+    cc-connect 是 AI 编码 Agent 与即时通讯平台的桥接工具。用户在飞书、Telegram、Slack 等聊天窗口中即可操控 Claude Code、Codex、Gemini CLI 等 Agent。
+  </p>
+
+  <!-- Agent ↔ IM 桥接 -->
+  <div class="subsection">
+    <div class="subsection-title">
+      Agent &harr; IM 桥接
+      <span class="tag tag-feat">CORE</span>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Agent</th><th>类型</th><th>Platform</th><th>协议</th></tr></thead>
+        <tbody>
+          <tr><td>Claude Code</td><td>进程流式</td><td>飞书 / Lark</td><td>长连接事件</td></tr>
+          <tr><td>Codex</td><td>进程流式</td><td>Telegram</td><td>Long Polling</td></tr>
+          <tr><td>Cursor</td><td>tmux 屏幕抓取</td><td>Discord</td><td>Gateway WS</td></tr>
+          <tr><td>Gemini CLI</td><td>进程流式</td><td>Slack</td><td>Socket Mode</td></tr>
+          <tr><td>ACP</td><td>协议层</td><td>钉钉</td><td>HTTP 回调</td></tr>
+          <tr><td>iFlow / OpenCode / Qoder</td><td>进程流式</td><td>企业微信 / QQ / LINE</td><td>各自协议</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Web 管理界面 -->
+  <div class="subsection">
+    <div class="subsection-title">
+      Web 管理界面
+      <span class="tag tag-feat">WEB</span>
+    </div>
+    <p style="color:var(--text-sec);font-size:13.5px;margin-bottom:10px">
+      内置 React SPA 前端，编译后通过 <code>//go:embed</code> 嵌入 Go 二进制，无需额外部署。
+    </p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>页面</th><th>功能</th></tr></thead>
+        <tbody>
+          <tr><td>Dashboard</td><td>系统概览：版本、运行时间、已连接平台/适配器</td></tr>
+          <tr><td>Projects</td><td>项目 CRUD、Agent 配置、平台绑定</td></tr>
+          <tr><td>Chat</td><td>实时聊天：消息发送、会话管理、命令面板</td></tr>
+          <tr><td>Cron</td><td>定时任务管理：创建/执行/暂停/恢复</td></tr>
+          <tr><td>Providers</td><td>全局 AI Provider 切换 + 远程预设</td></tr>
+          <tr><td>Skills</td><td>技能发现与市场</td></tr>
+          <tr><td>Bridge</td><td>外部适配器状态与连接管理</td></tr>
+          <tr><td>System</td><td>全局设置：语言、日志级别、流式预览、超时</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div style="margin-top:12px">
+      <p style="font-size:13.5px;font-weight:600;color:var(--text);margin-bottom:8px">启用方式</p>
+<pre><span class="comment"># config.toml</span>
+<span class="cmd">[bridge]</span>
+<span class="flag">enabled</span> = <span class="str">true</span>
+<span class="flag">port</span> = <span class="str">9810</span>
+<span class="flag">token</span> = <span class="str">"a-strong-random-secret"</span>
+
+<span class="cmd">[management]</span>
+<span class="flag">enabled</span> = <span class="str">true</span>
+<span class="flag">port</span> = <span class="str">9820</span>
+<span class="flag">token</span> = <span class="str">"mgmt-secret"</span></pre>
+      <p style="color:var(--text-sec);font-size:13px;margin-top:6px">
+        或通过 CLI：<code>cc-connect setup-web</code>，启动后访问 <code>http://localhost:9820</code>
+      </p>
+    </div>
+  </div>
+
+  <!-- Bridge 协议 -->
+  <div class="subsection">
+    <div class="subsection-title">
+      Bridge 协议
+      <span class="tag tag-feat">BRIDGE</span>
+    </div>
+    <p style="color:var(--text-sec);font-size:13.5px;line-height:1.7;margin-bottom:10px">
+      Bridge 允许外部适配器通过 WebSocket 连接到 cc-connect，无需编写 Go 代码即可接入新平台。
+    </p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>属性</th><th>说明</th></tr></thead>
+        <tbody>
+          <tr><td>WebSocket 端点</td><td><code>ws://&lt;host&gt;:9810/bridge/ws</code></td></tr>
+          <tr><td>认证方式</td><td>查询参数 <code>?token=</code> / Header <code>Authorization: Bearer</code> / Header <code>X-Bridge-Token</code></td></tr>
+          <tr><td>能力声明</td><td>注册时声明 <code>text</code>（必需）、<code>card</code>、<code>buttons</code>、<code>typing</code>、<code>image</code>、<code>file</code> 等</td></tr>
+          <tr><td>自动降级</td><td>适配器缺少某能力时，自动回退到纯文本</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 端口分配 -->
+  <div class="subsection">
+    <div class="subsection-title">默认端口分配</div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>服务</th><th>端口</th><th>协议</th></tr></thead>
+        <tbody>
+          <tr><td>Bridge (WebSocket)</td><td><code>9810</code></td><td>WS + HTTP REST</td></tr>
+          <tr><td>Management API + Web UI</td><td><code>9820</code></td><td>HTTP</td></tr>
+          <tr><td>Vite Dev Server</td><td><code>9821</code></td><td>HTTP（仅开发）</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ Section 4 ══════════ -->
+<div class="section" id="rbac">
+  <div class="section-header">
+    <div class="section-num">4</div>
+    <div class="section-title">角色权限系统</div>
+  </div>
+
+  <!-- 流程图 -->
+  <div class="subsection">
+    <div class="subsection-title">设计思路</div>
+    <div class="flow-diagram"><span class="hl-accent">用户发消息</span> &rarr; resolveUserRole() &rarr; 获取角色级 mode + allowed_tools
+                                         &darr;
+                         &lang;── <span class="hl-green">yolo</span> &rang; &rarr; 全部自动通过
+                         &lang;── <span class="hl-yellow">default</span> &rang; &rarr; allowed_tools 自动通过，其余弹窗确认
+                         &lang;── <span class="hl-red">dontAsk</span> &rang; &rarr; allowed_tools 自动通过，其余自动拒绝
+                                         &darr;
+                   <span class="hl-accent">权限请求回调</span> &rarr; 身份校验（仅发起者或 admin 可批准）</div>
+  </div>
+
+  <!-- 配置示例 -->
+  <div class="subsection">
+    <div class="subsection-title">配置方式</div>
+<pre><span class="comment">[[projects]]</span>
+<span class="cmd">name</span> = <span class="str">"my-project"</span>
+
+<span class="comment">[projects.agent]</span>
+<span class="cmd">type</span> = <span class="str">"claudecode"</span>
+
+<span class="comment">[projects.agent.options]</span>
+<span class="cmd">work_dir</span> = <span class="str">"D:/WorkSpace/src/my-project"</span>
+<span class="cmd">mode</span> = <span class="str">"default"</span>               <span class="comment"># agent 级默认值</span>
+
+<span class="comment">[projects.users]</span>
+<span class="cmd">default_role</span> = <span class="str">"readonly"</span>      <span class="comment"># 未匹配任何角色的用户默认角色</span>
+
+<span class="comment">[projects.users.roles.admin]</span>
+<span class="cmd">user_ids</span> = [<span class="str">"ou_admin_xxx"</span>]    <span class="comment"># 发送 /whoami 获取你的平台用户 ID</span>
+<span class="cmd">mode</span> = <span class="str">"yolo"</span>                  <span class="comment"># 所有工具自动通过</span>
+<span class="cmd">allowed_tools</span> = []               <span class="comment"># yolo 下冗余</span>
+<span class="cmd">disabled_commands</span> = []
+
+<span class="comment">[projects.users.roles.developer]</span>
+<span class="cmd">user_ids</span> = [<span class="str">"ou_dev_aaa"</span>, <span class="str">"ou_dev_bbb"</span>]
+<span class="cmd">mode</span> = <span class="str">"default"</span>               <span class="comment"># allowed_tools 自动通过，其余弹窗确认</span>
+<span class="cmd">allowed_tools</span> = [<span class="str">"Read"</span>, <span class="str">"Grep"</span>, <span class="str">"Glob"</span>, <span class="str">"Bash"</span>, <span class="str">"Edit"</span>, <span class="str">"Write"</span>]
+<span class="cmd">disabled_commands</span> = [<span class="str">"shell"</span>]   <span class="comment"># 只禁用危险命令</span>
+
+<span class="comment">[projects.users.roles.readonly]</span>
+<span class="cmd">user_ids</span> = [<span class="str">"*"</span>]               <span class="comment"># * 匹配所有未分配角色的用户</span>
+<span class="cmd">mode</span> = <span class="str">"dontAsk"</span>               <span class="comment"># allowed_tools 自动通过，其余自动拒绝</span>
+<span class="cmd">allowed_tools</span> = [<span class="str">"Read"</span>, <span class="str">"Grep"</span>, <span class="str">"Glob"</span>, <span class="str">"LS"</span>, <span class="str">"LSP"</span>]
+<span class="cmd">disabled_commands</span> = [<span class="str">"*"</span>]      <span class="comment"># 禁用所有内置命令</span></pre>
+  </div>
+
+  <!-- 模式矩阵 -->
+  <div class="subsection">
+    <div class="subsection-title">模式 &times; allowed_tools 交互速查</div>
+    <div class="mode-matrix">
+      <div class="mm-cell mm-header"></div>
+      <div class="mm-cell mm-header">allowed_tools 为空</div>
+      <div class="mm-cell mm-header">allowed_tools 有值</div>
+      <div class="mm-cell mm-header">工具不在白名单</div>
+
+      <div class="mm-cell mm-mode" style="color:var(--green)">yolo</div>
+      <div class="mm-cell mm-pass">&#x2713; 全部自动通过</div>
+      <div class="mm-cell" style="color:var(--text-muted)">&#x2014; 冗余，等同空</div>
+      <div class="mm-cell mm-pass">&#x2713; 仍自动通过</div>
+
+      <div class="mm-cell mm-mode" style="color:var(--yellow)">default</div>
+      <div class="mm-cell mm-confirm">&#x26A0; 全部弹窗确认</div>
+      <div class="mm-cell mm-pass">&#x2713; 白名单自动通过</div>
+      <div class="mm-cell mm-confirm">&#x26A0; 弹窗确认</div>
+
+      <div class="mm-cell mm-mode" style="color:var(--red)">dontAsk</div>
+      <div class="mm-cell mm-deny">&#x2717; 全部自动拒绝</div>
+      <div class="mm-cell mm-pass">&#x2713; 白名单自动通过</div>
+      <div class="mm-cell mm-deny">&#x2717; 自动拒绝</div>
+    </div>
+  </div>
+
+  <!-- 身份校验 -->
+  <div class="subsection">
+    <div class="subsection-title">权限审批身份校验</div>
+    <p style="color:var(--text-sec);font-size:14px;line-height:1.7;margin-bottom:10px">
+      当 agent 请求工具权限时：
+    </p>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <div style="display:flex;align-items:center;gap:10px;padding:8px 14px;border-radius:6px;background:var(--green-bg)">
+        <span style="color:var(--green);font-size:14px">&#x2713;</span>
+        <span style="font-size:13.5px;color:var(--text-sec)"><strong style="color:var(--green)">发起者本人</strong>可以批准/拒绝</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;padding:8px 14px;border-radius:6px;background:var(--green-bg)">
+        <span style="color:var(--green);font-size:14px">&#x2713;</span>
+        <span style="font-size:13.5px;color:var(--text-sec)"><strong style="color:var(--green)">admin 角色</strong>可以批准/拒绝任何人的请求</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;padding:8px 14px;border-radius:6px;background:var(--red-bg)">
+        <span style="color:var(--red);font-size:14px">&#x2717;</span>
+        <span style="font-size:13.5px;color:var(--text-sec)"><strong style="color:var(--red)">其他人</strong>回复"允许"会被拒绝，提示"只有请求者或管理员可以批准此操作"</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ Section 5 ══════════ -->
+<div class="section" id="install">
+  <div class="section-header">
+    <div class="section-num">5</div>
+    <div class="section-title">安装与部署</div>
+  </div>
+
+  <!-- 路径对比 -->
+  <div class="subsection">
+    <div class="subsection-title">安装方式</div>
+    <div class="callout callout-danger">
+      <strong>手动 cp 不可行：</strong><code>run.js</code> 版本校验不匹配时自动从 GitHub Release 重新下载覆盖；Windows 文件锁也阻止替换 <code>.exe</code>。
+    </div>
+    <div class="path-compare">
+      <div class="path-card path-card-recommended">
+        <div class="path-label path-label-ok">&#x2713; 推荐</div>
+        <div class="path-cmd">npm install -g @game1991/cc-connect</div>
+        <div class="path-desc">CI 自动发布到 GitHub Packages。升级一条命令搞定。</div>
+      </div>
+      <div class="path-card path-card-deprecated">
+        <div class="path-label path-label-bad">&#x2717; 废弃</div>
+        <div class="path-cmd">make &amp;&amp; cp cc-connect &lt;npm&gt;/bin/cc-connect.exe</div>
+        <div class="path-desc">版本自动覆盖 + Windows 文件锁双重阻断。</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 步骤 -->
+  <div class="subsection">
+    <div class="subsection-title">安装步骤</div>
+    <div class="steps">
+      <div class="step">
+        <div class="step-title">配置 npm 作用域</div>
+        <p style="font-size:13.5px;color:var(--text-sec);line-height:1.7;margin-bottom:10px">
+          编辑 <code>~/.npmrc</code>（Windows: <code>C:\Users\&lt;用户名&gt;\.npmrc</code>）：
+        </p>
+<pre><span class="cmd">@game1991:registry</span>=<span class="str">https://npm.pkg.github.com</span>
+<span class="cmd">//npm.pkg.github.com/:_authToken</span>=<span class="str">&lt;YOUR_GITHUB_PAT&gt;</span></pre>
+        <div class="callout callout-info" style="margin-top:10px">
+          获取 PAT：GitHub &rarr; Settings &rarr; Developer settings &rarr; Personal access tokens &rarr; Fine-grained tokens &rarr; 勾选 <code>read:packages</code>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-title">安装</div>
+<pre><span class="cmd">npm install -g @game1991/cc-connect</span></pre>
+        <p style="font-size:13px;color:var(--text-muted);margin-top:8px">验证：</p>
+<pre><span class="cmd">cc-connect --version</span>
+<span class="comment"># 预期: cc-connect v1.3.3-fork.9</span></pre>
+      </div>
+
+      <div class="step">
+        <div class="step-title">创建配置</div>
+<pre><span class="comment"># 自动生成模板</span>
+<span class="cmd">cc-connect</span>
+
+<span class="comment"># 或手动</span>
+<span class="cmd">mkdir -p ~/.cc-connect</span>
+<span class="cmd">cp</span> <span class="path">config.example.toml</span> <span class="path">~/.cc-connect/config.toml</span></pre>
+        <p style="font-size:13px;color:var(--text-muted);margin-top:8px">最小配置（飞书）：</p>
+<pre><span class="cmd">language</span> = <span class="str">"zh"</span>
+
+<span class="comment">[log]</span>
+<span class="cmd">level</span> = <span class="str">"info"</span>
+
+<span class="comment">[[projects]]</span>
+<span class="cmd">name</span> = <span class="str">"my-project"</span>
+
+<span class="comment">[projects.agent]</span>
+<span class="cmd">type</span> = <span class="str">"claudecode"</span>
+
+<span class="comment">[projects.agent.options]</span>
+<span class="cmd">work_dir</span> = <span class="str">"D:/WorkSpace/src/my-project"</span>
+<span class="cmd">mode</span> = <span class="str">"default"</span>
+
+<span class="comment">[[projects.platforms]]</span>
+<span class="cmd">type</span> = <span class="str">"feishu"</span>
+
+<span class="comment">[projects.platforms.options]</span>
+<span class="cmd">app_id</span> = <span class="str">"cli_xxxxxxxxxxxx"</span>
+<span class="cmd">app_secret</span> = <span class="str">"xxxxxxxxxxxxxxxxxxxxxxxx"</span></pre>
+      </div>
+
+      <div class="step">
+        <div class="step-title">启动服务</div>
+        <p style="font-size:13.5px;color:var(--text-sec);margin-bottom:10px">前台调试：</p>
+<pre><span class="cmd">cc-connect</span></pre>
+        <p style="font-size:13.5px;color:var(--text-sec);margin:10px 0">后台 daemon（推荐）：</p>
+<pre><span class="comment"># 安装并启动（自动定位配置，无需 --config）</span>
+<span class="cmd">cc-connect daemon install</span>
+
+<span class="comment"># 管理</span>
+<span class="cmd">cc-connect daemon status</span>
+<span class="cmd">cc-connect daemon logs -f</span>
+<span class="cmd">cc-connect daemon stop</span>
+<span class="cmd">cc-connect daemon restart</span>
+<span class="cmd">cc-connect daemon restart --force</span>   <span class="comment"># 杀进程 &rarr; 500ms &rarr; 重启</span>
+<span class="cmd">cc-connect daemon uninstall</span></pre>
+      </div>
+    </div>
+
+    <!-- 清理与重装 -->
+    <div class="subsection">
+      <div class="subsection-title">清理与重装</div>
+
+      <p style="font-size:13.5px;font-weight:600;color:var(--text);margin-bottom:6px">运行时清理</p>
+      <p style="color:var(--text-sec);font-size:13px;margin-bottom:8px">
+        停止 daemon、删除 lock/sock/log，<strong>保留 config 和 crons</strong>：
+      </p>
+<pre><span class="cmd">cc-connect clean</span></pre>
+
+      <p style="font-size:13.5px;font-weight:600;color:var(--text);margin-top:14px;margin-bottom:6px">彻底重置</p>
+      <p style="color:var(--text-sec);font-size:13px;margin-bottom:8px">
+        删除所有用户数据（config/crons 先备份到 <code>~/.cc-connect-backup/&lt;时间戳&gt;/</code>）：
+      </p>
+<pre><span class="cmd">cc-connect clean reset</span></pre>
+
+      <p style="font-size:13.5px;font-weight:600;color:var(--text);margin-top:14px;margin-bottom:6px">一键重装</p>
+      <p style="color:var(--text-sec);font-size:13px;margin-bottom:8px">
+        清理 + npm 重装 + 恢复配置 + daemon install：
+      </p>
+<pre><span class="comment"># Git Bash / Linux / macOS</span>
+<span class="cmd">bash scripts/reinstall.sh</span>
+
+<span class="comment"># Windows PowerShell</span>
+<span class="cmd">powershell -File scripts\reinstall.ps1</span>
+
+<span class="comment"># 支持 --yes 跳过确认，--dry-run 仅预览</span>
+<span class="cmd">bash scripts/reinstall.sh --dry-run</span></pre>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ Section 6 ══════════ -->
+<div class="section" id="build">
+  <div class="section-header">
+    <div class="section-num">6</div>
+    <div class="section-title">开发者编译</div>
+  </div>
+
+  <!-- 前置条件 -->
+  <div class="subsection">
+    <div class="subsection-title">前置条件</div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>依赖</th><th>最低版本</th><th>用途</th></tr></thead>
+        <tbody>
+          <tr><td>Go</td><td>1.23+</td><td>后端编译</td></tr>
+          <tr><td>Node.js + npm/pnpm</td><td>18+</td><td>Web 前端构建</td></tr>
+          <tr><td>pnpm</td><td>9+</td><td>CI/前端锁定（可选）</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 全量编译 -->
+  <div class="subsection">
+    <div class="subsection-title">
+      全量编译（含 Web UI）
+      <span class="tag tag-feat">RECOMMENDED</span>
+    </div>
+<pre><span class="cmd">make build</span></pre>
+    <p style="color:var(--text-sec);font-size:13px;margin-top:6px">
+      等价于：先 <code>cd web && npm install && npm run build</code> 生成 <code>web/dist/</code>，再 <code>go build</code> 嵌入前端资源。产物包含完整 Web 管理界面。
+    </p>
+  </div>
+
+  <!-- 无 Web 编译 -->
+  <div class="subsection">
+    <div class="subsection-title">无 Web 编译</div>
+<pre><span class="cmd">make build-noweb</span></pre>
+    <p style="color:var(--text-sec);font-size:13px;margin-top:6px">
+      跳过前端构建，使用 <code>-tags 'no_web'</code> 编译。二进制更小，不提供 Web 界面。
+    </p>
+  </div>
+
+  <!-- 前端独立开发 -->
+  <div class="subsection">
+    <div class="subsection-title">前端独立开发</div>
+<pre><span class="cmd">cd web</span>
+<span class="cmd">npm install</span>
+<span class="cmd">npm run dev</span>        <span class="comment"># Vite 开发服务器，端口 9821</span></pre>
+    <p style="color:var(--text-sec);font-size:13px;margin-top:6px">
+      Vite 自动将 <code>/api</code> 代理到 <code>localhost:9820</code>（Management API），<code>/bridge</code> 代理到 <code>localhost:9810</code>（Bridge WebSocket）。
+    </p>
+  </div>
+
+  <!-- 选择性编译 -->
+  <div class="subsection">
+    <div class="subsection-title">选择性编译</div>
+    <p style="color:var(--text-sec);font-size:13.5px;margin-bottom:8px">
+      排除不需要的 Agent 或 Platform 以减小二进制体积：
+    </p>
+<pre><span class="cmd">make build</span> <span class="flag">EXCLUDE=</span><span class="str">discord,dingtalk,qq,qqbot,line,weibo</span>
+<span class="cmd">make build</span> <span class="flag">AGENTS=</span><span class="str">claudecode</span> <span class="flag">PLATFORMS_INCLUDE=</span><span class="str">feishu,telegram</span></pre>
+    <p style="color:var(--text-sec);font-size:13px;margin-top:6px">
+      可用标签：<code>no_acp no_claudecode no_codex no_cursor no_gemini no_iflow no_opencode no_qoder</code>（Agent）和 <code>no_feishu no_telegram no_discord no_slack no_dingtalk no_wecom no_weixin no_qq no_qqbot no_line no_weibo</code>（Platform）。
+    </p>
+  </div>
+
+  <!-- 测试 -->
+  <div class="subsection">
+    <div class="subsection-title">测试</div>
+<pre><span class="cmd">make test-fast</span>       <span class="comment"># 单元 + 冒烟测试（< 2 分钟）</span>
+<span class="cmd">make test-full</span>       <span class="comment"># 完整测试套件（PR 要求）</span>
+<span class="cmd">make test-smoke</span>      <span class="comment"># 仅冒烟测试</span>
+<span class="cmd">make test-release-local</span>  <span class="comment"># 不需要真实凭证的本地发布测试</span></pre>
+  </div>
+
+  <!-- 交叉编译发布 -->
+  <div class="subsection">
+    <div class="subsection-title">交叉编译发布</div>
+<pre><span class="cmd">make release</span> <span class="flag">TARGET=</span><span class="str">linux/amd64</span>           <span class="comment"># 单平台带 Web</span>
+<span class="cmd">make release-noweb</span> <span class="flag">TARGET=</span><span class="str">windows/amd64</span>   <span class="comment"># 单平台无 Web</span>
+<span class="cmd">make release-all</span>                          <span class="comment"># 全平台带 Web</span></pre>
+  </div>
+</div>
+
+<!-- ══════════ Section 7 ══════════ -->
+<div class="section" id="upgrade">
+  <div class="section-header">
+    <div class="section-num">7</div>
+    <div class="section-title">升级</div>
+  </div>
+<pre><span class="cmd">cc-connect daemon stop</span>
+<span class="cmd">npm update -g @game1991/cc-connect</span>
+<span class="cmd">cc-connect --version</span>        <span class="comment"># 确认新版本</span>
+<span class="cmd">cc-connect daemon restart</span></pre>
+</div>
+
+<!-- ══════════ Section 8 ══════════ -->
+<div class="section" id="troubleshoot">
+  <div class="section-header">
+    <div class="section-num">8</div>
+    <div class="section-title">故障排查</div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">
+      daemon install 后弹出"你想如何打开此文件？"
+      <span class="faq-chevron">&#9654;</span>
+    </div>
+    <div class="faq-a"><div class="faq-a-inner">
+      <strong>根因：</strong>Windows 注册表 <code>HKCU\...\Explorer\FileExts\.cmd</code> 键缺失。
+      <br><br>
+      <strong>修复：</strong>fork v1.3.3-fork.7+ 的 <code>daemon install</code> 自动创建该键。确认版本：
+<pre><span class="cmd">cc-connect --version</span>   <span class="comment"># 应 &ge; v1.3.3-fork.7</span></pre>
+      如仍有问题，重装 daemon：
+<pre><span class="cmd">cc-connect daemon uninstall && cc-connect daemon install</span></pre>
+    </div></div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">
+      daemon stop 停不掉进程
+      <span class="faq-chevron">&#9654;</span>
+    </div>
+    <div class="faq-a"><div class="faq-a-inner">
+      <strong>优先级递增方案：</strong>
+<pre><span class="comment"># 1. 正常停止</span>
+<span class="cmd">cc-connect daemon stop</span>
+
+<span class="comment"># 2. 强制重启</span>
+<span class="cmd">cc-connect daemon restart --force</span>
+
+<span class="comment"># 3. 手动杀进程（需管理员）</span>
+<span class="cmd">ps -W | grep -i cc-connect | grep -v grep</span>
+<span class="cmd">taskkill /PID &lt;PID&gt; /F</span></pre>
+      Fork v1.3.3-fork.4+ 的 <code>daemon stop</code> 已含 PID 直杀回退：<code>schtasks /End</code> 失败后自动读取实例锁 PID &rarr; 验证进程映像名 &rarr; <code>TerminateProcess</code>。
+    </div></div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">
+      daemon install 找不到配置文件
+      <span class="faq-chevron">&#9654;</span>
+    </div>
+    <div class="faq-a"><div class="faq-a-inner">
+      Fork 修复了三级 fallback 查找逻辑：
+      <ol style="color:var(--text-sec);padding-left:20px;margin-top:8px">
+        <li>显式 <code>--config /path/to/config.toml</code> &rarr; 使用指定路径</li>
+        <li><code>WorkDir/config.toml</code> 存在 &rarr; 使用它</li>
+        <li><code>~/.cc-connect/config.toml</code> 存在 &rarr; 使用它，WorkDir 自动调整为 <code>~/.cc-connect</code></li>
+      </ol>
+      如仍需指定，显式传 <code>--config</code> 即可。
+    </div></div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">
+      日志查看
+      <span class="faq-chevron">&#9654;</span>
+    </div>
+    <div class="faq-a"><div class="faq-a-inner">
+<pre><span class="cmd">cc-connect daemon logs</span>          <span class="comment"># 末尾日志</span>
+<span class="cmd">cc-connect daemon logs -f</span>       <span class="comment"># 实时跟踪</span>
+<span class="cmd">cc-connect daemon logs -n 100</span>   <span class="comment"># 最近 100 行</span></pre>
+      日志自动轮转（默认 10MB），保留一份备份。
+    </div></div>
+  </div>
+</div>
+
+<!-- ══════════ Section 9 ══════════ -->
+<div class="section" id="paths">
+  <div class="section-header">
+    <div class="section-num">9</div>
+    <div class="section-title">配置文件路径速查</div>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>路径</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td><code>~/.cc-connect/config.toml</code></td><td>默认配置文件</td></tr>
+        <tr><td><code>~/.cc-connect/daemon.json</code></td><td>daemon 元数据（0600 权限，路径统一正斜杠）</td></tr>
+        <tr><td><code>~/.cc-connect/logs/cc-connect.log</code></td><td>运行日志</td></tr>
+        <tr><td><code>~/.cc-connect/.config.toml.lock</code></td><td>实例锁（含 PID）</td></tr>
+        <tr><td><code>~/.cc-connect/run/api.sock</code></td><td>API Unix socket</td></tr>
+        <tr><td><code>~/.cc-connect/cc-connect-daemon.ps1</code></td><td>Windows daemon launcher 脚本</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ══════════ Section 10 ══════════ -->
+<div class="section" id="release">
+  <div class="section-header">
+    <div class="section-num">10</div>
+    <div class="section-title">发布流程（面向维护者）</div>
+  </div>
+
+  <div class="subsection">
+    <div class="subsection-title">版本号规则</div>
+    <p style="font-size:14px;color:var(--text-sec);line-height:1.7">
+      格式：<code>v&lt;major&gt;.&lt;minor&gt;.&lt;patch&gt;-fork.&lt;N&gt;</code><br>
+      <code>fork.N</code> 独立于上游 <code>-beta.N</code> 递增。<br>
+      <strong style="color:var(--yellow)">&#x26A0; 必须 fork.N &ge; 上游 npm beta 的排序值</strong>，否则 <code>run.js</code> 会判定本地版本更旧并覆盖。
+    </p>
+    <div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap">
+      <div style="padding:8px 14px;border-radius:6px;background:var(--surface);border:1px solid var(--border);font-family:'JetBrains Mono',monospace;font-size:12.5px">
+        <span style="color:var(--text-muted)">上游 npm: </span><span style="color:var(--red)">1.3.3-beta.4</span>
+      </div>
+      <div style="padding:8px 14px;border-radius:6px;background:var(--surface);border:1px solid var(--border);font-family:'JetBrains Mono',monospace;font-size:12.5px">
+        <span style="color:var(--text-muted)">Fork: </span><span style="color:var(--green)">1.3.3-fork.9</span>
+      </div>
+      <div style="padding:8px 14px;border-radius:6px;background:var(--green-bg);border:1px solid var(--green-dim);font-family:'JetBrains Mono',monospace;font-size:12.5px;color:var(--green)">
+        fork.9 &gt; beta.4 &#x2713;
+      </div>
+    </div>
+  </div>
+
+  <div class="subsection">
+    <div class="subsection-title">CI 发布流程</div>
+    <div class="ci-flow">
+      <div class="ci-node ci-trigger">git tag v*-fork.*</div>
+      <span class="ci-arrow">&rarr;</span>
+      <div class="ci-node ci-build">5 平台编译</div>
+      <span class="ci-arrow">&rarr;</span>
+      <div class="ci-node ci-release">GitHub Release</div>
+      <span class="ci-arrow">+</span>
+      <div class="ci-node ci-release">npm.pkg.github.com</div>
+    </div>
+  </div>
+
+  <div class="subsection">
+    <div class="subsection-title">发版命令</div>
+<pre><span class="comment"># 1. 编辑 npm/package.json 中的 version 字段</span>
+
+<span class="comment"># 2. 提交</span>
+<span class="cmd">git add</span> <span class="path">npm/package.json</span>
+<span class="cmd">git commit -m</span> <span class="str">"chore: bump version to vX.Y.Z-fork.N"</span>
+
+<span class="comment"># 3. 打 tag（触发 CI）</span>
+<span class="cmd">git tag</span> <span class="str">vX.Y.Z-fork.N</span>
+
+<span class="comment"># 4. 推送</span>
+<span class="cmd">git push origin feat/role-based-tool-permissions --tags</span></pre>
+  </div>
+
+  <div class="subsection">
+    <div class="subsection-title">从上游同步</div>
+<pre><span class="cmd">git remote add upstream</span> <span class="str">https://github.com/chenhg5/cc-connect.git</span>  <span class="comment"># 首次</span>
+<span class="cmd">git fetch upstream</span>
+<span class="cmd">git merge upstream/main</span>
+<span class="comment"># 解决冲突后：</span>
+<span class="cmd">make build && ./cc-connect --version</span>
+<span class="cmd">go test ./...</span></pre>
+    <div class="callout callout-warn" style="margin-top:10px">
+      合并后检查：<code>npm/install.js</code> 中仓库地址是否被重置、<code>daemon/manager.go</code> Meta 是否有新字段、版本号是否需更新。
+    </div>
+  </div>
+</div>
+
+</div><!-- /container -->
+
+<!-- ══════════ Footer ══════════ -->
+<div class="footer">
+  @game1991/cc-connect &middot; MIT License &middot; 2026
+</div>
+
+</body>
+</html>

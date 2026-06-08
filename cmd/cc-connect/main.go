@@ -111,6 +111,9 @@ func main() {
 		case "doctor":
 			runDoctor(os.Args[2:])
 			return
+		case "clean":
+			runClean(os.Args[2:])
+			return
 		case "web":
 			runWeb(os.Args[2:])
 			return
@@ -1395,6 +1398,9 @@ Commands:
     format           Format the config file (alias: fmt)
     path             Print the resolved config file path
 
+  clean              Remove runtime state (lock, sock, logs) preserving config
+    reset            Remove ALL user data (config backed up first)
+
   update             Check for updates and upgrade the binary (--pre for beta)
   check-update       Check if a newer version is available
   config-example     (deprecated: use 'config example' instead)
@@ -1411,6 +1417,8 @@ Examples:
   cc-connect update                   Update to the latest version
   cc-connect config format            Format the config file
   cc-connect config example > c.toml  Save example config to a file
+  cc-connect clean                     Remove runtime state, keep config
+  cc-connect clean reset               Factory reset (config backed up)
 
 `, v, updateHint)
 }

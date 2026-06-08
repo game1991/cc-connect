@@ -73,6 +73,7 @@ web/tsconfig.tsbuildinfo
 # ============================================================================
 test/
 scripts/
+!scripts/reinstall.*
 tmp/
 temp/
 *.tmp
