@@ -208,34 +208,35 @@ func writePowerShellEnv(sb *strings.Builder, key, value string) {
 }
 
 func ensureCmdFileAssociation() {
+	// NOTE: We intentionally do NOT write to the registry here.
+	// Windows 11 may clear OpenWithList values during updates or maintenance,
+	// causing "How do you want to open this file?" dialogs for .cmd files.
+	// The correct fix is to prevent whatever operation clears those values,
+	// not to have cc-connect patch the registry.
+	// If you encounter this dialog, run from an admin CMD:
+	//   reg add "HKCU\...\FileExts\.cmd\OpenWithList" /v a /d cmd.exe /f
+	//   reg add "HKCU\...\FileExts\.cmd\OpenWithList" /v MRUList /d a /f
 	out, err := runPowerShell(`
 $base = 'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\FileExts\.cmd'
-$fixed = $false
-if (-not (Test-Path $base)) {
-	New-Item -Path $base -Force | Out-Null
-	New-Item -Path "$base\OpenWithList" -Force | Out-Null
-	New-Item -Path "$base\OpenWithProgids" -Force | Out-Null
-	New-ItemProperty -Path "$base\OpenWithProgids" -Name 'cmdfile' -Value ([byte[]]::new(0)) -PropertyType None -Force | Out-Null
-	$fixed = $true
-}
 $list = Join-Path $base 'OpenWithList'
-if (-not (Test-Path $list)) {
-	New-Item -Path $list -Force | Out-Null
-	$fixed = $true
+$progids = Join-Path $base 'OpenWithProgids'
+if (-not (Test-Path $base) -or -not (Test-Path $list) -or -not (Test-Path $progids)) {
+	Write-Output 'missing_keys'
+} elseif (-not (Get-ItemProperty $list -Name 'a' -ErrorAction SilentlyContinue).a) {
+	Write-Output 'missing_values'
+} else {
+	Write-Output 'ok'
 }
-$mru = Get-ItemProperty -Path $list -Name 'MRUList' -ErrorAction SilentlyContinue
-$entry = Get-ItemProperty -Path $list -Name 'a' -ErrorAction SilentlyContinue
-if ($null -eq $mru -or $null -eq $entry -or $entry.a -ne 'cmd.exe') {
-	Set-ItemProperty -Path $list -Name 'a' -Value 'cmd.exe' -Force
-	Set-ItemProperty -Path $list -Name 'MRUList' -Value 'a' -Force
-	$fixed = $true
-}
-if ($fixed) { Write-Output 'fixed' } else { Write-Output 'ok' }
 `)
-	if err != nil {
-		slog.Warn("schtasks: failed to check/fix .cmd file association", "error", err, "output", out)
-	} else if strings.EqualFold(strings.TrimSpace(out), "fixed") {
-		slog.Warn("schtasks: .cmd file association was missing or incomplete, fixed registry keys")
+	status := strings.TrimSpace(out)
+	switch {
+	case err != nil:
+		slog.Warn("schtasks: failed to check .cmd file association", "error", err, "output", out)
+	case status == "missing_keys" || status == "missing_values":
+		slog.Warn("schtasks: .cmd file association is broken — OpenWithList values missing",
+			"fix", "run: reg add \"HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Explorer\\FileExts\\.cmd\\OpenWithList\" /v a /d cmd.exe /f && reg add \"HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Explorer\\FileExts\\.cmd\\OpenWithList\" /v MRUList /d a /f")
+	case status == "ok":
+		// all good
 	}
 }
 

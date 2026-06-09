@@ -74,7 +74,7 @@
 | # | 改造 | 影响文件 | 说明 |
 |---|------|----------|------|
 | W-1 | `OpenProcess` 加 `SYNCHRONIZE` 权限 | `instance_lock_windows.go` | `WaitForSingleObject` 不再返回 `WAIT_FAILED` |
-| W-2 | `.cmd` 文件关联自动修复 | `daemon/windows.go` | `ensureCmdFileAssociation()` 创建缺失注册表键 |
+| W-2 | `.cmd` 文件关联检测与警告 | `daemon/windows.go` | `ensureCmdFileAssociation()` 检测 HKCU FileExts\.cmd 键值缺失并打印修复命令（不写注册表） |
 | W-3 | schtasks 设 `-Hidden` | `daemon/windows.go` | `New-ScheduledTaskSettingsSet -Hidden` 防止 CMD 闪现 |
 | W-4 | AtLogOn 触发延迟 30s | `daemon/windows.go` | `$trigger.Delay = 'PT30S'` 等 Shell 初始化完成 |
 
