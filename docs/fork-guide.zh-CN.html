@@ -1134,9 +1134,16 @@
       <span class="faq-chevron">&#9654;</span>
     </div>
     <div class="faq-a"><div class="faq-a-inner">
-      <strong>根因：</strong>Windows 注册表 <code>HKCU\...\Explorer\FileExts\.cmd\OpenWithList</code> 中 <code>a=cmd.exe</code> / <code>MRUList=a</code> 值被清空。Windows 11 累积更新会将 <code>.cmd</code>/<code>.bat</code> 的 <code>OpenWithList</code> 值重置为"未关联"状态（安全设计），<strong>非 cc-connect 操作所致</strong>。
+      <strong>根因链条：</strong>
+      <ol style="margin:8px 0;padding-left:20px;color:var(--text-sec);font-size:13px;line-height:1.7">
+        <li>Windows 11 累积更新<strong>清空</strong> <code>OpenWithList</code> 中 <code>a=cmd.exe</code> / <code>MRUList=a</code> 值（安全设计）</li>
+        <li>系统内置 <code>Monitoring</code> 计划任务（热补丁监控 <code>hpatchmonTask.cmd</code>）在<strong>每次登录</strong>及<strong>每日凌晨</strong>触发，执行 <code>.cmd</code> 文件</li>
+        <li><code>OpenWithList</code> 为空 &rarr; Windows 弹出"你想如何打开此文件？"对话框</li>
+        <li>该任务有 3 个触发器，短时间可能触发多次 &rarr; <strong>弹两次</strong></li>
+      </ol>
+      <strong>结论：</strong>与 cc-connect 的任何操作无关。是 Windows Update 重置注册表 + 系统内置任务触发 <code>.cmd</code> 文件的组合效应。
       <br><br>
-      <strong>诊断：</strong>fork v1.3.3-fork.11+ 在 <code>daemon install</code>/<code>uninstall</code> 关键步骤前后插桩打印注册表状态到日志，可用于定位值被清空的精确时刻：
+      <strong>诊断：</strong>fork v1.3.3-fork.11+ 在 <code>daemon install</code>/<code>uninstall</code> 关键步骤前后自动记录注册表状态到日志：
 <pre><span class="cmd">cc-connect daemon logs | grep reg-diag</span></pre>
 输出格式：<code>label=&lt;步骤&gt; result="base:list:progids:cmdfile:a=&lt;值&gt;;MRUList=&lt;值&gt;"</code>
       <br><br>
@@ -1144,6 +1151,8 @@
 <pre><span class="cmd">reg add "HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\FileExts\.cmd\OpenWithList" /v a /d cmd.exe /f</span>
 <span class="cmd">reg add "HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\FileExts\.cmd\OpenWithList" /v MRUList /d a /f</span></pre>
       然后重启资源管理器或注销重新登录使注册表生效。
+      <br><br>
+      <span style="color:var(--text-muted);font-size:12px"><strong>预防：</strong>目前无官方方案。Windows Update 可能在任意累积更新中再次清空这些值。建议将上述两条 <code>reg add</code> 命令保存为脚本放在桌面，每次大更新后运行一次。</span>
     </div></div>
   </div>
 

@@ -439,19 +439,24 @@ cc-connect daemon restart
 
 ## 八、故障排查
 
-### daemon install 后弹出 "你想如何打开此文件？"
+### daemon install 后弹出 "你想如何打开此文件？"（可能弹两次）
 
-**根因**：Windows 注册表 `HKCU\...\Explorer\FileExts\.cmd\OpenWithList` 中 `a=cmd.exe` / `MRUList=a` 值被清空。Windows 11 累积更新会将 `.cmd`/`.bat` 的 `OpenWithList` 值重置为"未关联"状态（安全设计），导致双击或 schtasks 触发 `.cmd` 文件时弹出选择对话框。**非 cc-connect 操作所致**。
+**根因链条**：
 
-**诊断**：fork v1.3.3-fork.11+ 在 `daemon install` / `uninstall` 的关键步骤前后插桩打印注册表状态到日志（`reg-diag` 标签），可用于定位值被清空的精确时刻：
+1. Windows 11 累积更新**清空** `HKCU\...\FileExts\.cmd\OpenWithList` 中的 `a=cmd.exe` / `MRUList=a` 值（安全设计，将脚本文件关联重置为"未关联"）
+2. 系统内置的 `Monitoring` 计划任务（热补丁监控 `hpatchmonTask.cmd`）在**每次登录**及**每日凌晨**触发，执行 `.cmd` 文件
+3. 此时 `OpenWithList` 为空 → Windows 无法确定默认处理程序 → 弹出"你想如何打开此文件？"对话框
+4. 该任务有 3 个触发器（AtLogOn + 每日 + 另一周期性），短时间内可能触发多次 → **弹两次**
+
+**结论**：与 cc-connect 的任何操作无关。是 Windows Update 重置注册表 + 系统内置任务触发 `.cmd` 文件的组合效应。
+
+**诊断**（fork v1.3.3-fork.11+）：`daemon install` / `uninstall` 关键步骤前后自动记录注册表状态到日志：
 
 ```bash
 cc-connect daemon logs | grep reg-diag
 ```
 
 输出格式：`label=<步骤> result="base:list:progids:cmdfile:a=<值>;MRUList=<值>"`
-
-如 `a=` 后为空，说明 `OpenWithList` 中的 `cmd.exe` 条目已丢失。
 
 **修复**（管理员 CMD）：
 
@@ -461,6 +466,8 @@ reg add "HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\FileExts\.cmd\O
 ```
 
 然后重启资源管理器或注销重新登录使注册表生效。
+
+> **预防**：目前无官方方案。Windows Update 可能在任意累积更新中再次清空这些值。建议将上述两条 `reg add` 命令保存为脚本放在桌面，每次大更新后运行一次。
 
 ### daemon stop 停不掉
 
