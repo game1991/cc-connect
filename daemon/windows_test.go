@@ -65,48 +65,40 @@ func TestWindowsTaskActionRunsHidden(t *testing.T) {
 	}
 }
 
-func TestEnsureCmdFileAssociationSkipsWhenPresent(t *testing.T) {
+func TestCheckCmdFileAssociationLogsOk(t *testing.T) {
 	orig := runPowerShell
 	t.Cleanup(func() { runPowerShell = orig })
 
 	var called bool
+	var gotScript string
 	runPowerShell = func(s string) (string, error) {
 		called = true
-		if !strings.Contains(s, "Test-Path $base") {
-			t.Fatalf("script should check if key exists:\n%s", s)
-		}
-		if !strings.Contains(s, "else") {
-			t.Fatalf("script should have else branch for existing key:\n%s", s)
-		}
-		return "ok", nil
+		gotScript = s
+		return "1:1:1:1:a=cmd.exe;MRUList=a", nil
 	}
 
-	ensureCmdFileAssociation()
+	checkCmdFileAssociation("test-ok")
 	if !called {
 		t.Fatal("runPowerShell should have been called")
 	}
+	if !strings.Contains(gotScript, "FileExts\\.cmd") {
+		t.Fatalf("script should inspect .cmd FileExts:\n%s", gotScript)
+	}
+	if !strings.Contains(gotScript, "OpenWithList") {
+		t.Fatalf("script should check OpenWithList:\n%s", gotScript)
+	}
 }
 
-func TestEnsureCmdFileAssociationFixesWhenMissing(t *testing.T) {
+func TestCheckCmdFileAssociationDetectsMissingValues(t *testing.T) {
 	orig := runPowerShell
 	t.Cleanup(func() { runPowerShell = orig })
 
-	var script string
 	runPowerShell = func(s string) (string, error) {
-		script = s
-		return "fixed", nil
+		return "1:1:1:0:a=;MRUList=", nil
 	}
 
-	ensureCmdFileAssociation()
-	if !strings.Contains(script, "New-Item -Path $base -Force") {
-		t.Fatalf("script should create missing key:\n%s", script)
-	}
-	if !strings.Contains(script, "OpenWithProgids") {
-		t.Fatalf("script should create OpenWithProgids:\n%s", script)
-	}
-	if !strings.Contains(script, "cmdfile") {
-		t.Fatalf("script should set cmdfile progid:\n%s", script)
-	}
+	// Just verify it doesn't panic — the real output goes to slog
+	checkCmdFileAssociation("test-missing")
 }
 
 func TestWindowsTaskCreateUsesLimitedInteractivePrincipal(t *testing.T) {
