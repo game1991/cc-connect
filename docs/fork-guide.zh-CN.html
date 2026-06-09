@@ -556,7 +556,7 @@
           <tr><td>三平台 launcher 不传 <code>--config</code></td><td>daemon 启动后找不到配置文件</td></tr>
           <tr><td><code>daemon stop</code> 仅依赖 <code>schtasks /End</code></td><td>手动或卡死进程无法停止</td></tr>
           <tr><td><code>KillExistingInstance</code> 不等待/不验证</td><td>端口冲突或误杀无关进程</td></tr>
-          <tr><td><code>.cmd</code> 文件关联注册表键可能缺失</td><td>弹出"你想如何打开此文件？"</td></tr>
+          <tr><td><code>.cmd</code> 文件关联注册表值被 Windows 更新清空</td><td>弹出"你想如何打开此文件？"</td></tr>
           <tr><td>schtasks 未设 <code>-Hidden</code></td><td>每次登录闪 CMD 窗口</td></tr>
           <tr><td>AtLogOn 触发无延迟</td><td>Shell 未就绪就启动 daemon</td></tr>
         </tbody>
@@ -631,6 +631,8 @@
           <tr><td>D-6</td><td><code>restart --force</code> 路径修复 + 竞态消除</td><td><code>cmd/cc-connect/daemon.go</code></td></tr>
           <tr><td>D-7</td><td><code>KillExistingInstance</code> 超时返回 false</td><td>同 D-2/D-3</td></tr>
           <tr><td>D-8</td><td>权限拒绝 i18n 五语翻译</td><td><code>core/engine.go</code>, <code>core/i18n.go</code></td></tr>
+          <tr><td>D-9</td><td><code>clean reset</code> 备份顺序修复</td><td><code>cmd/cc-connect/clean.go</code></td></tr>
+          <tr><td>D-10</td><td><code>reinstall</code> 集成为 Go 子命令</td><td><code>cmd/cc-connect/reinstall.go</code></td></tr>
         </tbody>
       </table>
     </div>
@@ -647,7 +649,7 @@
         <thead><tr><th>#</th><th>改造</th><th>影响文件</th></tr></thead>
         <tbody>
           <tr><td>W-1</td><td><code>OpenProcess</code> 加 <code>SYNCHRONIZE</code> 权限</td><td><code>instance_lock_windows.go</code></td></tr>
-          <tr><td>W-2</td><td><code>.cmd</code> 文件关联检测与警告</td><td><code>daemon/windows.go</code></td></tr>
+          <tr><td>W-2</td><td><code>.cmd</code> 文件关联诊断埋点</td><td><code>daemon/windows.go</code></td></tr>
           <tr><td>W-3</td><td>schtasks 设 <code>-Hidden</code></td><td><code>daemon/windows.go</code></td></tr>
           <tr><td>W-4</td><td>AtLogOn 延迟 30s</td><td><code>daemon/windows.go</code></td></tr>
         </tbody>
@@ -1011,13 +1013,12 @@
       <p style="color:var(--text-sec);font-size:13px;margin-bottom:8px">
         清理 + npm 重装 + 恢复配置 + daemon install：
       </p>
-<pre><span class="comment"># 第一步：准备（备份配置、清理运行时、卸载 daemon）</span>
-<span class="cmd">cc-connect reinstall --yes</span>
-
-<span class="comment"># 第二步：运行补全脚本完成 npm 重装 + 恢复配置 + daemon install</span>
-<span class="comment">#（Unix 上自动执行，Windows 上需手动运行打印的脚本命令）</span></pre>
+<pre><span class="cmd">cc-connect reinstall --yes</span></pre>
       <p style="color:var(--text-sec);font-size:12.5px;margin-top:6px">
-        <code>cc-connect reinstall</code> 是两阶段命令：Phase 1（Go 代码）完成备份、清理、卸载 daemon；Phase 2（补全脚本）完成 npm 重装、恢复配置、daemon install。Unix 上自动一条命令完成，Windows 上因文件锁需两步。
+        <code>cc-connect reinstall</code> 是两阶段命令：Phase 1（Go 代码）完成备份、清理、卸载 daemon；Phase 2（补全脚本）完成 npm 重装、恢复配置、daemon install。在 MINGW/Git Bash 环境中 Phase 1 完成后自动 exec 进入 Phase 2，一条命令完成。纯 Windows 环境（PowerShell/CMD）中因文件锁限制需两步：先 <code>cc-connect reinstall</code>，再运行打印的 PowerShell 补全脚本命令。
+      </p>
+      <p style="color:var(--text-muted);font-size:12px;margin-top:6px">
+        注意：备份在清理操作之前创建（v1.3.3-fork.11+），确保 <code>dir_history.json</code> 等文件不会被清理步骤删除后再备份。脚本中的 <code>BACKUP_DIR</code> 和 <code>CC_DIR</code> 路径由 Go 代码计算后直接嵌入，不依赖 <code>$HOME</code> 或 <code>$env:USERPROFILE</code> 重建，避免 MINGW 环境下 <code>$HOME</code> 指向 MSYS2 家目录而非 Windows <code>%USERPROFILE%</code> 的路径不一致问题。
       </p>
     </div>
   </div>
@@ -1133,12 +1134,16 @@
       <span class="faq-chevron">&#9654;</span>
     </div>
     <div class="faq-a"><div class="faq-a-inner">
-      <strong>根因：</strong>Windows 注册表 <code>HKCU\...\Explorer\FileExts\.cmd</code> 键缺失。
+      <strong>根因：</strong>Windows 注册表 <code>HKCU\...\Explorer\FileExts\.cmd\OpenWithList</code> 中 <code>a=cmd.exe</code> / <code>MRUList=a</code> 值被清空。Windows 11 累积更新会将 <code>.cmd</code>/<code>.bat</code> 的 <code>OpenWithList</code> 值重置为"未关联"状态（安全设计），<strong>非 cc-connect 操作所致</strong>。
       <br><br>
-      <strong>修复：</strong>fork v1.3.3-fork.7+ 的 <code>daemon install</code> 自动创建该键。确认版本：
-<pre><span class="cmd">cc-connect --version</span>   <span class="comment"># 应 &ge; v1.3.3-fork.7</span></pre>
-      如仍有问题，重装 daemon：
-<pre><span class="cmd">cc-connect daemon uninstall && cc-connect daemon install</span></pre>
+      <strong>诊断：</strong>fork v1.3.3-fork.11+ 在 <code>daemon install</code>/<code>uninstall</code> 关键步骤前后插桩打印注册表状态到日志，可用于定位值被清空的精确时刻：
+<pre><span class="cmd">cc-connect daemon logs | grep reg-diag</span></pre>
+输出格式：<code>label=&lt;步骤&gt; result="base:list:progids:cmdfile:a=&lt;值&gt;;MRUList=&lt;值&gt;"</code>
+      <br><br>
+      <strong>修复：</strong>（管理员 CMD）
+<pre><span class="cmd">reg add "HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\FileExts\.cmd\OpenWithList" /v a /d cmd.exe /f</span>
+<span class="cmd">reg add "HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\FileExts\.cmd\OpenWithList" /v MRUList /d a /f</span></pre>
+      然后重启资源管理器或注销重新登录使注册表生效。
     </div></div>
   </div>
 

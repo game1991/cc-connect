@@ -28,11 +28,11 @@
 | `daemon stop` 仅依赖 `schtasks /End` | 手动启动的进程或卡死进程无法停止 |
 | `KillExistingInstance` 不等待进程退出 | 旧进程还占着端口，新进程启动失败 |
 | `KillExistingInstance` 不验证 PID 归属 | PID 被其他进程复用后可能误杀无关程序 |
-| `.cmd` 文件关联注册表键可能缺失 | daemon 启动时弹出"你想如何打开此文件？"对话框 |
+| `.cmd` 文件关联注册表值被 Windows 更新清空 | daemon 启动时弹出"你想如何打开此文件？"对话框 |
 | schtasks 未设 `-Hidden` | 每次登录闪一下 CMD 窗口 |
 | AtLogOn 触发无延迟 | Explorer Shell 文件关联未就绪就启动 daemon |
 
-**典型场景**：Windows 用户 `daemon install` 后重启，弹出文件关联对话框，daemon 未能启动。
+**典型场景**：Windows 11 累积更新后，`.cmd` 文件关联被重置，重启时弹出对话框，daemon 未能启动。
 
 ---
 
@@ -68,13 +68,15 @@
 | D-6 | `daemon restart --force` 路径修复 + 竞态消除 | `cmd/cc-connect/daemon.go` | `metaConfigPath()` + 500ms sleep |
 | D-7 | `KillExistingInstance` 超时返回 false | 同 D-2/D-3 | 统一语义：调用方需正确判断 |
 | D-8 | 权限拒绝 i18n 五语翻译 | `core/engine.go`, `core/i18n.go` | EN/ZH/ZH-TW/JA/ES |
+| D-9 | `clean reset` 备份顺序修复 | `cmd/cc-connect/clean.go` | 先备份再清理，防止 `dir_history.json` 被删后无法备份 |
+| D-10 | `reinstall` 集成为 Go 子命令 | `cmd/cc-connect/reinstall.go` | 消除旧脚本自举悖论，统一 bash/ps1 双脚本模板 |
 
 ### W 系列：Windows 专项修复
 
 | # | 改造 | 影响文件 | 说明 |
 |---|------|----------|------|
 | W-1 | `OpenProcess` 加 `SYNCHRONIZE` 权限 | `instance_lock_windows.go` | `WaitForSingleObject` 不再返回 `WAIT_FAILED` |
-| W-2 | `.cmd` 文件关联检测与警告 | `daemon/windows.go` | `ensureCmdFileAssociation()` 检测 HKCU FileExts\.cmd 键值缺失并打印修复命令（不写注册表） |
+| W-2 | `.cmd` 文件关联诊断埋点 | `daemon/windows.go` | `checkCmdFileAssociation()` 只读检测 + 在 Install/Uninstall 关键步骤前后插桩记录注册表状态到日志 |
 | W-3 | schtasks 设 `-Hidden` | `daemon/windows.go` | `New-ScheduledTaskSettingsSet -Hidden` 防止 CMD 闪现 |
 | W-4 | AtLogOn 触发延迟 30s | `daemon/windows.go` | `$trigger.Delay = 'PT30S'` 等 Shell 初始化完成 |
 
@@ -344,19 +346,17 @@ cc-connect clean reset
 **一键重装**（清理 + npm 重装 + 恢复配置 + daemon install）：
 
 ```bash
-# 第一步：准备（备份配置、清理运行时、卸载 daemon）
 cc-connect reinstall --yes
-
-# 第二步：运行补全脚本完成 npm 重装 + 恢复配置 + daemon install
-# （Unix 上自动执行，Windows 上需要手动运行脚本）
 ```
 
 `cc-connect reinstall` 是两阶段命令：
 - **Phase 1**（Go 代码）：备份配置 → 清理运行时 → 卸载 daemon → 生成补全脚本
 - **Phase 2**（补全脚本）：npm uninstall → npm install → 恢复配置 → daemon install
 
-在 Unix/macOS 上 Phase 1 完成后自动 exec 进入 Phase 2，实现一条命令完成。
-在 Windows 上因文件锁限制需两步：先 `cc-connect reinstall`，再运行打印的补全脚本命令。
+在 MINGW/Git Bash 环境中，Phase 1 完成后自动 exec 进入 Phase 2 bash 脚本，实现一条命令完成。
+在纯 Windows 环境（PowerShell/CMD）中因文件锁限制需两步：先 `cc-connect reinstall`，再运行打印的 PowerShell 补全脚本命令。
+
+> **注意**：备份在清理操作之前创建（v1.3.3-fork.11+），确保 `dir_history.json` 等文件不会被清理步骤删除后再备份。脚本中的 `BACKUP_DIR` 和 `CC_DIR` 路径由 Go 代码计算后直接嵌入，不依赖 `$HOME` 或 `$env:USERPROFILE` 重建，避免 MINGW 环境下 `$HOME` 指向 MSYS2 家目录而非 Windows `%USERPROFILE%` 的路径不一致问题。
 
 ---
 
@@ -441,19 +441,26 @@ cc-connect daemon restart
 
 ### daemon install 后弹出 "你想如何打开此文件？"
 
-**根因**：Windows 注册表 `HKCU\...\Explorer\FileExts\.cmd` 键缺失。
+**根因**：Windows 注册表 `HKCU\...\Explorer\FileExts\.cmd\OpenWithList` 中 `a=cmd.exe` / `MRUList=a` 值被清空。Windows 11 累积更新会将 `.cmd`/`.bat` 的 `OpenWithList` 值重置为"未关联"状态（安全设计），导致双击或 schtasks 触发 `.cmd` 文件时弹出选择对话框。**非 cc-connect 操作所致**。
 
-**修复**：fork v1.3.3-fork.7+ 的 `daemon install` 自动创建该键。确认版本：
-
-```bash
-cc-connect --version   # 应 >= v1.3.3-fork.7
-```
-
-如仍有问题，重装 daemon：
+**诊断**：fork v1.3.3-fork.11+ 在 `daemon install` / `uninstall` 的关键步骤前后插桩打印注册表状态到日志（`reg-diag` 标签），可用于定位值被清空的精确时刻：
 
 ```bash
-cc-connect daemon uninstall && cc-connect daemon install
+cc-connect daemon logs | grep reg-diag
 ```
+
+输出格式：`label=<步骤> result="base:list:progids:cmdfile:a=<值>;MRUList=<值>"`
+
+如 `a=` 后为空，说明 `OpenWithList` 中的 `cmd.exe` 条目已丢失。
+
+**修复**（管理员 CMD）：
+
+```cmd
+reg add "HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\FileExts\.cmd\OpenWithList" /v a /d cmd.exe /f
+reg add "HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\FileExts\.cmd\OpenWithList" /v MRUList /d a /f
+```
+
+然后重启资源管理器或注销重新登录使注册表生效。
 
 ### daemon stop 停不掉
 
