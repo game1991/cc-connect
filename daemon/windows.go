@@ -65,13 +65,9 @@ func (m *schtasksManager) Install(cfg Config) error {
 		return err
 	}
 
-	checkCmdFileAssociation("before-create-task")
-
 	if err := createWindowsTask(scriptPath); err != nil {
 		return err
 	}
-
-	checkCmdFileAssociation("after-create-task")
 
 	if err := m.Start(); err != nil {
 		return fmt.Errorf("start task: %w", err)
@@ -80,19 +76,15 @@ func (m *schtasksManager) Install(cfg Config) error {
 }
 
 func (*schtasksManager) Uninstall() error {
-	checkCmdFileAssociation("before-uninstall")
 	if err := stopWindowsTask(); err != nil {
 		slog.Warn("schtasks: stop task failed", "error", err)
 	}
-	checkCmdFileAssociation("after-stop-task")
 	if err := deleteWindowsTask(); err != nil {
 		return err
 	}
-	checkCmdFileAssociation("after-delete-task")
 	if err := os.Remove(windowsTaskScriptPath()); err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("remove task script: %w", err)
 	}
-	checkCmdFileAssociation("after-uninstall")
 	return nil
 }
 
@@ -211,33 +203,6 @@ func buildWindowsTaskScript(cfg Config) string {
 
 func writePowerShellEnv(sb *strings.Builder, key, value string) {
 	fmt.Fprintf(sb, "$env:%s = %s\r\n", key, powerShellLiteral(value))
-}
-
-// checkCmdFileAssociation probes the HKCU .cmd FileExts registry keys and logs
-// the result. It does NOT write to the registry — the purpose is purely
-// diagnostic, so we can trace when/where the values disappear.
-func checkCmdFileAssociation(label string) {
-	out, err := runPowerShell(`
-$base = 'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\FileExts\.cmd'
-$list = Join-Path $base 'OpenWithList'
-$val = ''
-if (Test-Path $list) {
-	$v = (Get-ItemProperty $list -Name 'a' -ErrorAction SilentlyContinue).a
-	$m = (Get-ItemProperty $list -Name 'MRUList' -ErrorAction SilentlyContinue).MRUList
-	$val = "a=$v;MRUList=$m"
-}
-$baseOk  = if (Test-Path $base) { 1 } else { 0 }
-$listOk  = if (Test-Path $list) { 1 } else { 0 }
-$progOk  = if (Test-Path (Join-Path $base 'OpenWithProgids')) { 1 } else { 0 }
-$cmdOk   = if (Test-Path (Join-Path $base 'OpenWithProgids\cmdfile')) { 1 } else { 0 }
-Write-Output "${baseOk}:${listOk}:${progOk}:${cmdOk}:${val}"
-`)
-	result := strings.TrimSpace(out)
-	if err != nil {
-		slog.Warn("reg-diag: failed to check .cmd association", "label", label, "error", err, "output", out)
-		return
-	}
-	slog.Info("reg-diag: .cmd file association", "label", label, "result", result)
 }
 
 func powerShellLiteral(value string) string {
