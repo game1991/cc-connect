@@ -76,7 +76,7 @@
 | # | 改造 | 影响文件 | 说明 |
 |---|------|----------|------|
 | W-1 | `OpenProcess` 加 `SYNCHRONIZE` 权限 | `instance_lock_windows.go` | `WaitForSingleObject` 不再返回 `WAIT_FAILED` |
-| W-2 | `.cmd` 文件关联诊断埋点 | `daemon/windows.go` | `checkCmdFileAssociation()` 只读检测 + 在 Install/Uninstall 关键步骤前后插桩记录注册表状态到日志 |
+| W-2 | ~~`.cmd` 文件关联修复~~ 已删除 | `daemon/windows.go` | 旧版 `ensureCmdFileAssociation` 创建空 `OpenWithList` key，反成弹框根因，v1.3.3-fork.11 彻底删除 |
 | W-3 | schtasks 设 `-Hidden` | `daemon/windows.go` | `New-ScheduledTaskSettingsSet -Hidden` 防止 CMD 闪现 |
 | W-4 | AtLogOn 触发延迟 30s | `daemon/windows.go` | `$trigger.Delay = 'PT30S'` 等 Shell 初始化完成 |
 
@@ -441,33 +441,15 @@ cc-connect daemon restart
 
 ### daemon install 后弹出 "你想如何打开此文件？"（可能弹两次）
 
-**根因链条**：
+**根因**：旧版 cc-connect (v1.3.3-fork.7 ~ fork.10) 的 `ensureCmdFileAssociation()` 在 `daemon install` 时创建了 `HKCU\...\FileExts\.cmd\OpenWithList` 空 key。在干净 Windows 系统上此键**不应存在**，Windows 会回退到系统默认关联 `HKCR\.cmd → cmdfile → cmd.exe`。但空 key 存在时，Windows 认为"用户已配置此类型但清除了所有程序"，不走系统默认 → 弹框。系统内置 `Monitoring` 计划任务（热补丁监控）在登录时和每日触发 `.cmd` 文件，短时间多次触发 → **弹两次**。
 
-1. Windows 11 累积更新**清空** `HKCU\...\FileExts\.cmd\OpenWithList` 中的 `a=cmd.exe` / `MRUList=a` 值（安全设计，将脚本文件关联重置为"未关联"）
-2. 系统内置的 `Monitoring` 计划任务（热补丁监控 `hpatchmonTask.cmd`）在**每次登录**及**每日凌晨**触发，执行 `.cmd` 文件
-3. 此时 `OpenWithList` 为空 → Windows 无法确定默认处理程序 → 弹出"你想如何打开此文件？"对话框
-4. 该任务有 3 个触发器（AtLogOn + 每日 + 另一周期性），短时间内可能触发多次 → **弹两次**
-
-**结论**：与 cc-connect 的任何操作无关。是 Windows Update 重置注册表 + 系统内置任务触发 `.cmd` 文件的组合效应。
-
-**诊断**（fork v1.3.3-fork.11+）：`daemon install` / `uninstall` 关键步骤前后自动记录注册表状态到日志：
-
-```bash
-cc-connect daemon logs | grep reg-diag
-```
-
-输出格式：`label=<步骤> result="base:list:progids:cmdfile:a=<值>;MRUList=<值>"`
-
-**修复**（管理员 CMD）：
+**已修复**：v1.3.3-fork.11+ 已彻底删除 `ensureCmdFileAssociation`，cc-connect 不再触碰注册表。如果之前版本已创建空 key，需手动清理：
 
 ```cmd
-reg add "HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\FileExts\.cmd\OpenWithList" /v a /d cmd.exe /f
-reg add "HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\FileExts\.cmd\OpenWithList" /v MRUList /d a /f
+reg delete "HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\FileExts\.cmd" /f
 ```
 
-然后重启资源管理器或注销重新登录使注册表生效。
-
-> **预防**：目前无官方方案。Windows Update 可能在任意累积更新中再次清空这些值。建议将上述两条 `reg add` 命令保存为脚本放在桌面，每次大更新后运行一次。
+然后注销重新登录，让 Windows 恢复系统默认关联。
 
 ### daemon stop 停不掉
 

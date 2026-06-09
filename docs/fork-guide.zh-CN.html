@@ -556,14 +556,14 @@
           <tr><td>三平台 launcher 不传 <code>--config</code></td><td>daemon 启动后找不到配置文件</td></tr>
           <tr><td><code>daemon stop</code> 仅依赖 <code>schtasks /End</code></td><td>手动或卡死进程无法停止</td></tr>
           <tr><td><code>KillExistingInstance</code> 不等待/不验证</td><td>端口冲突或误杀无关进程</td></tr>
-          <tr><td><code>.cmd</code> 文件关联注册表值被 Windows 更新清空</td><td>弹出"你想如何打开此文件？"</td></tr>
+          <tr><td>旧版 <code>ensureCmdFileAssociation</code> 创建空 <code>OpenWithList</code> key</td><td>弹出"你想如何打开此文件？"</td></tr>
           <tr><td>schtasks 未设 <code>-Hidden</code></td><td>每次登录闪 CMD 窗口</td></tr>
           <tr><td>AtLogOn 触发无延迟</td><td>Shell 未就绪就启动 daemon</td></tr>
         </tbody>
       </table>
     </div>
     <div class="scenario">
-      <span class="emoji">&#x1F4A5;</span> 典型场景：<code>daemon install</code> 后重启，弹出文件关联对话框，daemon 未能启动。
+      <span class="emoji">&#x1F4A5;</span> 典型场景：旧版 <code>daemon install</code> 创建空 <code>OpenWithList</code> key，重启后弹出对话框，daemon 未能启动。
     </div>
   </div>
 </div>
@@ -649,7 +649,7 @@
         <thead><tr><th>#</th><th>改造</th><th>影响文件</th></tr></thead>
         <tbody>
           <tr><td>W-1</td><td><code>OpenProcess</code> 加 <code>SYNCHRONIZE</code> 权限</td><td><code>instance_lock_windows.go</code></td></tr>
-          <tr><td>W-2</td><td><code>.cmd</code> 文件关联诊断埋点</td><td><code>daemon/windows.go</code></td></tr>
+          <tr><td>W-2</td><td><del><code>.cmd</code> 文件关联修复</del> 已删除</td><td><code>daemon/windows.go</code></td></tr>
           <tr><td>W-3</td><td>schtasks 设 <code>-Hidden</code></td><td><code>daemon/windows.go</code></td></tr>
           <tr><td>W-4</td><td>AtLogOn 延迟 30s</td><td><code>daemon/windows.go</code></td></tr>
         </tbody>
@@ -1134,25 +1134,11 @@
       <span class="faq-chevron">&#9654;</span>
     </div>
     <div class="faq-a"><div class="faq-a-inner">
-      <strong>根因链条：</strong>
-      <ol style="margin:8px 0;padding-left:20px;color:var(--text-sec);font-size:13px;line-height:1.7">
-        <li>Windows 11 累积更新<strong>清空</strong> <code>OpenWithList</code> 中 <code>a=cmd.exe</code> / <code>MRUList=a</code> 值（安全设计）</li>
-        <li>系统内置 <code>Monitoring</code> 计划任务（热补丁监控 <code>hpatchmonTask.cmd</code>）在<strong>每次登录</strong>及<strong>每日凌晨</strong>触发，执行 <code>.cmd</code> 文件</li>
-        <li><code>OpenWithList</code> 为空 &rarr; Windows 弹出"你想如何打开此文件？"对话框</li>
-        <li>该任务有 3 个触发器，短时间可能触发多次 &rarr; <strong>弹两次</strong></li>
-      </ol>
-      <strong>结论：</strong>与 cc-connect 的任何操作无关。是 Windows Update 重置注册表 + 系统内置任务触发 <code>.cmd</code> 文件的组合效应。
+      <strong>根因：</strong>旧版 cc-connect (v1.3.3-fork.7 ~ fork.10) 的 <code>ensureCmdFileAssociation()</code> 在 <code>daemon install</code> 时创建了 <code>HKCU\...\FileExts\.cmd\OpenWithList</code> 空 key。在干净 Windows 系统上此键<strong>不应存在</strong>，Windows 会回退到系统默认关联 <code>HKCR\.cmd → cmdfile → cmd.exe</code>。但空 key 存在时，Windows 认为"用户已配置此类型但清除了所有程序"，不走系统默认 &rarr; 弹框。系统内置 <code>Monitoring</code> 计划任务（热补丁监控）在登录时和每日触发 <code>.cmd</code> 文件，短时间多次触发 &rarr; <strong>弹两次</strong>。
       <br><br>
-      <strong>诊断：</strong>fork v1.3.3-fork.11+ 在 <code>daemon install</code>/<code>uninstall</code> 关键步骤前后自动记录注册表状态到日志：
-<pre><span class="cmd">cc-connect daemon logs | grep reg-diag</span></pre>
-输出格式：<code>label=&lt;步骤&gt; result="base:list:progids:cmdfile:a=&lt;值&gt;;MRUList=&lt;值&gt;"</code>
-      <br><br>
-      <strong>修复：</strong>（管理员 CMD）
-<pre><span class="cmd">reg add "HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\FileExts\.cmd\OpenWithList" /v a /d cmd.exe /f</span>
-<span class="cmd">reg add "HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\FileExts\.cmd\OpenWithList" /v MRUList /d a /f</span></pre>
-      然后重启资源管理器或注销重新登录使注册表生效。
-      <br><br>
-      <span style="color:var(--text-muted);font-size:12px"><strong>预防：</strong>目前无官方方案。Windows Update 可能在任意累积更新中再次清空这些值。建议将上述两条 <code>reg add</code> 命令保存为脚本放在桌面，每次大更新后运行一次。</span>
+      <strong>已修复：</strong>v1.3.3-fork.11+ 已彻底删除 <code>ensureCmdFileAssociation</code>，cc-connect 不再触碰注册表。如果之前版本已创建空 key，需手动清理：
+<pre><span class="cmd">reg delete "HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\FileExts\.cmd" /f</span></pre>
+      然后注销重新登录，让 Windows 恢复系统默认关联。
     </div></div>
   </div>
 
