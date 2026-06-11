@@ -61,24 +61,25 @@ cc-connect 是 AI 编码 Agent 与即时通讯平台的桥接工具。用户在�
 | Pi | 进程流式 | 2 种模式，6 级推理强度，会话文件管理 |
 | tmux | tmux 屏幕抓取 | 自动创建窗格，自定义 Shell |
 
-### IM 平台（13 个 + Bridge）
+### IM 平台（13 个 + Bridge 服务）
 
-| 平台 | 连接方式 | 特色能力 | 需公网 IP |
-|------|----------|----------|-----------|
-| 飞书/Lark | 长连接事件 | 交互式卡片、按钮回调、QR 设置 | 否 |
-| Telegram | Long Polling | HTML Markdown 渲染 | 否 |
-| Discord | Gateway WS | Embed、按钮交互 | 否 |
-| Slack | Socket Mode | Block Kit、斜杠命令、typing emoji | 否 |
-| 钉钉 | HTTP 回调 | AI 流式卡片（降级为文本） | 是 |
-| 企业微信 | HTTP 回调 | 文本 + 图片 | 是 |
-| 微信个人号 | ilink 协议 | QR 码登录 | 否 |
-| QQ | 协议特定 | 文本 + 图片 | 视配置 |
-| QQ Bot | 协议特定 | 文本 + 图片 | 视配置 |
-| LINE | 协议特定 | 文本 + 图片 | 是 |
-| 微博 | 协议特定 | 文本 + 图片 | 是 |
-| MAX | Long-poll/Webhook | 三种部署拓扑 | 视配置 |
-| WPS 协作 | WebSocket | AES-256-CBC + HMAC-SHA256 | 否 |
-| Bridge | WebSocket | 通用外部适配器协议 | 否 |
+| 平台 | 注册名 | 连接方式 | 特色能力 | 需公网 IP |
+|------|--------|----------|----------|-----------|
+| 飞书/Lark | `feishu` | 长连接事件 | 交互式卡片、按钮回调、QR 设置 | 否 |
+| Telegram | `telegram` | Long Polling | HTML Markdown 渲染 | 否 |
+| Discord | `discord` | Gateway WS | Embed、按钮交互 | 否 |
+| Slack | `slack` | Socket Mode | Block Kit、斜杠命令、typing emoji | 否 |
+| 钉钉 | `dingtalk` | Stream SDK（长连接） | AI 流式卡片（降级为文本） | 否 |
+| 企业微信 | `wecom` | HTTP 回调（默认）/ WebSocket | 文本 + 图片 | 是 |
+| 微信个人号 | `weixin` | ilink 协议 | QR 码登录 | 否 |
+| QQ | `qq` | WebSocket（OneBot v11） | 文本 + 图片 | 视配置 |
+| QQ Bot | `qqbot` | WebSocket（QQ Bot Gateway v2） | 文本 + 图片 | 视配置 |
+| LINE | `line` | HTTP Webhook | 文本 + 图片 | 是 |
+| 微博 | `weibo` | WebSocket（微博 Open IM） | 文本 + 图片 | 是 |
+| MAX | `max` | Long Poll（默认）/ Webhook | 三种部署拓扑 | 视配置 |
+| WPS 协作 | `wps-xiezuo` | WebSocket（HMAC-SHA256 签名） | 文本 + 图片 | 否 |
+
+> **Bridge** 不是 platform 适配器，而是内置的 WebSocket 服务（端口 9810），允许外部适配器声明式接入，无需写 Go 代码即可扩展新平台。
 
 ### Web 管理界面
 
@@ -88,7 +89,7 @@ cc-connect 是 AI 编码 Agent 与即时通讯平台的桥接工具。用户在�
 |------|------|
 | Dashboard | 版本、运行时间、连接状态 |
 | Projects | 项目 CRUD、3 步添加向导 |
-| Chat | 实时聊天、会话管理、25 个斜杠命令 |
+| Chat | 实时聊天、会话管理、40+ 斜杠命令 |
 | Sessions | 列表、聊天、批量删除（/delete 1,2,3 或 /delete 3-7） |
 | Cron | 定时任务 CRUD、执行历史 |
 | Providers | 多 Provider 管理、模型切换 |
@@ -215,68 +216,80 @@ token = "<YOUR_MANAGEMENT_SECRET>"
 
 ## 4. 斜杠命令速查
 
-所有命令在聊天窗口或 Web UI 中输入，以 `/` 开头。
+所有命令在聊天窗口或 Web UI 中输入，以 `/` 开头。需管理员权限的命令标记为 **[admin]**，仅 `admin_from` 列表中的用户可执行。
 
 ### 会话管理
 
-| 命令 | 说明 |
-|------|------|
-| `/new [名称]` | 创建新会话 |
-| `/list` | 列出当前项目的会话 |
-| `/switch <id>` | 切换到指定会话 |
-| `/current` | 查看当前会话 |
-| `/history [n]` | 查看最近 n 条消息 |
-| `/usage` | 查看账号/模型限额使用情况 |
-| `/compact` | 压缩当前会话上下文 |
-| `/reset` | 重置为全新会话 |
-| `/delete <id>` | 删除指定会话（支持 `/delete 1,2,3` 或 `/delete 3-7`） |
-| `/close` | 关闭当前会话 |
+| 命令 | 别名 | 说明 |
+|------|------|------|
+| `/new [名称]` | | 创建新会话 |
+| `/list` | `/sessions` | 列出当前项目的会话 |
+| `/switch <id>` | | 切换到指定会话 |
+| `/name <名称>` | `/rename` | 重命名当前会话 |
+| `/current` | | 查看当前会话 |
+| `/history [n]` | | 查看最近 n 条消息 |
+| `/usage` | `/quota` | 查看账号/模型限额使用情况 |
+| `/compress` | `/compact` | 压缩当前会话上下文 |
+| `/delete <id>` | `/del`, `/rm` | 删除指定会话（支持 `/delete 1,2,3` 或 `/delete 3-7`） |
+| `/search <关键词>` | `/find` | 搜索会话 |
+| `/cancel` | | 取消当前正在进行的 Agent 调用 |
 
 ### 权限与模式
 
 | 命令 | 说明 |
 |------|------|
 | `/mode` | 查看可用模式 |
-| `/mode yolo` | 切换到 YOLO 模式（自动批准所有工具） |
-| `/mode default` | 切换到默认模式（每次工具调用确认） |
-| `/allow <工具名>` | 预授权工具 |
+| `/mode <模式名>` | 切换模式（如 `yolo`、`default`） |
+| `/allow [工具名]` | 无参数列出已授权工具；带参数预授权指定工具 |
+| `/quiet` | 切换输出模式：full → compact → quiet（循环） |
 
 ### Provider 与模型
 
 | 命令 | 说明 |
 |------|------|
-| `/provider list` | 列出 Provider |
-| `/provider switch <名称>` | 切换 API Provider |
-| `/model` | 列出可用模型 |
-| `/model switch <别名>` | 按别名切换模型 |
-| `/reasoning [等级]` | 查看或切换推理强度（Codex） |
+| `/provider` | 列出 Provider 及交互式切换/添加 |
+| `/model` | 列出可用模型，点击卡片切换 |
+| `/reasoning [等级]` | 查看或切换推理强度（需 Agent 支持） |
 
 ### 工作目录与引用
 
-| 命令 | 说明 |
-|------|------|
-| `/dir [路径\|reset]` | 查看、切换或重置工作目录 |
-| `/dir <序号>` | 按历史序号切换 |
-| `/dir -` | 返回上一个目录 |
-| `/cd <路径>` | `/dir` 的兼容别名 |
-| `/show <引用>` | 按引用查看文件、目录或代码片段 |
-| `/bind setup` | 初始化附件回传（飞书/钉钉） |
+| 命令 | 别名 | 说明 |
+|------|------|------|
+| `/dir [路径\|reset]` | `/cd`, `/chdir`, `/workdir` | 查看、切换或重置工作目录 |
+| `/dir <序号>` | | 按历史序号切换 |
+| `/dir -` | | 返回上一个目录 |
+| `/show <引用>` | | 按引用查看文件、目录或代码片段 |
+| `/bind` | | 附件回传绑定管理 |
+| `/workspace` | `/ws` | 工作区绑定管理（多工作区模式） |
 
 ### 运维
 
-| 命令 | 说明 |
-|------|------|
-| `/shell` | 打开交互式 Shell |
-| `/cron add <表达式> <指令>` | 添加定时任务（自然语言） |
-| `/stop` | 停止当前执行 |
-| `/whoami` | 显示当前用户平台 ID（用于角色配置） |
-| `/version` | 查看版本信息 |
-| `/status` | 查看连接状态 |
-| `/lang` | 切换界面语言 |
-| `/config` | 查看当前配置 |
-| `/doctor` | 运行诊断检查 |
-| `/upgrade` | 升级到最新版本 |
-| `/help` | 显示可用命令 |
+| 命令 | 别名 | 说明 |
+|------|------|------|
+| `/shell` | `/sh`, `/exec`, `/run` | **[admin]** 打开交互式 Shell |
+| `/show` | | **[admin]** 按引用查看文件/目录/代码片段 |
+| `/dir` | `/cd` | **[admin]** 切换工作目录 |
+| `/restart` | | **[admin]** 重启引擎 |
+| `/web [setup\|status]` | | **[admin]** Web 管理界面控制 |
+| `/diff` | | **[admin]** 对比差异 |
+| `/cron` | | 定时任务管理（卡片交互式 CRUD） |
+| `/stop` | | 停止当前执行 |
+| `/whoami` | `/myid` | 显示当前用户平台 ID（用于角色配置） |
+| `/version` | | 查看版本信息 |
+| `/status` | | 查看连接状态 |
+| `/lang` | | 切换界面语言 |
+| `/config` | | 查看当前配置 |
+| `/doctor` | | 运行诊断检查 |
+| `/upgrade` | `/update` | 升级到最新版本 |
+| `/commands` | `/command`, `/cmd` | 管理自定义命令 |
+| `/alias` | | 管理命令别名 |
+| `/skills` | `/skill` | 技能发现与管理 |
+| `/memory` | | 管理引擎级记忆 |
+| `/heartbeat` | `/hb` | 心跳/定时任务管理 |
+| `/tts` | | 语音合成控制 |
+| `/ps` | `/btw` | 向正在进行的 Agent 会话注入补充消息 |
+| `/start` | | 显示欢迎消息 |
+| `/help` | | 显示可用命令 |
 
 ---
 
@@ -579,7 +592,7 @@ disabled_commands = ["*"]
 
 ### admin_from 与特权命令
 
-在项目配置中设置 `admin_from = "alice,bob"` 后，只有这些用户 ID 能执行 `/shell`、`/show`、`/dir`、`/restart`、`/upgrade`、`/web`、`/diff` 等特权命令。配置语法详见 [第 10 节 安全机制](#10-安全机制)。
+在项目配置中设置 `admin_from = "alice,bob"` 后，只有这些用户 ID 能执行 `/shell`、`/show`、`/dir`、`/restart`、`/web`、`/diff` 等特权命令。配置语法详见 [第 10 节 安全机制](#10-安全机制)。
 
 ---
 
@@ -611,7 +624,7 @@ Agent 执行过程中实时预览输出，按平台差异分两种策略：
 
 会话模式：`reuse`（复用现有会话）或 `new_per_run`（每次新建）。支持超时和静默模式。
 
-可通过 `/cron add <表达式> <指令>` 自然语言添加。
+可通过 `/cron` 卡片交互式添加（支持自然语言表达式）。
 
 ### 多机器人中继 (Relay)
 
@@ -644,7 +657,7 @@ Agent 执行过程中实时预览输出，按平台差异分两种策略：
 
 内置 React SPA（端口 9820），Bearer token 认证。
 
-功能页：Dashboard、Projects（3 步向导）、Chat（25 个斜杠命令、命令面板）、Sessions、Cron、Providers、Skills、Bridge、System（全局设置、i18n、主题切换）。
+功能页：Dashboard、Projects（3 步向导）、Chat（40+ 斜杠命令、命令面板）、Sessions、Cron、Providers、Skills、Bridge、System（全局设置、i18n、主题切换）。
 
 ### 多工作区模式
 
@@ -690,14 +703,18 @@ cc-connect daemon uninstall
 ### 清理与重装
 
 ```bash
-cc-connect clean              # 清运行时（lock/sock/log），保留 config 和 crons
-cc-connect clean reset        # 全部删除，config/crons 先备份到 ~/.cc-connect-backup/<时间戳>/
+cc-connect clean              # 清运行时，保留 config 和 crons
+cc-connect clean reset        # 全部删除，用户数据先备份到 ~/.cc-connect-backup/<时间戳>/
 cc-connect reinstall --yes    # 清理 + npm 重装 + 恢复配置 + daemon install
 ```
 
+`clean` 实际删除项：实例锁、运行时目录（sock）、日志目录、daemon 元数据（daemon.json）、Windows 启动器脚本（cc-connect-daemon.ps1）、目录历史（dir_history.json）。保留 config.toml 和 crons/。
+
+`clean reset` 在执行 `clean` 之前备份：config.toml、crons/jobs.json、dir_history.json。
+
 `reinstall` 是两阶段命令：
-- **Phase 1**（Go）：备份 → 清理 → 卸载 daemon → 生成补全脚本
-- **Phase 2**（补全脚本）：npm uninstall → npm install → 恢复配置 → daemon install
+- **Phase 1**（Go）：备份（config + crons/jobs.json + dir_history.json + daemon-meta.json）→ 清理 → 卸载 daemon → 生成补全脚本
+- **Phase 2**（补全脚本）：npm uninstall → npm install → 恢复配置 → daemon install（使用备份的 daemon-meta.json 恢复原始 install 参数）
 
 MINGW bash 中一条命令完成；PowerShell/CMD 中因文件锁需两步执行。
 
@@ -705,10 +722,12 @@ MINGW bash 中一条命令完成；PowerShell/CMD 中因文件锁需两步执行
 
 ```bash
 cc-connect daemon stop
-npm update -g @game1991/cc-connect
+npm install -g @game1991/cc-connect
 cc-connect --version
 cc-connect daemon restart
 ```
+
+> **注意**：必须使用 `npm install` 而非 `npm update`。此包发布在 GitHub Packages，`npm update` 对 scoped package 的 registry 路由行为不稳定。同时确保 `~/.npmrc` 中 `@game1991:registry=https://npm.pkg.github.com` 配置有效且 PAT 未过期。
 
 ### 诊断
 
@@ -780,7 +799,7 @@ taskkill /PID <PID> /F              # 强制终止
 | 实例锁 | PID 文件锁，防止重复进程，`--force` 可杀旧进程 | 自动 |
 | run-as-user | Linux/macOS 下以指定 OS 用户运行 Agent 进程 | `run_as_user = "coder"` |
 | allow_from | 限制特定 IP 或用户 ID 可发送消息 | 平台 `options` 中 `allow_from` |
-| admin_from | 限制可执行特权命令（`/shell`、`/show`、`/dir`、`/restart`、`/upgrade`、`/web`、`/diff`）的用户 | `admin_from = "alice,bob"` |
+| admin_from | 限制可执行特权命令（`/shell`、`/show`、`/dir`、`/restart`、`/web`、`/diff`）的用户 | `admin_from = "alice,bob"` |
 | 请求去重 | TTL 去重，防止重复消息触发重复执行 | 自动 |
 | 敏感信息脱敏 | 环境变量值、API Key 参数在日志中自动遮蔽 | 自动 |
 | 路径穿越保护 | `SaveFilesToDisk` 清理 `..` 和绝对路径前缀 | 自动 |
