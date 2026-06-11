@@ -1,0 +1,1763 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>cc-connect 产品指南</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --card: #1c2333;
+    --card-hover: #22293a;
+    --border: #30363d;
+    --border-accent: #3d4450;
+    --text: #e6edf3;
+    --text-sec: #8b949e;
+    --text-muted: #6e7681;
+    --accent: #7c6aef;
+    --accent-glow: rgba(124,106,239,.12);
+    --green: #3fb950;
+    --green-bg: rgba(63,185,80,.08);
+    --green-dim: rgba(63,185,80,.35);
+    --red: #f85149;
+    --red-bg: rgba(248,81,73,.08);
+    --yellow: #d29922;
+    --yellow-bg: rgba(210,153,34,.08);
+    --blue: #58a6ff;
+    --blue-bg: rgba(88,166,255,.08);
+    --cyan: #56d4dd;
+    --orange: #f0883e;
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  body {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ── hero ── */
+  .hero {
+    text-align: center;
+    padding: 56px 24px 40px;
+    border-bottom: 1px solid var(--border);
+    background: linear-gradient(180deg, rgba(124,106,239,.06) 0%, transparent 100%);
+  }
+  .hero-badge {
+    display: inline-block;
+    padding: 4px 14px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-family: 'JetBrains Mono', monospace;
+    background: var(--accent-glow);
+    color: var(--accent);
+    border: 1px solid rgba(124,106,239,.3);
+    margin-bottom: 16px;
+  }
+  .hero h1 {
+    font-size: 32px;
+    font-weight: 700;
+    letter-spacing: -.5px;
+    margin-bottom: 8px;
+  }
+  .hero .subtitle {
+    color: var(--text-sec);
+    font-size: 15px;
+    max-width: 600px;
+    margin: 0 auto;
+  }
+  .hero .version {
+    margin-top: 12px;
+    font-size: 12px;
+    color: var(--text-muted);
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  /* ── nav ── */
+  .toc {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 24px 24px 0;
+  }
+  .toc-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 10px;
+  }
+  .toc-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    border-radius: 8px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    text-decoration: none;
+    color: var(--text);
+    font-size: 14px;
+    font-weight: 500;
+    transition: all .15s;
+  }
+  .toc-item:hover {
+    background: var(--card);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  .toc-num {
+    width: 26px; height: 26px;
+    border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px;
+    font-weight: 700;
+    font-family: 'JetBrains Mono', monospace;
+    background: var(--accent-glow);
+    color: var(--accent);
+    flex-shrink: 0;
+  }
+
+  /* ── sections ── */
+  .container {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 0 24px 80px;
+  }
+  .section {
+    margin-top: 48px;
+  }
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 20px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--border);
+  }
+  .section-num {
+    width: 36px; height: 36px;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 15px;
+    font-weight: 700;
+    font-family: 'JetBrains Mono', monospace;
+    background: var(--accent-glow);
+    color: var(--accent);
+    border: 1px solid rgba(124,106,239,.3);
+    flex-shrink: 0;
+  }
+  .section-title {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -.3px;
+  }
+
+  /* subsection */
+  .subsection {
+    margin-top: 28px;
+  }
+  .subsection-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .subsection-title .tag {
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-weight: 600;
+    font-family: 'JetBrains Mono', monospace;
+    letter-spacing: .5px;
+  }
+  .tag-sec { background: var(--red-bg); color: var(--red); }
+  .tag-feat { background: var(--green-bg); color: var(--green); }
+  .tag-fix { background: var(--blue-bg); color: var(--blue); }
+  .tag-win { background: var(--yellow-bg); color: var(--yellow); }
+
+  /* ── table ── */
+  .table-wrap {
+    overflow-x: auto;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13.5px;
+  }
+  thead { background: var(--card); }
+  th {
+    text-align: left;
+    padding: 10px 14px;
+    font-weight: 600;
+    color: var(--text-sec);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    border-bottom: 1px solid var(--border);
+  }
+  td {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(124,106,239,.03); }
+  td code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: var(--accent-glow);
+    color: var(--accent);
+  }
+
+  /* ── callout ── */
+  .callout {
+    margin: 16px 0;
+    padding: 14px 18px;
+    border-radius: 8px;
+    font-size: 14px;
+    line-height: 1.65;
+  }
+  .callout-warn {
+    background: var(--yellow-bg);
+    border-left: 3px solid var(--yellow);
+    color: #e3b341;
+  }
+  .callout-danger {
+    background: var(--red-bg);
+    border-left: 3px solid var(--red);
+    color: #f0883e;
+  }
+  .callout-info {
+    background: var(--blue-bg);
+    border-left: 3px solid var(--blue);
+    color: var(--blue);
+  }
+  .callout strong { color: inherit; }
+
+  /* ── code block ── */
+  pre {
+    margin: 12px 0;
+    padding: 16px 20px;
+    border-radius: 10px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    overflow-x: auto;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    line-height: 1.55;
+    color: var(--text);
+  }
+  code {
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .cmd { color: var(--cyan); }
+  .flag { color: var(--yellow); }
+  .path { color: var(--green); }
+  .comment { color: var(--text-muted); font-style: italic; }
+  .str { color: var(--orange); }
+  .key { color: var(--accent); }
+  .num { color: var(--orange); }
+  .bool { color: var(--cyan); }
+
+  /* ── flow diagram ── */
+  .flow-diagram {
+    margin: 16px 0;
+    padding: 20px 24px;
+    border-radius: 10px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-sec);
+  }
+  .flow-diagram .hl-accent { color: var(--accent); }
+  .flow-diagram .hl-green { color: var(--green); }
+  .flow-diagram .hl-yellow { color: var(--yellow); }
+  .flow-diagram .hl-red { color: var(--red); }
+  .flow-diagram .hl-blue { color: var(--blue); }
+  .flow-node {
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-size: 12.5px;
+    white-space: nowrap;
+  }
+  .flow-start { background: var(--accent-glow); color: var(--accent); border: 1px solid rgba(124,106,239,.3); }
+  .flow-process { background: var(--surface); color: var(--text-sec); border: 1px solid var(--border); }
+  .flow-end { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-dim); }
+  .flow-arrow { color: var(--text-muted); font-size: 14px; }
+  .flow-branch { width: 100%; margin: 8px 0 8px 28px; padding-left: 16px; border-left: 2px solid var(--border); }
+  .flow-branch-item {
+    padding: 6px 0;
+    font-size: 12.5px;
+    color: var(--text-sec);
+  }
+
+  /* ── architecture diagram ── */
+  .arch-diagram {
+    margin: 16px 0;
+    padding: 24px;
+    border-radius: 10px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    overflow-x: auto;
+    color: var(--text-sec);
+  }
+  .arch-box {
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 12.5px;
+    white-space: nowrap;
+    text-align: center;
+  }
+  .arch-im { background: var(--blue-bg); color: var(--blue); border: 1px solid rgba(88,166,255,.25); display: inline-block; margin: 4px; }
+  .arch-engine { background: var(--accent-glow); color: var(--accent); border: 1px solid rgba(124,106,239,.3); padding: 12px 24px; }
+  .arch-agent { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-dim); display: inline-block; margin: 4px; }
+  .arch-service { background: var(--yellow-bg); color: var(--yellow); border: 1px solid rgba(210,153,34,.25); display: inline-block; margin: 4px; }
+
+  /* ── info grid / card ── */
+  .info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+    margin: 12px 0;
+  }
+  .info-card {
+    padding: 14px 16px;
+    border-radius: 8px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+  }
+  .info-card code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--text-sec);
+    word-break: break-all;
+  }
+
+  /* ── scenario card ── */
+  .scenario {
+    margin: 14px 0;
+    padding: 14px 18px;
+    border-radius: 8px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    font-size: 13.5px;
+    color: var(--text-sec);
+    line-height: 1.65;
+  }
+  .scenario .label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--accent);
+    margin-bottom: 4px;
+  }
+
+  /* ── steps ── */
+  .steps {
+    counter-reset: step;
+    margin: 16px 0;
+  }
+  .step {
+    counter-increment: step;
+    margin-bottom: 20px;
+    padding: 16px 20px 16px 56px;
+    border-radius: 10px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    position: relative;
+  }
+  .step::before {
+    content: counter(step);
+    position: absolute;
+    left: 16px; top: 16px;
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px;
+    font-weight: 700;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .step-title {
+    font-size: 15px;
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+
+  /* ── faq accordion ── */
+  .faq-item {
+    margin: 10px 0;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    overflow: hidden;
+  }
+  .faq-q {
+    padding: 12px 18px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-weight: 500;
+    font-size: 14px;
+    color: var(--text);
+    transition: background .12s;
+    user-select: none;
+  }
+  .faq-q:hover { background: var(--card); }
+  .faq-chevron {
+    transition: transform .2s;
+    color: var(--text-muted);
+    font-size: 12px;
+  }
+  .faq-item.open .faq-chevron { transform: rotate(90deg); }
+  .faq-a {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height .3s ease;
+  }
+  .faq-item.open .faq-a {
+    max-height: 800px;
+  }
+  .faq-a-inner {
+    padding: 0 18px 16px;
+    font-size: 13.5px;
+    color: var(--text-sec);
+    line-height: 1.7;
+  }
+
+  /* ── mode matrix ── */
+  .mode-matrix {
+    display: grid;
+    grid-template-columns: 120px 1fr 1fr 1fr;
+    gap: 1px;
+    background: var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    margin: 14px 0;
+    font-size: 13px;
+  }
+  .mm-cell {
+    padding: 10px 12px;
+    background: var(--surface);
+    display: flex;
+    align-items: center;
+  }
+  .mm-header {
+    background: var(--card);
+    font-weight: 600;
+    color: var(--text-sec);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: .3px;
+  }
+  .mm-mode {
+    font-weight: 600;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .mm-pass { color: var(--green); }
+  .mm-confirm { color: var(--yellow); }
+  .mm-deny { color: var(--red); }
+
+  /* ── ci flow ── */
+  .ci-flow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 14px 0;
+    padding: 14px 18px;
+    border-radius: 10px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    flex-wrap: wrap;
+  }
+  .ci-node {
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .ci-trigger { background: var(--accent-glow); color: var(--accent); border: 1px solid rgba(124,106,239,.3); }
+  .ci-build { background: var(--blue-bg); color: var(--blue); border: 1px solid rgba(88,166,255,.25); }
+  .ci-release { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-dim); }
+  .ci-npm { background: var(--yellow-bg); color: var(--yellow); border: 1px solid rgba(210,153,34,.25); }
+  .ci-arrow { color: var(--text-muted); font-size: 14px; }
+
+  /* ── relay visibility diagram ── */
+  .relay-diagram {
+    margin: 16px 0;
+    padding: 20px 24px;
+    border-radius: 10px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 12px;
+  }
+  .relay-card {
+    padding: 14px 18px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    text-align: center;
+  }
+  .relay-full { background: var(--green-bg); border-color: var(--green-dim); }
+  .relay-summary { background: var(--yellow-bg); border-color: rgba(210,153,34,.25); }
+  .relay-none { background: var(--red-bg); border-color: rgba(248,81,73,.25); }
+  .relay-label { font-size: 14px; font-weight: 600; margin-bottom: 6px; }
+  .relay-full .relay-label { color: var(--green); }
+  .relay-summary .relay-label { color: var(--yellow); }
+  .relay-none .relay-label { color: var(--red); }
+  .relay-desc { font-size: 12.5px; color: var(--text-sec); line-height: 1.6; }
+
+  /* ── hook lifecycle diagram ── */
+  .hook-lifecycle {
+    margin: 16px 0;
+    padding: 20px 24px;
+    border-radius: 10px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+  }
+  .hook-event {
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 12.5px;
+    font-weight: 500;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .hook-trigger { background: var(--accent-glow); color: var(--accent); border: 1px solid rgba(124,106,239,.3); }
+  .hook-action { background: var(--blue-bg); color: var(--blue); border: 1px solid rgba(88,166,255,.25); }
+  .hook-async { background: var(--yellow-bg); color: var(--yellow); border: 1px solid rgba(210,153,34,.25); font-size: 11px; padding: 4px 10px; }
+
+  /* ── security table ── */
+  .security-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 12px;
+    margin: 14px 0;
+  }
+  .security-card {
+    padding: 16px 18px;
+    border-radius: 10px;
+    background: var(--card);
+    border: 1px solid var(--border);
+  }
+  .security-card .sc-icon {
+    font-size: 18px;
+    margin-bottom: 8px;
+  }
+  .security-card .sc-title {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 6px;
+    color: var(--text);
+  }
+  .security-card .sc-desc {
+    font-size: 12.5px;
+    color: var(--text-sec);
+    line-height: 1.6;
+  }
+  .security-card .sc-config {
+    margin-top: 6px;
+    font-size: 12px;
+    color: var(--text-muted);
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  /* ── two-col layout ── */
+  .two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin: 14px 0;
+  }
+
+  /* ── footer ── */
+  .footer {
+    text-align: center;
+    padding: 32px 24px;
+    border-top: 1px solid var(--border);
+    color: var(--text-muted);
+    font-size: 13px;
+  }
+
+  /* ── slash command grid ── */
+  .cmd-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 8px;
+    margin: 12px 0;
+  }
+  .cmd-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-radius: 6px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    font-size: 13px;
+    color: var(--text-sec);
+  }
+  .cmd-item code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--accent);
+    white-space: nowrap;
+  }
+
+  @media (max-width: 640px) {
+    .hero h1 { font-size: 24px; }
+    .toc-grid { grid-template-columns: 1fr; }
+    .mode-matrix { font-size: 12px; }
+    .relay-diagram { grid-template-columns: 1fr; }
+    .two-col { grid-template-columns: 1fr; }
+    .cmd-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ══════════ Hero ══════════ -->
+<div class="hero">
+  <div class="hero-badge">@game1991/cc-connect</div>
+  <h1>cc-connect 产品指南</h1>
+  <p class="subtitle">AI 编码 Agent &times; 即时通讯，一句话写代码</p>
+  <div class="version">v1.3.3 &middot; 最后更新 2026-06-11</div>
+</div>
+
+<!-- ══════════ TOC ══════════ -->
+<div class="toc">
+  <div class="toc-grid">
+    <a href="#sec1" class="toc-item"><span class="toc-num">1</span>cc-connect 是什么</a>
+    <a href="#sec2" class="toc-item"><span class="toc-num">2</span>功能全览</a>
+    <a href="#sec3" class="toc-item"><span class="toc-num">3</span>安装与快速开始</a>
+    <a href="#sec4" class="toc-item"><span class="toc-num">4</span>斜杠命令速查</a>
+    <a href="#sec5" class="toc-item"><span class="toc-num">5</span>配置参考</a>
+    <a href="#sec6" class="toc-item"><span class="toc-num">6</span>角色权限系统</a>
+    <a href="#sec7" class="toc-item"><span class="toc-num">7</span>高级功能</a>
+    <a href="#sec8" class="toc-item"><span class="toc-num">8</span>运维命令手册</a>
+    <a href="#sec9" class="toc-item"><span class="toc-num">9</span>故障排查</a>
+    <a href="#sec10" class="toc-item"><span class="toc-num">10</span>安全机制</a>
+  </div>
+</div>
+
+<div class="container">
+
+<!-- ══════════ Section 1 ══════════ -->
+<div class="section" id="sec1">
+  <div class="section-header">
+    <div class="section-num">1</div>
+    <div class="section-title">cc-connect 是什么</div>
+  </div>
+  <p style="color:var(--text-sec);font-size:15px;line-height:1.8;margin-bottom:18px">
+    cc-connect 是 AI 编码 Agent 与即时通讯平台的桥接工具。用户在飞书、Telegram、Slack 等聊天窗口中即可操控 Claude Code、Codex、Gemini CLI 等 Agent，完成代码编写、文件读写、命令执行等任务。
+  </p>
+  <div class="callout" style="margin-bottom:18px">
+    <strong>核心价值：</strong>把 Agent 从终端搬到聊天窗口 &mdash; 不需要 SSH、不需要 IDE，在手机上也能让 AI 改代码。
+  </div>
+
+  <!-- 架构全景图 -->
+  <div class="subsection">
+    <div class="subsection-title">架构全景</div>
+    <div class="arch-diagram" style="text-align:center">
+      <div style="display:flex;flex-wrap:wrap;justify-content:center;gap:12px;align-items:center">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center">
+          <span class="arch-box arch-im">飞书/Lark</span>
+          <span class="arch-box arch-im">Telegram</span>
+          <span class="arch-box arch-im">Discord</span>
+          <span class="arch-box arch-im">Slack</span>
+          <span class="arch-box arch-im">钉钉</span>
+          <span class="arch-box arch-im">企微</span>
+        </div>
+        <span class="flow-arrow" style="font-size:16px;color:var(--text-muted)">&harr;</span>
+        <div style="display:inline-block;padding:16px 28px;border-radius:10px;background:var(--accent-glow);border:1px solid rgba(124,106,239,.3)">
+          <div style="font-size:14px;font-weight:700;color:var(--accent);margin-bottom:4px">Engine</div>
+          <div style="font-size:11px;color:var(--text-sec)">消息路由 &middot; 会话管理 &middot; 权限 &middot; 卡片渲染 &middot; 流式 &middot; i18n</div>
+        </div>
+        <span class="flow-arrow" style="font-size:16px;color:var(--text-muted)">&harr;</span>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center">
+          <span class="arch-box arch-agent">Claude Code</span>
+          <span class="arch-box arch-agent">Codex</span>
+          <span class="arch-box arch-agent">Gemini CLI</span>
+          <span class="arch-box arch-agent">Cursor</span>
+          <span class="arch-box arch-agent">iFlow</span>
+        </div>
+      </div>
+      <div style="display:flex;justify-content:center;gap:12px;margin-top:14px;flex-wrap:wrap">
+        <span class="arch-box arch-service">Bridge WS (9810)</span>
+        <span class="arch-box arch-service">Management API + Web UI (9820)</span>
+        <span class="arch-box arch-service">Webhook (9111)</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 适用场景 -->
+  <div class="subsection">
+    <div class="subsection-title">适用场景</div>
+    <div class="info-grid">
+      <div class="info-card">
+        <div class="label">手机改代码</div>
+        <div style="font-size:13px;color:var(--text-sec);line-height:1.6;margin-top:4px">
+          通勤途中通过飞书/Telegram 发送指令，Agent 直接修改仓库
+        </div>
+      </div>
+      <div class="info-card">
+        <div class="label">团队审查</div>
+        <div style="font-size:13px;color:var(--text-sec);line-height:1.6;margin-top:4px">
+          多人在群聊中查看 Agent 输出、审批工具权限
+        </div>
+      </div>
+      <div class="info-card">
+        <div class="label">定时巡检</div>
+        <div style="font-size:13px;color:var(--text-sec);line-height:1.6;margin-top:4px">
+          配置 Cron 任务，每天自动执行 lint、测试、部署检查
+        </div>
+      </div>
+      <div class="info-card">
+        <div class="label">多 Agent 编排</div>
+        <div style="font-size:13px;color:var(--text-sec);line-height:1.6;margin-top:4px">
+          一个项目配置多个 Agent，通过 Provider 切换
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ Section 2 ══════════ -->
+<div class="section" id="sec2">
+  <div class="section-header">
+    <div class="section-num">2</div>
+    <div class="section-title">功能全览</div>
+  </div>
+
+  <!-- Agent 表 -->
+  <div class="subsection">
+    <div class="subsection-title">Agent（14 个）</div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Agent</th><th>交互方式</th><th>说明</th></tr></thead>
+        <tbody>
+          <tr><td>Claude Code</td><td>进程流式</td><td>主力支持，6 种权限模式</td></tr>
+          <tr><td>Codex</td><td>进程流式</td><td>OpenAI，4 种模式</td></tr>
+          <tr><td>Gemini CLI</td><td>进程流式</td><td>Google，4 种模式</td></tr>
+          <tr><td>Cursor</td><td>tmux 屏幕抓取</td><td>需 tmux 环境</td></tr>
+          <tr><td>ACP</td><td>JSON-RPC over stdio</td><td>Agent Control Protocol</td></tr>
+          <tr><td>Devin</td><td>ACP 封装</td><td>Devin 默认配置</td></tr>
+          <tr><td>Copilot</td><td>Content-Length 帧</td><td>2 种模式</td></tr>
+          <tr><td>Antigravity</td><td>进程流式</td><td>3 种模式</td></tr>
+          <tr><td>iFlow</td><td>进程流式</td><td>4 种模式，含工具超时</td></tr>
+          <tr><td>Kimi</td><td>进程流式</td><td>4 种模式</td></tr>
+          <tr><td>OpenCode</td><td>进程流式</td><td>2 种模式，持久模型缓存</td></tr>
+          <tr><td>Qoder</td><td>进程流式</td><td>2 种模式</td></tr>
+          <tr><td>Pi</td><td>进程流式</td><td>2 种模式，6 级推理强度，会话文件管理</td></tr>
+          <tr><td>tmux</td><td>tmux 屏幕抓取</td><td>自动创建窗格，自定义 Shell</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Platform 表 -->
+  <div class="subsection">
+    <div class="subsection-title">IM 平台（13 个 + Bridge）</div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>平台</th><th>连接方式</th><th>特色能力</th><th>需公网 IP</th></tr></thead>
+        <tbody>
+          <tr><td>飞书/Lark</td><td>长连接事件</td><td>交互式卡片、按钮回调、QR 设置</td><td>否</td></tr>
+          <tr><td>Telegram</td><td>Long Polling</td><td>HTML Markdown 渲染</td><td>否</td></tr>
+          <tr><td>Discord</td><td>Gateway WS</td><td>Embed、按钮交互</td><td>否</td></tr>
+          <tr><td>Slack</td><td>Socket Mode</td><td>Block Kit、斜杠命令、typing emoji</td><td>否</td></tr>
+          <tr><td>钉钉</td><td>HTTP 回调</td><td>AI 流式卡片（降级为文本）</td><td>是</td></tr>
+          <tr><td>企业微信</td><td>HTTP 回调</td><td>文本 + 图片</td><td>是</td></tr>
+          <tr><td>微信个人号</td><td>ilink 协议</td><td>QR 码登录</td><td>否</td></tr>
+          <tr><td>QQ</td><td>协议特定</td><td>文本 + 图片</td><td>视配置</td></tr>
+          <tr><td>QQ Bot</td><td>协议特定</td><td>文本 + 图片</td><td>视配置</td></tr>
+          <tr><td>LINE</td><td>协议特定</td><td>文本 + 图片</td><td>是</td></tr>
+          <tr><td>微博</td><td>协议特定</td><td>文本 + 图片</td><td>是</td></tr>
+          <tr><td>MAX</td><td>Long-poll/Webhook</td><td>三种部署拓扑</td><td>视配置</td></tr>
+          <tr><td>WPS 协作</td><td>WebSocket</td><td>AES-256-CBC + HMAC-SHA256</td><td>否</td></tr>
+          <tr><td>Bridge</td><td>WebSocket</td><td>通用外部适配器协议</td><td>否</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Web UI -->
+  <div class="subsection">
+    <div class="subsection-title">Web 管理界面 <span class="tag tag-feat">BUILTIN</span></div>
+    <p style="color:var(--text-sec);font-size:14px;line-height:1.7;margin-bottom:14px">
+      内置 React SPA，编译后嵌入 Go 二进制，零额外部署。
+    </p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>页面</th><th>功能</th></tr></thead>
+        <tbody>
+          <tr><td>Dashboard</td><td>版本、运行时间、连接状态</td></tr>
+          <tr><td>Projects</td><td>项目 CRUD、3 步添加向导</td></tr>
+          <tr><td>Chat</td><td>实时聊天、会话管理、25 个斜杠命令</td></tr>
+          <tr><td>Sessions</td><td>列表、聊天、批量删除</td></tr>
+          <tr><td>Cron</td><td>定时任务 CRUD、执行历史</td></tr>
+          <tr><td>Providers</td><td>多 Provider 管理、模型切换</td></tr>
+          <tr><td>Skills</td><td>技能发现与管理</td></tr>
+          <tr><td>Bridge</td><td>外部适配器管理</td></tr>
+          <tr><td>System</td><td>全局设置（语言、附件、日志、流式、限速）、配置查看</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Bridge -->
+  <div class="subsection">
+    <div class="subsection-title">Bridge 扩展协议 <span class="tag tag-feat">EXTENSIBLE</span></div>
+    <p style="color:var(--text-sec);font-size:14px;line-height:1.7;margin-bottom:14px">
+      WebSocket 接入，声明式能力，自动降级。无需写 Go 即可接入新平台。
+    </p>
+    <div class="info-grid" style="margin-top:8px">
+      <div class="info-card">
+        <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">端点</div>
+        <code>ws://&lt;host&gt;:9810/bridge/ws</code>
+      </div>
+      <div class="info-card">
+        <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">认证</div>
+        <code>?token=</code> / <code>Authorization</code> / <code>X-Bridge-Token</code>
+      </div>
+      <div class="info-card">
+        <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">能力</div>
+        <code>text</code>(必需) <code>card</code> <code>buttons</code> <code>typing</code> <code>image</code> <code>file</code> <code>audio</code> <code>update_message</code> <code>preview</code> <code>reconstruct_reply</code> <code>delete_message</code>
+      </div>
+    </div>
+  </div>
+
+  <!-- 端口 -->
+  <div class="subsection">
+    <div class="subsection-title">默认端口</div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>服务</th><th>端口</th><th>协议</th></tr></thead>
+        <tbody>
+          <tr><td>Bridge (WebSocket)</td><td>9810</td><td>WS + HTTP REST</td></tr>
+          <tr><td>Management API + Web UI</td><td>9820</td><td>HTTP</td></tr>
+          <tr><td>Vite Dev Server</td><td>9821</td><td>HTTP（仅开发）</td></tr>
+          <tr><td>Webhook</td><td>9111</td><td>HTTP</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ Section 3 ══════════ -->
+<div class="section" id="sec3">
+  <div class="section-header">
+    <div class="section-num">3</div>
+    <div class="section-title">安装与快速开始</div>
+  </div>
+
+  <div class="subsection">
+    <div class="subsection-title">前置条件</div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>依赖</th><th>最低版本</th><th>检查</th></tr></thead>
+        <tbody>
+          <tr><td>Node.js + npm</td><td>18+</td><td><code>node --version</code></td></tr>
+          <tr><td>Git</td><td>任意</td><td><code>git --version</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="subsection">
+    <div class="subsection-title">配置 npm 作用域</div>
+    <p style="color:var(--text-sec);font-size:14px;line-height:1.7;margin-bottom:10px">
+      编辑 <code>~/.npmrc</code>（Windows: <code>C:\Users\&lt;用户名&gt;\.npmrc</code>）：
+    </p>
+    <pre><span class="key">@game1991</span>:registry=https://npm.pkg.github.com
+<span class="comment">//npm.pkg.github.com/:_authToken=</span><span class="str">&lt;YOUR_GITHUB_PAT&gt;</span></pre>
+    <p style="color:var(--text-sec);font-size:13px;margin-top:8px">
+      PAT 获取：GitHub &rarr; Settings &rarr; Developer settings &rarr; Personal access tokens &rarr; Fine-grained &rarr; <code>read:packages</code>
+    </p>
+  </div>
+
+  <div class="subsection">
+    <div class="subsection-title">安装</div>
+    <pre><span class="cmd">npm install -g @game1991/cc-connect</span>
+<span class="cmd">cc-connect --version</span></pre>
+  </div>
+
+  <div class="subsection">
+    <div class="subsection-title">创建配置</div>
+    <pre><span class="cmd">cc-connect</span>                  <span class="comment"># 首次运行自动生成模板</span>
+<span class="comment"># 或手动创建</span>
+<span class="cmd">mkdir -p ~/.cc-connect</span>
+<span class="cmd">cp config.example.toml ~/.cc-connect/config.toml</span></pre>
+    <p style="color:var(--text-sec);font-size:14px;margin-top:10px">最小飞书配置：</p>
+    <pre><span class="key">language</span> = <span class="str">"zh"</span>
+
+<span class="key">[log]</span>
+<span class="key">level</span> = <span class="str">"info"</span>
+
+<span class="key">[[projects]]</span>
+<span class="key">name</span> = <span class="str">"my-project"</span>
+
+<span class="key">[projects.agent]</span>
+<span class="key">type</span> = <span class="str">"claudecode"</span>
+
+<span class="key">[projects.agent.options]</span>
+<span class="key">work_dir</span> = <span class="str">"D:/WorkSpace/src/my-project"</span>
+<span class="key">mode</span> = <span class="str">"default"</span>
+
+<span class="key">[[projects.platforms]]</span>
+<span class="key">type</span> = <span class="str">"feishu"</span>
+
+<span class="key">[projects.platforms.options]</span>
+<span class="key">app_id</span> = <span class="str">"cli_xxxxxxxxxxxx"</span>
+<span class="key">app_secret</span> = <span class="str">"xxxxxxxxxxxxxxxxxxxxxxxx"</span></pre>
+  </div>
+
+  <div class="subsection">
+    <div class="subsection-title">启动</div>
+    <pre><span class="comment"># 前台调试</span>
+<span class="cmd">cc-connect</span>
+
+<span class="comment"># 后台 daemon</span>
+<span class="cmd">cc-connect daemon install</span>
+<span class="cmd">cc-connect daemon status</span>
+<span class="cmd">cc-connect daemon logs -f</span></pre>
+  </div>
+
+  <div class="subsection">
+    <div class="subsection-title">启用 Web 管理界面</div>
+    <pre><span class="cmd">cc-connect setup-web</span></pre>
+    <p style="color:var(--text-sec);font-size:13px;margin-top:6px">或手动在 <code>config.toml</code> 中添加：</p>
+    <pre><span class="key">[bridge]</span>
+<span class="key">enabled</span> = <span class="bool">true</span>
+<span class="key">port</span> = <span class="num">9810</span>
+<span class="key">token</span> = <span class="str">"&lt;YOUR_BRIDGE_SECRET&gt;"</span>
+
+<span class="key">[management]</span>
+<span class="key">enabled</span> = <span class="bool">true</span>
+<span class="key">port</span> = <span class="num">9820</span>
+<span class="key">token</span> = <span class="str">"&lt;YOUR_MANAGEMENT_SECRET&gt;"</span></pre>
+    <p style="color:var(--text-sec);font-size:13px;margin-top:6px">访问 <code>http://localhost:9820</code>，使用 management token 登录。</p>
+  </div>
+</div>
+
+<!-- ══════════ Section 3.5 ══════════ -->
+<div class="section" id="sec4">
+  <div class="section-header">
+    <div class="section-num">4</div>
+    <div class="section-title">斜杠命令速查</div>
+  </div>
+  <p style="color:var(--text-sec);font-size:14px;line-height:1.7;margin-bottom:16px">
+    所有命令在聊天窗口或 Web UI 中输入，以 <code>/</code> 开头。
+  </p>
+
+  <!-- 会话管理 -->
+  <div class="subsection">
+    <div class="subsection-title">会话管理</div>
+    <div class="cmd-grid">
+      <div class="cmd-item"><code>/new [名称]</code> 创建新会话</div>
+      <div class="cmd-item"><code>/list</code> 列出会话</div>
+      <div class="cmd-item"><code>/switch &lt;id&gt;</code> 切换会话</div>
+      <div class="cmd-item"><code>/current</code> 查看当前会话</div>
+      <div class="cmd-item"><code>/history [n]</code> 查看最近消息</div>
+      <div class="cmd-item"><code>/usage</code> 账号限额</div>
+      <div class="cmd-item"><code>/compact</code> 压缩上下文</div>
+      <div class="cmd-item"><code>/reset</code> 重置会话</div>
+      <div class="cmd-item"><code>/delete &lt;id&gt;</code> 删除会话</div>
+      <div class="cmd-item"><code>/close</code> 关闭会话</div>
+    </div>
+  </div>
+
+  <!-- 权限与模式 -->
+  <div class="subsection">
+    <div class="subsection-title">权限与模式</div>
+    <div class="cmd-grid">
+      <div class="cmd-item"><code>/mode</code> 查看可用模式</div>
+      <div class="cmd-item"><code>/mode yolo</code> 自动批准所有工具</div>
+      <div class="cmd-item"><code>/mode default</code> 工具需确认</div>
+      <div class="cmd-item"><code>/allow &lt;工具名&gt;</code> 预授权工具</div>
+    </div>
+  </div>
+
+  <!-- Provider 与模型 -->
+  <div class="subsection">
+    <div class="subsection-title">Provider 与模型</div>
+    <div class="cmd-grid">
+      <div class="cmd-item"><code>/provider list</code> 列出 Provider</div>
+      <div class="cmd-item"><code>/provider switch</code> 切换 Provider</div>
+      <div class="cmd-item"><code>/model</code> 列出可用模型</div>
+      <div class="cmd-item"><code>/model switch</code> 切换模型</div>
+      <div class="cmd-item"><code>/reasoning</code> 推理强度（Codex）</div>
+    </div>
+  </div>
+
+  <!-- 工作目录与引用 -->
+  <div class="subsection">
+    <div class="subsection-title">工作目录与引用</div>
+    <div class="cmd-grid">
+      <div class="cmd-item"><code>/dir [路径]</code> 查看/切换目录</div>
+      <div class="cmd-item"><code>/dir -</code> 返回上一目录</div>
+      <div class="cmd-item"><code>/cd &lt;路径&gt;</code> /dir 别名</div>
+      <div class="cmd-item"><code>/show &lt;引用&gt;</code> 查看文件</div>
+      <div class="cmd-item"><code>/bind setup</code> 初始化附件回传</div>
+    </div>
+  </div>
+
+  <!-- 运维 -->
+  <div class="subsection">
+    <div class="subsection-title">运维</div>
+    <div class="cmd-grid">
+      <div class="cmd-item"><code>/shell</code> 交互式 Shell</div>
+      <div class="cmd-item"><code>/cron add</code> 添加定时任务</div>
+      <div class="cmd-item"><code>/stop</code> 停止执行</div>
+      <div class="cmd-item"><code>/whoami</code> 查看用户 ID</div>
+      <div class="cmd-item"><code>/version</code> 版本信息</div>
+      <div class="cmd-item"><code>/status</code> 连接状态</div>
+      <div class="cmd-item"><code>/lang</code> 切换语言</div>
+      <div class="cmd-item"><code>/config</code> 查看配置</div>
+      <div class="cmd-item"><code>/doctor</code> 诊断检查</div>
+      <div class="cmd-item"><code>/upgrade</code> 升级版本</div>
+      <div class="cmd-item"><code>/help</code> 可用命令</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ Section 5 ══════════ -->
+<div class="section" id="sec5">
+  <div class="section-header">
+    <div class="section-num">5</div>
+    <div class="section-title">配置参考</div>
+  </div>
+
+  <div class="subsection">
+    <div class="subsection-title">配置文件路径</div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>路径</th><th>说明</th></tr></thead>
+        <tbody>
+          <tr><td><code>~/.cc-connect/config.toml</code></td><td>默认配置</td></tr>
+          <tr><td><code>~/.cc-connect/daemon.json</code></td><td>daemon 元数据（0600）</td></tr>
+          <tr><td><code>~/.cc-connect/logs/cc-connect.log</code></td><td>运行日志</td></tr>
+          <tr><td><code>~/.cc-connect/.config.toml.lock</code></td><td>实例锁（含 PID）</td></tr>
+          <tr><td><code>~/.cc-connect/run/api.sock</code></td><td>API Unix socket</td></tr>
+          <tr><td><code>~/.cc-connect/cc-connect-daemon.ps1</code></td><td>Windows launcher 脚本</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p style="color:var(--text-sec);font-size:13px;margin-top:8px">
+      三级 fallback：<code>--config</code> 参数 &rarr; <code>WorkDir/config.toml</code> &rarr; <code>~/.cc-connect/config.toml</code>
+    </p>
+  </div>
+
+  <div class="subsection">
+    <div class="subsection-title">全局设置</div>
+    <pre><span class="key">language</span> = <span class="str">"zh"</span>             <span class="comment"># en, zh, zh-TW, ja, es</span>
+<span class="key">data_dir</span> = <span class="str">""</span>               <span class="comment"># 默认 ~/.cc-connect</span>
+<span class="key">attachment_send</span> = <span class="str">"off"</span>     <span class="comment"># "on" 或 "off"，Agent 生成的图片/文件是否自动回传</span>
+
+<span class="key">[log]</span>
+<span class="key">level</span> = <span class="str">"info"</span>              <span class="comment"># debug, info, warn, error</span></pre>
+  </div>
+
+  <div class="subsection">
+    <div class="subsection-title">消息展示设置</div>
+    <pre><span class="key">[display]</span>
+<span class="key">mode</span> = <span class="str">"full"</span>                       <span class="comment"># full（默认）、compact、quiet</span>
+<span class="key">thinking_messages</span> = <span class="bool">true</span>            <span class="comment"># 是否显示 thinking 消息</span>
+<span class="key">tool_messages</span> = <span class="bool">true</span>                <span class="comment"># 是否显示工具调用消息</span>
+<span class="key">show_context_indicator</span> = <span class="bool">true</span>       <span class="comment"># 是否显示 [ctx: ~N%] 上下文指示</span>
+<span class="key">reply_footer</span> = <span class="bool">true</span>                <span class="comment"># 是否显示回复页脚</span>
+<span class="key">card_mode</span> = <span class="str">"legacy"</span>                <span class="comment"># "legacy"（默认）或 "rich"（飞书 Card 2.0）</span></pre>
+    <p style="color:var(--text-sec);font-size:13px;margin-top:6px">
+      <code>mode</code> 说明：<code>full</code> 完整显示 thinking + 工具消息；<code>compact</code> 隐藏 thinking/工具，每段独立卡片；<code>quiet</code> 隐藏 thinking/工具，所有文本追加到同一卡片。
+    </p>
+  </div>
+
+  <div class="subsection">
+    <div class="subsection-title">全局 Provider</div>
+    <pre><span class="key">[[providers]]</span>
+<span class="key">name</span> = <span class="str">"deepseek"</span>
+<span class="key">base_url</span> = <span class="str">"https://api.deepseek.com/v1"</span>
+<span class="key">api_key</span> = <span class="str">"sk-xxx"</span>
+<span class="key">model</span> = <span class="str">"deepseek-chat"</span>
+
+<span class="key">provider_presets_url</span> = <span class="str">"https://cdn.example.com/presets.json"</span></pre>
+    <p style="color:var(--text-sec);font-size:13px;margin-top:6px">
+      Provider 可被项目级 <code>[projects.agent.options]</code> 中的环境变量覆盖。
+    </p>
+  </div>
+
+  <div class="subsection">
+    <div class="subsection-title">项目配置</div>
+    <pre><span class="key">[[projects]]</span>
+<span class="key">name</span> = <span class="str">"my-project"</span>
+<span class="key">work_dir</span> = <span class="str">"D:/WorkSpace/src/my-project"</span>
+<span class="key">run_as_user</span> = <span class="str">""</span>             <span class="comment"># Linux/macOS 用户隔离</span>
+<span class="key">reset_on_idle_mins</span> = <span class="num">0</span>       <span class="comment"># 空闲后自动切换新会话（0=关闭）</span>
+<span class="key">max_turn_time_mins</span> = <span class="num">0</span>       <span class="comment"># 单次 Agent 执行的最长分钟数（0=不限）</span>
+<span class="key">admin_from</span> = <span class="str">""</span>              <span class="comment"># 特权用户 ID 列表（逗号分隔）</span>
+
+<span class="key">[projects.agent]</span>
+<span class="key">type</span> = <span class="str">"claudecode"</span>
+
+<span class="key">[projects.agent.options]</span>
+<span class="key">mode</span> = <span class="str">"default"</span>
+<span class="key">model</span> = <span class="str">""</span>
+<span class="key">router_url</span> = <span class="str">""</span>
+<span class="key">api_key</span> = <span class="str">""</span>
+<span class="key">system_prompt</span> = <span class="str">""</span>
+<span class="key">env</span> = { <span class="key">ANTHROPIC_BASE_URL</span> = <span class="str">"https://..."</span> }</pre>
+  </div>
+
+  <!-- 平台配置 -->
+  <div class="subsection">
+    <div class="subsection-title">平台配置</div>
+    <div class="two-col">
+      <div>
+        <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:8px">飞书</div>
+        <pre style="margin:0;font-size:12px"><span class="key">[[projects.platforms]]</span>
+<span class="key">type</span> = <span class="str">"feishu"</span>
+<span class="key">[projects.platforms.options]</span>
+<span class="key">app_id</span> = <span class="str">"cli_xxx"</span>
+<span class="key">app_secret</span> = <span class="str">"xxx"</span>
+<span class="key">require_mention</span> = <span class="bool">true</span>
+<span class="key">group_reply_all</span> = <span class="bool">false</span></pre>
+      </div>
+      <div>
+        <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:8px">Telegram</div>
+        <pre style="margin:0;font-size:12px"><span class="key">[[projects.platforms]]</span>
+<span class="key">type</span> = <span class="str">"telegram"</span>
+<span class="key">[projects.platforms.options]</span>
+<span class="key">token</span> = <span class="str">"123456:ABC-DEF"</span></pre>
+      </div>
+      <div>
+        <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:8px">Discord</div>
+        <pre style="margin:0;font-size:12px"><span class="key">[[projects.platforms]]</span>
+<span class="key">type</span> = <span class="str">"discord"</span>
+<span class="key">[projects.platforms.options]</span>
+<span class="key">token</span> = <span class="str">"xxx"</span>
+<span class="key">application_id</span> = <span class="str">"123456"</span></pre>
+      </div>
+      <div>
+        <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:8px">Slack</div>
+        <pre style="margin:0;font-size:12px"><span class="key">[[projects.platforms]]</span>
+<span class="key">type</span> = <span class="str">"slack"</span>
+<span class="key">[projects.platforms.options]</span>
+<span class="key">bot_token</span> = <span class="str">"xoxb-xxx"</span>
+<span class="key">app_token</span> = <span class="str">"xapp-xxx"</span></pre>
+      </div>
+      <div>
+        <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:8px">钉钉</div>
+        <pre style="margin:0;font-size:12px"><span class="key">[[projects.platforms]]</span>
+<span class="key">type</span> = <span class="str">"dingtalk"</span>
+<span class="key">[projects.platforms.options]</span>
+<span class="key">client_id</span> = <span class="str">"xxx"</span>
+<span class="key">client_secret</span> = <span class="str">"xxx"</span></pre>
+      </div>
+      <div>
+        <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:8px">企业微信</div>
+        <pre style="margin:0;font-size:12px"><span class="key">[[projects.platforms]]</span>
+<span class="key">type</span> = <span class="str">"wecom"</span>
+<span class="key">[projects.platforms.options]</span>
+<span class="key">corp_id</span> = <span class="str">"xxx"</span>
+<span class="key">agent_id</span> = <span class="str">"1000002"</span>
+<span class="key">secret</span> = <span class="str">"xxx"</span></pre>
+      </div>
+    </div>
+  </div>
+
+  <div class="subsection">
+    <div class="subsection-title">Bridge 配置</div>
+    <pre><span class="key">[bridge]</span>
+<span class="key">enabled</span> = <span class="bool">true</span>
+<span class="key">port</span> = <span class="num">9810</span>
+<span class="key">token</span> = <span class="str">"&lt;YOUR_BRIDGE_SECRET&gt;"</span>
+<span class="key">allowed_origins</span> = [<span class="str">"*"</span>]</pre>
+  </div>
+
+  <div class="subsection">
+    <div class="subsection-title">语音配置</div>
+    <pre><span class="key">[speech]</span>
+<span class="key">stt_endpoint</span> = <span class="str">""</span>            <span class="comment"># Whisper 兼容端点（空=禁用）</span>
+<span class="key">stt_model</span> = <span class="str">"whisper-1"</span>
+<span class="key">stt_language</span> = <span class="str">"zh"</span>
+
+<span class="key">tts_provider</span> = <span class="str">""</span>            <span class="comment"># minimaxi, alibaba, volcengine, fish, openai, edge-tts</span>
+<span class="key">tts_voice</span> = <span class="str">""</span>
+<span class="key">tts_model</span> = <span class="str">""</span>
+<span class="key">tts_mode</span> = <span class="str">""</span>                <span class="comment"># voice_only / always</span></pre>
+  </div>
+
+  <div class="subsection">
+    <div class="subsection-title">定时任务</div>
+    <pre><span class="key">[[crons]]</span>
+<span class="key">name</span> = <span class="str">"daily-lint"</span>
+<span class="key">project</span> = <span class="str">"my-project"</span>
+<span class="key">expression</span> = <span class="str">"0 6 * * 1-5"</span>  <span class="comment"># robfig/cron 表达式</span>
+<span class="key">mode</span> = <span class="str">"prompt"</span>              <span class="comment"># prompt 或 exec</span>
+<span class="key">prompt</span> = <span class="str">"帮我运行 lint 并总结"</span>
+<span class="key">session_mode</span> = <span class="str">"new_per_run"</span> <span class="comment"># new_per_run 或 reuse</span>
+<span class="key">timeout_mins</span> = <span class="num">10</span>
+<span class="key">mute</span> = <span class="bool">false</span></pre>
+  </div>
+
+  <div class="subsection">
+    <div class="subsection-title">生命周期钩子</div>
+    <pre><span class="key">[[hooks]]</span>
+<span class="key">event</span> = <span class="str">"session.started"</span>    <span class="comment"># 7 种事件</span>
+<span class="key">handler</span> = <span class="str">"command"</span>          <span class="comment"># command 或 http</span>
+<span class="key">command</span> = <span class="str">"echo 'Session started'"</span></pre>
+  </div>
+
+  <div class="subsection">
+    <div class="subsection-title">管理 API &amp; Webhook</div>
+    <pre><span class="key">[management]</span>
+<span class="key">enabled</span> = <span class="bool">true</span>
+<span class="key">port</span> = <span class="num">9820</span>
+<span class="key">token</span> = <span class="str">"&lt;YOUR_MANAGEMENT_SECRET&gt;"</span>
+
+<span class="key">[webhook]</span>
+<span class="key">enabled</span> = <span class="bool">true</span>
+<span class="key">port</span> = <span class="num">9111</span>
+<span class="key">token</span> = <span class="str">"&lt;YOUR_WEBHOOK_SECRET&gt;"</span></pre>
+  </div>
+</div>
+
+<!-- ══════════ Section 6 ══════════ -->
+<div class="section" id="sec6">
+  <div class="section-header">
+    <div class="section-num">6</div>
+    <div class="section-title">角色权限系统（RBAC）</div>
+  </div>
+
+  <div class="callout callout-warn" style="margin-bottom:14px">
+    <strong>安全提示：</strong>未配置角色时，所有用户共享 agent 级权限策略，群聊中任何人回复"允许"即可批准工具请求。强烈建议为生产环境配置角色。
+  </div>
+
+  <!-- 流程图 -->
+  <div class="subsection">
+    <div class="subsection-title">工作流程</div>
+    <div class="flow-diagram">
+      <div class="flow-node flow-start">用户发消息</div>
+      <span class="flow-arrow">&rarr;</span>
+      <div class="flow-node flow-process">resolveUserRole()</div>
+      <span class="flow-arrow">&rarr;</span>
+      <div class="flow-node flow-process">获取角色级 mode + allowed_tools</div>
+      <span class="flow-arrow">&rarr;</span>
+      <div class="flow-branch">
+        <div class="flow-branch-item"><span style="color:var(--green)">yolo</span> &rarr; 全部自动通过</div>
+        <div class="flow-branch-item"><span style="color:var(--yellow)">default</span> &rarr; 白名单自动，其余弹窗确认</div>
+        <div class="flow-branch-item"><span style="color:var(--red)">dontAsk</span> &rarr; 白名单自动，其余自动拒绝</div>
+      </div>
+      <span class="flow-arrow">&rarr;</span>
+      <div class="flow-node flow-process">权限请求回调</div>
+      <span class="flow-arrow">&rarr;</span>
+      <div class="flow-node flow-end">身份校验：仅发起者或 admin</div>
+    </div>
+  </div>
+
+  <!-- 三级角色 -->
+  <div class="subsection">
+    <div class="subsection-title">三级角色</div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>角色</th><th>推荐模式</th><th>说明</th></tr></thead>
+        <tbody>
+          <tr><td><strong style="color:var(--green)">admin</strong></td><td>yolo</td><td>完全控制，可批准任何人的权限请求</td></tr>
+          <tr><td><strong style="color:var(--yellow)">developer</strong></td><td>default</td><td>可读写代码，工具需按白名单控制</td></tr>
+          <tr><td><strong style="color:var(--red)">readonly</strong></td><td>dontAsk</td><td>只读，只允许安全工具自动通过</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 配置示例 -->
+  <div class="subsection">
+    <div class="subsection-title">配置示例</div>
+    <pre><span class="key">[[projects]]</span>
+<span class="key">name</span> = <span class="str">"my-project"</span>
+
+<span class="key">[projects.users]</span>
+<span class="key">default_role</span> = <span class="str">"readonly"</span>
+
+<span class="key">[projects.users.roles.admin]</span>
+<span class="key">user_ids</span> = [<span class="str">"ou_admin_xxx"</span>]
+<span class="key">mode</span> = <span class="str">"yolo"</span>
+<span class="key">allowed_tools</span> = []
+
+<span class="key">[projects.users.roles.developer]</span>
+<span class="key">user_ids</span> = [<span class="str">"ou_dev_aaa"</span>, <span class="str">"ou_dev_bbb"</span>]
+<span class="key">mode</span> = <span class="str">"default"</span>
+<span class="key">allowed_tools</span> = [<span class="str">"Read"</span>, <span class="str">"Grep"</span>, <span class="str">"Glob"</span>, <span class="str">"Bash"</span>, <span class="str">"Edit"</span>, <span class="str">"Write"</span>]
+<span class="key">disabled_commands</span> = [<span class="str">"shell"</span>]
+
+<span class="key">[projects.users.roles.readonly]</span>
+<span class="key">user_ids</span> = [<span class="str">"*"</span>]               <span class="comment"># * 匹配所有未分配角色的用户</span>
+<span class="key">mode</span> = <span class="str">"dontAsk"</span>
+<span class="key">allowed_tools</span> = [<span class="str">"Read"</span>, <span class="str">"Grep"</span>, <span class="str">"Glob"</span>, <span class="str">"LS"</span>, <span class="str">"LSP"</span>]
+<span class="key">disabled_commands</span> = [<span class="str">"*"</span>]</pre>
+    <p style="color:var(--text-sec);font-size:13px;margin-top:6px">
+      获取用户 ID：在聊天中发送 <code>/whoami</code>。
+    </p>
+  </div>
+
+  <!-- 模式交互矩阵 -->
+  <div class="subsection">
+    <div class="subsection-title">模式 &times; allowed_tools 交互</div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th></th><th>allowed_tools 为空</th><th>allowed_tools 有值</th><th>工具不在白名单</th></tr></thead>
+        <tbody>
+          <tr><td><strong style="color:var(--green)">yolo</strong></td><td class="mm-pass">全部自动通过</td><td>冗余</td><td class="mm-pass">仍自动通过</td></tr>
+          <tr><td><strong style="color:var(--yellow)">default</strong></td><td class="mm-confirm">全部弹窗确认</td><td class="mm-pass">白名单自动通过</td><td class="mm-confirm">弹窗确认</td></tr>
+          <tr><td><strong style="color:var(--red)">dontAsk</strong></td><td class="mm-deny">全部自动拒绝</td><td class="mm-pass">白名单自动通过</td><td class="mm-deny">自动拒绝</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 审批 -->
+  <div class="subsection">
+    <div class="subsection-title">审批身份校验</div>
+    <div class="info-grid">
+      <div class="info-card" style="border-left:3px solid var(--green)">
+        <strong>发起者本人</strong> &mdash; 可批准/拒绝
+      </div>
+      <div class="info-card" style="border-left:3px solid var(--blue)">
+        <strong>admin 角色</strong> &mdash; 可批准/拒绝任何人的请求
+      </div>
+      <div class="info-card" style="border-left:3px solid var(--red)">
+        <strong>其他人</strong> &mdash; 回复"允许"会被拒绝
+      </div>
+    </div>
+  </div>
+
+  <!-- disabled_commands -->
+  <div class="subsection">
+    <div class="subsection-title">disabled_commands</div>
+    <p style="color:var(--text-sec);font-size:14px;line-height:1.7">
+      控制哪些斜杠命令对该角色禁用。<code>"*"</code> 表示禁用所有命令。
+    </p>
+  </div>
+
+  <!-- admin_from -->
+  <div class="subsection">
+    <div class="subsection-title">admin_from 与特权命令</div>
+    <p style="color:var(--text-sec);font-size:14px;line-height:1.7">
+      在项目配置中设置 <code>admin_from = "alice,bob"</code> 后，只有这些用户 ID 能执行 <code>/shell</code>、<code>/show</code>、<code>/dir</code>、<code>/restart</code>、<code>/upgrade</code>、<code>/web</code>、<code>/diff</code> 等特权命令。配置语法详见 <a href="#sec10" style="color:var(--accent)">第 10 节 安全机制</a>。
+    </p>
+  </div>
+</div>
+
+<!-- ══════════ Section 7 ══════════ -->
+<div class="section" id="sec7">
+  <div class="section-header">
+    <div class="section-num">7</div>
+    <div class="section-title">高级功能</div>
+  </div>
+
+  <!-- 流式预览 -->
+  <div class="subsection">
+    <div class="subsection-title">流式预览</div>
+    <p style="color:var(--text-sec);font-size:14px;line-height:1.7;margin-bottom:10px">
+      Agent 执行过程中实时预览输出，按平台差异分两种策略：
+    </p>
+    <div class="two-col">
+      <div class="info-card" style="border-left:3px solid var(--accent)">
+        <div style="font-size:13px;font-weight:600;color:var(--accent);margin-bottom:6px">卡片流式（飞书、钉钉）</div>
+        <div style="font-size:12.5px;color:var(--text-sec);line-height:1.6">200ms / 20 字符节流</div>
+      </div>
+      <div class="info-card" style="border-left:3px solid var(--blue)">
+        <div style="font-size:13px;font-weight:600;color:var(--blue);margin-bottom:6px">降级流式（其余平台）</div>
+        <div style="font-size:12.5px;color:var(--text-sec);line-height:1.6">1500ms / 30 字符节流</div>
+      </div>
+    </div>
+    <p style="color:var(--text-sec);font-size:13px;margin-top:8px">
+      可在 <code>[stream_preview]</code> 块下按平台禁用：<code>disabled_platforms = ["qq"]</code>
+    </p>
+  </div>
+
+  <!-- 语音消息 -->
+  <div class="subsection">
+    <div class="subsection-title">语音消息</div>
+    <div class="two-col">
+      <div class="info-card">
+        <div style="font-size:13px;font-weight:600;color:var(--green);margin-bottom:6px">语音转文字 (STT)</div>
+        <div style="font-size:12.5px;color:var(--text-sec);line-height:1.6">兼容 OpenAI Whisper API，支持 OpenAI、Groq、Qwen、Gemini 后端。需要 ffmpeg。</div>
+      </div>
+      <div class="info-card">
+        <div style="font-size:13px;font-weight:600;color:var(--blue);margin-bottom:6px">文字转语音 (TTS)</div>
+        <div style="font-size:12.5px;color:var(--text-sec);line-height:1.6">7 个 Provider &mdash; Qwen/DashScope、OpenAI、MiniMax、Mimo、espeak、pico、Edge TTS。需要 ffmpeg。</div>
+      </div>
+    </div>
+    <p style="color:var(--text-sec);font-size:13px;margin-top:8px">
+      模式：<code>voice_only</code>（仅语音回复）、<code>always</code>（语音 + 文字）。
+    </p>
+  </div>
+
+  <!-- 定时任务 -->
+  <div class="subsection">
+    <div class="subsection-title">定时任务 (Cron)</div>
+    <p style="color:var(--text-sec);font-size:14px;line-height:1.7;margin-bottom:10px">
+      基于 robfig/cron/v3，支持人类可读表达式。两种类型：
+    </p>
+    <div class="info-grid">
+      <div class="info-card">
+        <div style="font-size:12px;color:var(--accent);margin-bottom:4px">prompt 类型</div>
+        <div style="font-size:12.5px;color:var(--text-sec);line-height:1.6">发送文本消息给 Agent（如"帮我运行 lint"）</div>
+      </div>
+      <div class="info-card">
+        <div style="font-size:12px;color:var(--accent);margin-bottom:4px">exec 类型</div>
+        <div style="font-size:12.5px;color:var(--text-sec);line-height:1.6">直接执行 Shell 命令</div>
+      </div>
+    </div>
+    <p style="color:var(--text-sec);font-size:13px;margin-top:8px">
+      会话模式：<code>reuse</code>（复用现有会话）或 <code>new_per_run</code>（每次新建）。支持超时和静默模式。可通过 <code>/cron add &lt;表达式&gt; &lt;指令&gt;</code> 自然语言添加。
+    </p>
+  </div>
+
+  <!-- 多机器人中继 -->
+  <div class="subsection">
+    <div class="subsection-title">多机器人中继 (Relay)</div>
+    <p style="color:var(--text-sec);font-size:14px;line-height:1.7;margin-bottom:10px">
+      多个 cc-connect 实例之间的 Bot 消息互通，由 RelayManager 协调。
+    </p>
+    <div class="relay-diagram">
+      <div class="relay-card relay-full">
+        <div class="relay-label">full</div>
+        <div class="relay-desc">转发完整对话</div>
+      </div>
+      <div class="relay-card relay-summary">
+        <div class="relay-label">summary</div>
+        <div class="relay-desc">转发摘要</div>
+      </div>
+      <div class="relay-card relay-none">
+        <div class="relay-label">none</div>
+        <div class="relay-desc">隐藏转发</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 生命周期钩子 -->
+  <div class="subsection">
+    <div class="subsection-title">生命周期钩子 (Hooks)</div>
+    <p style="color:var(--text-sec);font-size:14px;line-height:1.7;margin-bottom:10px">
+      支持 7 种事件，两种 Handler，异步执行不阻塞主流程。
+    </p>
+    <div class="hook-lifecycle">
+      <div class="hook-event hook-trigger">message.received</div>
+      <span class="flow-arrow">&rarr;</span>
+      <div class="hook-event hook-action">Engine 处理</div>
+      <span class="flow-arrow">&rarr;</span>
+      <div class="hook-event hook-trigger">message.sent</div>
+      <span class="flow-arrow">&rarr;</span>
+      <div class="hook-event hook-trigger">session.started</div>
+      <span class="flow-arrow">&rarr;</span>
+      <div class="hook-event hook-action">Agent 执行</div>
+      <span class="flow-arrow">&rarr;</span>
+      <div class="hook-event hook-trigger">session.ended</div>
+      <div style="width:100%;margin-top:4px">
+        <div class="hook-event hook-trigger" style="display:inline-block;margin:4px">permission.requested</div>
+        <div class="hook-event hook-trigger" style="display:inline-block;margin:4px">cron.triggered</div>
+        <div class="hook-event hook-trigger" style="display:inline-block;margin:4px">error</div>
+      </div>
+      <div style="width:100%;margin-top:4px">
+        <div class="hook-event hook-async" style="display:inline-block;margin:4px">command</div>
+        <span style="color:var(--text-muted);font-size:11px;margin:0 4px">|</span>
+        <div class="hook-event hook-async" style="display:inline-block;margin:4px">http</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bridge WebSocket 协议 -->
+  <div class="subsection">
+    <div class="subsection-title">Bridge WebSocket 协议</div>
+    <p style="color:var(--text-sec);font-size:14px;line-height:1.7">
+      允许外部平台适配器通过 WebSocket 接入。适配器声明能力集，Engine 自动降级不支持的特性。
+      心跳 ping/pong 保活，重连指数退避，REST API 支持会话列表、发消息、创建/删除会话。
+    </p>
+  </div>
+
+  <!-- Web 管理界面 -->
+  <div class="subsection">
+    <div class="subsection-title">Web 管理界面</div>
+    <p style="color:var(--text-sec);font-size:14px;line-height:1.7">
+      内置 React SPA（端口 9820），Bearer token 认证。
+      功能页：Dashboard、Projects（3 步向导）、Chat（25 个斜杠命令、命令面板）、Sessions、Cron、Providers、Skills、Bridge、System（全局设置、i18n、主题切换）。
+    </p>
+  </div>
+
+  <!-- 多工作区模式 -->
+  <div class="subsection">
+    <div class="subsection-title">多工作区模式</div>
+    <p style="color:var(--text-sec);font-size:14px;line-height:1.7">
+      通过 channel-to-workspace 绑定，将不同 IM 频道映射到不同的工作目录。绑定持久化到 <code>workspace_bindings.json</code>，支持约定式自动绑定和克隆初始化。
+    </p>
+  </div>
+
+  <!-- 会话管理 -->
+  <div class="subsection">
+    <div class="subsection-title">会话管理</div>
+    <div class="info-grid">
+      <div class="info-card">
+        <div style="font-size:12px;color:var(--accent);margin-bottom:4px">弹性恢复</div>
+        <div style="font-size:12.5px;color:var(--text-sec);line-height:1.6">路径标准化 + resume 失败自动降级为全新会话</div>
+      </div>
+      <div class="info-card">
+        <div style="font-size:12px;color:var(--accent);margin-bottom:4px">自动压缩</div>
+        <div style="font-size:12.5px;color:var(--text-sec);line-height:1.6">上下文超限时自动压缩</div>
+        <div style="font-size:11.5px;color:var(--text-muted);margin-top:3px"><code>[auto_compress] max_tokens / min_gap_mins</code></div>
+      </div>
+      <div class="info-card">
+        <div style="font-size:12px;color:var(--accent);margin-bottom:4px">空闲重置</div>
+        <div style="font-size:12.5px;color:var(--text-sec);line-height:1.6">长时间无消息自动新建会话</div>
+      </div>
+      <div class="info-card">
+        <div style="font-size:12px;color:var(--accent);margin-bottom:4px">最大执行时间</div>
+        <div style="font-size:12.5px;color:var(--text-sec);line-height:1.6">两阶段关停：优雅 &rarr; 强杀</div>
+      </div>
+    </div>
+    <p style="color:var(--text-sec);font-size:13px;margin-top:8px">
+      批量删除支持 <code>/delete 1,2,3</code> 和 <code>/delete 3-7</code> 语法。
+    </p>
+  </div>
+
+  <!-- 附件回传 -->
+  <div class="subsection">
+    <div class="subsection-title">附件回传</div>
+    <p style="color:var(--text-sec);font-size:14px;line-height:1.7">
+      Agent 生成的图片/文件可自动回传到聊天。需要 <code>/bind setup</code> 初始化（飞书/钉钉），也可通过 <code>cc-connect send --image/--file</code> 手动发送。
+    </p>
+  </div>
+</div>
+
+<!-- ══════════ Section 8 ══════════ -->
+<div class="section" id="sec8">
+  <div class="section-header">
+    <div class="section-num">8</div>
+    <div class="section-title">运维命令手册</div>
+  </div>
+
+  <div class="subsection">
+    <div class="subsection-title">Daemon 管理</div>
+    <pre><span class="cmd">cc-connect daemon install</span>       <span class="comment"># 安装并启动</span>
+<span class="cmd">cc-connect daemon status</span>
+<span class="cmd">cc-connect daemon logs -f</span>       <span class="comment"># 实时跟踪</span>
+<span class="cmd">cc-connect daemon logs -n 100</span>   <span class="comment"># 最近 100 行</span>
+<span class="cmd">cc-connect daemon stop</span>
+<span class="cmd">cc-connect daemon restart</span>
+<span class="cmd">cc-connect daemon restart --force</span>  <span class="comment"># 杀进程 &rarr; 500ms &rarr; 重启</span>
+<span class="cmd">cc-connect daemon uninstall</span></pre>
+    <p style="color:var(--text-sec);font-size:13px;margin-top:6px">日志自动轮转（10MB），保留一份备份。</p>
+  </div>
+
+  <div class="subsection">
+    <div class="subsection-title">清理与重装</div>
+    <pre><span class="cmd">cc-connect clean</span>              <span class="comment"># 清运行时（lock/sock/log），保留 config 和 crons</span>
+<span class="cmd">cc-connect clean reset</span>        <span class="comment"># 全部删除，config/crons 先备份到 ~/.cc-connect-backup/&lt;时间戳&gt;/</span>
+<span class="cmd">cc-connect reinstall --yes</span>    <span class="comment"># 清理 + npm 重装 + 恢复配置 + daemon install</span></pre>
+    <div class="callout callout-info" style="margin-top:10px">
+      <code>reinstall</code> 是两阶段命令：Phase 1（Go）备份 &rarr; 清理 &rarr; 卸载 &rarr; 生成脚本；Phase 2（脚本）npm uninstall &rarr; npm install &rarr; 恢复配置 &rarr; daemon install。MINGW bash 中一条命令完成；PowerShell/CMD 中因文件锁需两步执行。
+    </div>
+  </div>
+
+  <div class="subsection">
+    <div class="subsection-title">升级</div>
+    <pre><span class="cmd">cc-connect daemon stop</span>
+<span class="cmd">npm update -g @game1991/cc-connect</span>
+<span class="cmd">cc-connect --version</span>
+<span class="cmd">cc-connect daemon restart</span></pre>
+  </div>
+
+  <div class="subsection">
+    <div class="subsection-title">诊断</div>
+    <pre><span class="cmd">cc-connect doctor</span>            <span class="comment"># 检查 agent 二进制可用性、认证、用户隔离预检</span></pre>
+  </div>
+
+  <div class="subsection">
+    <div class="subsection-title">版本查询</div>
+    <pre><span class="cmd">cc-connect --version</span>         <span class="comment"># cc-connect v1.3.3</span>
+                            <span class="comment"># commit:  2eeaac4</span>
+                            <span class="comment"># built:   2026-06-11T...</span></pre>
+  </div>
+
+  <div class="subsection">
+    <div class="subsection-title">自更新</div>
+    <pre><span class="cmd">cc-connect update</span>            <span class="comment"># 从 GitHub/Gitee 获取最新稳定版</span>
+<span class="cmd">cc-connect update --pre</span>      <span class="comment"># 获取最新预发布版</span></pre>
+    <p style="color:var(--text-sec);font-size:13px;margin-top:6px">
+      双源策略：GitHub 为主，Gitee 为备（面向中国用户）。可在配置中设置 <code>prefer_gitee = true</code> 切换优先级。
+    </p>
+  </div>
+</div>
+
+<!-- ══════════ Section 9 ══════════ -->
+<div class="section" id="sec9">
+  <div class="section-header">
+    <div class="section-num">9</div>
+    <div class="section-title">故障排查</div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">
+      daemon stop 停不掉
+      <span class="faq-chevron">&#9654;</span>
+    </div>
+    <div class="faq-a"><div class="faq-a-inner">
+      <code>daemon stop</code> 已含 PID 直杀回退。如果仍不生效：
+      <pre><span class="cmd">cc-connect daemon restart --force</span>   <span class="comment"># 杀进程 &rarr; 重启</span>
+<span class="cmd">ps -W | grep -i cc-connect</span>
+<span class="cmd">taskkill /PID &lt;PID&gt; /F</span></pre>
+    </div></div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">
+      配置文件找不到
+      <span class="faq-chevron">&#9654;</span>
+    </div>
+    <div class="faq-a"><div class="faq-a-inner">
+      三级 fallback 自动查找：<code>--config</code> &rarr; <code>WorkDir/config.toml</code> &rarr; <code>~/.cc-connect/config.toml</code>。也可显式传 <code>--config &lt;路径&gt;</code>。
+    </div></div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">
+      npm 安装失败
+      <span class="faq-chevron">&#9654;</span>
+    </div>
+    <div class="faq-a"><div class="faq-a-inner">
+      1. 检查 PAT 是否有 <code>read:packages</code> 权限<br>
+      2. 检查 <code>~/.npmrc</code> 格式（注意 <code>@game1991:</code> 前缀冒号不能漏）<br>
+      3. 检查网络是否可访问 <code>npm.pkg.github.com</code>
+    </div></div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">
+      飞书连接断开
+      <span class="faq-chevron">&#9654;</span>
+    </div>
+    <div class="faq-a"><div class="faq-a-inner">
+      飞书使用长连接，断线后会自动重连。检查 <code>app_id</code>/<code>app_secret</code> 是否正确，以及网络是否可访问飞书 API。
+    </div></div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">
+      二进制被覆盖
+      <span class="faq-chevron">&#9654;</span>
+    </div>
+    <div class="faq-a"><div class="faq-a-inner">
+      如果 <code>cc-connect --version</code> 报告的版本与预期不符，可能是 npm 的 <code>run.js</code> 自动更新覆盖了本地二进制。这与版本号排序有关 &mdash; 详见<a href="developer-guide.zh-CN.html#sec4" style="color:var(--accent)">开发者指南 &sect;4 版本管理</a>中的 fork.N 陷阱详解。
+    </div></div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">
+      Windows 特殊问题
+      <span class="faq-chevron">&#9654;</span>
+    </div>
+    <div class="faq-a"><div class="faq-a-inner">
+      &bull; <strong>schtasks daemon</strong>：Windows 使用任务计划程序而非 systemd<br>
+      &bull; <strong><code>.old</code> 备份</strong>：自更新时当前二进制重命名为 <code>.old</code><br>
+      &bull; <strong>无 pty</strong>：iFlow Agent 在 Windows 上跳过<br>
+      &bull; <strong><code>.cmd</code> 弹框</strong>：已移除导致弹框的 <code>ensureCmdFileAssociation</code> 函数
+    </div></div>
+  </div>
+</div>
+
+<!-- ══════════ Section 10 ══════════ -->
+<div class="section" id="sec10">
+  <div class="section-header">
+    <div class="section-num">10</div>
+    <div class="section-title">安全机制</div>
+  </div>
+
+  <div class="security-grid">
+    <div class="security-card">
+      <div class="sc-icon">&#128274;</div>
+      <div class="sc-title">实例锁</div>
+      <div class="sc-desc">PID 文件锁，防止重复进程。<code>--force</code> 可杀旧进程。</div>
+      <div class="sc-config">自动生效</div>
+    </div>
+    <div class="security-card">
+      <div class="sc-icon">&#128100;</div>
+      <div class="sc-title">run-as-user</div>
+      <div class="sc-desc">Linux/macOS 下以指定 OS 用户运行 Agent 进程。</div>
+      <div class="sc-config"><code>run_as_user = "coder"</code></div>
+    </div>
+    <div class="security-card">
+      <div class="sc-icon">&#128378;</div>
+      <div class="sc-title">allow_from</div>
+      <div class="sc-desc">限制特定 IP 或用户 ID 可发送消息。</div>
+      <div class="sc-config">平台 <code>options</code> 中 <code>allow_from</code></div>
+    </div>
+    <div class="security-card">
+      <div class="sc-icon">&#128736;</div>
+      <div class="sc-title">admin_from</div>
+      <div class="sc-desc">限制可执行特权命令（<code>/shell</code>、<code>/show</code>、<code>/dir</code>、<code>/restart</code>、<code>/upgrade</code>、<code>/web</code>、<code>/diff</code>）的用户。</div>
+      <div class="sc-config"><code>admin_from = "alice,bob"</code></div>
+    </div>
+    <div class="security-card">
+      <div class="sc-icon">&#128260;</div>
+      <div class="sc-title">请求去重</div>
+      <div class="sc-desc">TTL 去重，防止重复消息触发重复执行。</div>
+      <div class="sc-config">自动生效</div>
+    </div>
+    <div class="security-card">
+      <div class="sc-icon">&#128542;</div>
+      <div class="sc-title">敏感信息脱敏</div>
+      <div class="sc-desc">环境变量值、API Key 参数在日志中自动遮蔽。</div>
+      <div class="sc-config">自动生效</div>
+    </div>
+    <div class="security-card">
+      <div class="sc-icon">&#128737;</div>
+      <div class="sc-title">路径穿越保护</div>
+      <div class="sc-desc"><code>SaveFilesToDisk</code> 清理 <code>..</code> 和绝对路径前缀。</div>
+      <div class="sc-config">自动生效</div>
+    </div>
+    <div class="security-card">
+      <div class="sc-icon">&#128190;</div>
+      <div class="sc-title">原子写入</div>
+      <div class="sc-desc">临时文件 + sync + rename，防止崩溃导致文件损坏。</div>
+      <div class="sc-config">自动生效</div>
+    </div>
+  </div>
+</div>
+
+</div><!-- end container -->
+
+<!-- ══════════ Footer ══════════ -->
+<div class="footer">
+  @game1991/cc-connect &middot; MIT License &middot; 2026
+</div>
+
+</body>
+</html>
