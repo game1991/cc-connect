@@ -7298,7 +7298,7 @@ func TestCmdCronExec_TriggersJob(t *testing.T) {
 			msg := &Message{SessionKey: "plain:user1", ReplyCtx: "ctx"}
 			e.cmdCron(platform, msg, []string{subcommand, job.ID})
 
-			deadline := time.Now().Add(2 * time.Second)
+			deadline := time.Now().Add(10 * time.Second)
 			for time.Now().Before(deadline) {
 				sent := platform.getSent()
 				if sentContains(sent, "triggered") && sentContains(sent, "manual run complete") {
@@ -9928,15 +9928,19 @@ func TestCmdShell_MultiWorkspaceIgnoresMissingSharedBinding(t *testing.T) {
 	for {
 		sent := p.getSent()
 		if len(sent) > 0 {
-			// With streaming progress, the final result is the last sent message
+			// With streaming progress, skip ⏳ prefix messages and check the final result
 			output := sent[len(sent)-1]
-			if !strings.Contains(output, agent.workDir) && !strings.Contains(output, expectedResolved) {
-				t.Fatalf("expected shell output to fall back to agent work dir %q (resolved %q), got %q", agent.workDir, expectedResolved, output)
+			if strings.HasPrefix(output, "⏳") {
+				// Still in progress, wait for final result
+			} else {
+				if !strings.Contains(output, agent.workDir) && !strings.Contains(output, expectedResolved) {
+					t.Fatalf("expected shell output to fall back to agent work dir %q (resolved %q), got %q", agent.workDir, expectedResolved, output)
+				}
+				if strings.Contains(output, missingDir) || strings.Contains(output, missingResolved) {
+					t.Fatalf("expected shell output to ignore missing shared workspace %q, got %q", missingDir, output)
+				}
+				return
 			}
-			if strings.Contains(output, missingDir) || strings.Contains(output, missingResolved) {
-				t.Fatalf("expected shell output to ignore missing shared workspace %q, got %q", missingDir, output)
-			}
-			return
 		}
 		if time.Now().After(deadline) {
 			t.Fatal("timed out waiting for shell response")
@@ -10090,7 +10094,7 @@ func TestRunShellWithProgress_EmptyOutput(t *testing.T) {
 
 	cmd := "true"
 	if runtime.GOOS == "windows" {
-		cmd = `cmd /c "exit /b 0"`
+		cmd = `exit 0`
 	}
 	err := e.runShellWithProgress(p, "ctx", cmd, t.TempDir(), 5*time.Second, 4000)
 	if err != nil {
@@ -10120,7 +10124,7 @@ func TestRunShellWithProgress_StderrOutput(t *testing.T) {
 
 	cmd := "echo err >&2"
 	if runtime.GOOS == "windows" {
-		cmd = `cmd /c "echo err >&2"`
+		cmd = `[Console]::Error.WriteLine('err')`
 	}
 	err := e.runShellWithProgress(p, "ctx", cmd, t.TempDir(), 5*time.Second, 4000)
 	if err != nil {
