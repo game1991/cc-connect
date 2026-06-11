@@ -65,7 +65,7 @@ endif
 _BUILD_TAGS := $(strip $(_EXCLUDE_TAGS) goolm)
 _TAGS_FLAG  := $(if $(_BUILD_TAGS),-tags '$(_BUILD_TAGS)',)
 
-.PHONY: build run clean test test-fast test-full test-smoke test-e2e test-release test-release-local test-performance pre-test lint release release-all web
+.PHONY: build run clean test test-fast test-full test-smoke test-e2e test-release test-release-local test-performance pre-test lint release release-noweb release-all web
 
 web:
 	@if [ ! -d web/node_modules ]; then cd web && npm install; fi
@@ -179,4 +179,19 @@ release:
 	$(eval OUT    := $(DIST)/$(APP)-$(VERSION)-$(GOOS)-$(GOARCH)$(EXT))
 	GOOS=$(GOOS) GOARCH=$(GOARCH) CGO_ENABLED=0 \
 		go build $(_TAGS_FLAG) -ldflags "$(LDFLAGS)" -o $(OUT) $(CMD)
+	@echo "Built: $(OUT)"
+
+release-noweb:
+	@if [ -z "$(TARGET)" ]; then \
+		echo "Usage: make release-noweb TARGET=windows/amd64"; \
+		echo "Available: $(PLATFORMS)"; \
+		exit 1; \
+	fi
+	@mkdir -p $(DIST)
+	$(eval GOOS   := $(word 1,$(subst /, ,$(TARGET))))
+	$(eval GOARCH := $(word 2,$(subst /, ,$(TARGET))))
+	$(eval EXT    := $(if $(filter windows,$(GOOS)),.exe,))
+	$(eval OUT    := $(DIST)/$(APP)-$(VERSION)-$(GOOS)-$(GOARCH)$(EXT))
+	GOOS=$(GOOS) GOARCH=$(GOARCH) CGO_ENABLED=0 \
+		go build -tags 'no_web' -ldflags "$(LDFLAGS)" -o $(OUT) $(CMD)
 	@echo "Built: $(OUT)"

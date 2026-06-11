@@ -1,0 +1,1148 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>cc-connect 开发者指南</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --card: #1c2333;
+    --card-hover: #22293a;
+    --border: #30363d;
+    --border-accent: #3d4450;
+    --text: #e6edf3;
+    --text-sec: #8b949e;
+    --text-muted: #6e7681;
+    --accent: #7c6aef;
+    --accent-glow: rgba(124,106,239,.12);
+    --green: #3fb950;
+    --green-bg: rgba(63,185,80,.08);
+    --green-dim: rgba(63,185,80,.35);
+    --red: #f85149;
+    --red-bg: rgba(248,81,73,.08);
+    --yellow: #d29922;
+    --yellow-bg: rgba(210,153,34,.08);
+    --blue: #58a6ff;
+    --blue-bg: rgba(88,166,255,.08);
+    --cyan: #56d4dd;
+    --orange: #f0883e;
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  body {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ── hero ── */
+  .hero {
+    text-align: center;
+    padding: 56px 24px 40px;
+    border-bottom: 1px solid var(--border);
+    background: linear-gradient(180deg, rgba(124,106,239,.06) 0%, transparent 100%);
+  }
+  .hero-badge {
+    display: inline-block;
+    padding: 4px 14px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-family: 'JetBrains Mono', monospace;
+    background: var(--accent-glow);
+    color: var(--accent);
+    border: 1px solid rgba(124,106,239,.3);
+    margin-bottom: 16px;
+  }
+  .hero h1 {
+    font-size: 32px;
+    font-weight: 700;
+    letter-spacing: -.5px;
+    margin-bottom: 8px;
+  }
+  .hero .subtitle {
+    color: var(--text-sec);
+    font-size: 15px;
+    max-width: 600px;
+    margin: 0 auto;
+  }
+  .hero .version {
+    margin-top: 12px;
+    font-size: 12px;
+    color: var(--text-muted);
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  /* ── nav ── */
+  .toc {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 24px 24px 0;
+  }
+  .toc-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 10px;
+  }
+  .toc-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    border-radius: 8px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    text-decoration: none;
+    color: var(--text);
+    font-size: 14px;
+    font-weight: 500;
+    transition: all .15s;
+  }
+  .toc-item:hover {
+    background: var(--card);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  .toc-num {
+    width: 26px; height: 26px;
+    border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px;
+    font-weight: 700;
+    font-family: 'JetBrains Mono', monospace;
+    background: var(--accent-glow);
+    color: var(--accent);
+    flex-shrink: 0;
+  }
+
+  /* ── sections ── */
+  .container {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 0 24px 80px;
+  }
+  .section {
+    margin-top: 48px;
+  }
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 20px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--border);
+  }
+  .section-num {
+    width: 36px; height: 36px;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 15px;
+    font-weight: 700;
+    font-family: 'JetBrains Mono', monospace;
+    background: var(--accent-glow);
+    color: var(--accent);
+    border: 1px solid rgba(124,106,239,.3);
+    flex-shrink: 0;
+  }
+  .section-title {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -.3px;
+  }
+
+  /* subsection */
+  .subsection {
+    margin-top: 28px;
+  }
+  .subsection-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .subsection-title .tag {
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-weight: 600;
+    font-family: 'JetBrains Mono', monospace;
+    letter-spacing: .5px;
+  }
+  .tag-danger { background: var(--red-bg); color: var(--red); }
+  .tag-warn { background: var(--yellow-bg); color: var(--yellow); }
+
+  /* ── table ── */
+  .table-wrap {
+    overflow-x: auto;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13.5px;
+  }
+  thead { background: var(--card); }
+  th {
+    text-align: left;
+    padding: 10px 14px;
+    font-weight: 600;
+    color: var(--text-sec);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    border-bottom: 1px solid var(--border);
+  }
+  td {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(124,106,239,.03); }
+  td code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: var(--accent-glow);
+    color: var(--accent);
+  }
+
+  /* ── callout ── */
+  .callout {
+    margin: 16px 0;
+    padding: 14px 18px;
+    border-radius: 8px;
+    font-size: 14px;
+    line-height: 1.65;
+  }
+  .callout-warn {
+    background: var(--yellow-bg);
+    border-left: 3px solid var(--yellow);
+    color: #e3b341;
+  }
+  .callout-danger {
+    background: var(--red-bg);
+    border-left: 3px solid var(--red);
+    color: #f0883e;
+  }
+  .callout-info {
+    background: var(--blue-bg);
+    border-left: 3px solid var(--blue);
+    color: var(--blue);
+  }
+  .callout strong { color: inherit; }
+
+  /* ── code block ── */
+  pre {
+    margin: 12px 0;
+    padding: 16px 20px;
+    border-radius: 10px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    overflow-x: auto;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    line-height: 1.55;
+    color: var(--text);
+  }
+  code { font-family: 'JetBrains Mono', monospace; }
+  .cmd { color: var(--cyan); }
+  .flag { color: var(--yellow); }
+  .path { color: var(--green); }
+  .comment { color: var(--text-muted); font-style: italic; }
+  .str { color: var(--orange); }
+  .key { color: var(--accent); }
+  .num { color: var(--orange); }
+  .bool { color: var(--cyan); }
+
+  /* ── flow diagram ── */
+  .flow-diagram {
+    margin: 16px 0;
+    padding: 20px 24px;
+    border-radius: 10px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+  }
+  .flow-node {
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-size: 12.5px;
+    white-space: nowrap;
+  }
+  .flow-start { background: var(--accent-glow); color: var(--accent); border: 1px solid rgba(124,106,239,.3); }
+  .flow-process { background: var(--surface); color: var(--text-sec); border: 1px solid var(--border); }
+  .flow-end { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-dim); }
+  .flow-danger { background: var(--red-bg); color: var(--red); border: 1px solid rgba(248,81,73,.25); }
+  .flow-arrow { color: var(--text-muted); font-size: 14px; }
+  .flow-branch { width: 100%; margin: 8px 0 8px 28px; padding-left: 16px; border-left: 2px solid var(--border); }
+  .flow-branch-item { padding: 6px 0; font-size: 12.5px; color: var(--text-sec); }
+
+  /* ── dependency diagram ── */
+  .dep-diagram {
+    margin: 16px 0;
+    padding: 24px;
+    border-radius: 10px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    display: grid;
+    grid-template-columns: 1fr auto 1fr auto 1fr;
+    gap: 12px;
+    align-items: center;
+  }
+  .dep-box {
+    padding: 10px 16px;
+    border-radius: 8px;
+    text-align: center;
+    font-size: 13px;
+    font-weight: 500;
+  }
+  .dep-cmd { background: var(--blue-bg); color: var(--blue); border: 1px solid rgba(88,166,255,.25); }
+  .dep-core { background: var(--accent-glow); color: var(--accent); border: 1px solid rgba(124,106,239,.3); padding: 16px 24px; }
+  .dep-plugin { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-dim); }
+  .dep-arrow { font-size: 18px; color: var(--text-muted); text-align: center; }
+
+  /* ── ci flow ── */
+  .ci-flow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 14px 0;
+    padding: 14px 18px;
+    border-radius: 10px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    flex-wrap: wrap;
+  }
+  .ci-node {
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .ci-trigger { background: var(--accent-glow); color: var(--accent); border: 1px solid rgba(124,106,239,.3); }
+  .ci-build { background: var(--blue-bg); color: var(--blue); border: 1px solid rgba(88,166,255,.25); }
+  .ci-release { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-dim); }
+  .ci-npm { background: var(--yellow-bg); color: var(--yellow); border: 1px solid rgba(210,153,34,.25); }
+  .ci-arrow { color: var(--text-muted); font-size: 14px; }
+
+  /* ── version check flowchart ── */
+  .ver-flow {
+    margin: 16px 0;
+    padding: 20px 24px;
+    border-radius: 10px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+  }
+  .ver-step {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 8px 0;
+    font-size: 13px;
+    color: var(--text-sec);
+    line-height: 1.6;
+  }
+  .ver-num {
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    background: var(--accent-glow);
+    color: var(--accent);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px;
+    font-weight: 700;
+    font-family: 'JetBrains Mono', monospace;
+    flex-shrink: 0;
+  }
+  .ver-correct { border-left: 3px solid var(--green); padding-left: 12px; }
+  .ver-trap { border-left: 3px solid var(--red); padding-left: 12px; }
+
+  /* ── info grid / card ── */
+  .info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+    margin: 12px 0;
+  }
+  .info-card {
+    padding: 14px 16px;
+    border-radius: 8px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+  }
+  .info-card code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--text-sec);
+    word-break: break-all;
+  }
+
+  /* ── two-col ── */
+  .two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin: 14px 0;
+  }
+
+  /* ── checklist ── */
+  .checklist {
+    margin: 12px 0;
+  }
+  .check-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 8px 0;
+    font-size: 13.5px;
+    color: var(--text-sec);
+    line-height: 1.6;
+  }
+  .check-box {
+    width: 18px; height: 18px;
+    border-radius: 4px;
+    border: 1.5px solid var(--border);
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+
+  /* ── footer ── */
+  .footer {
+    text-align: center;
+    padding: 32px 24px;
+    border-top: 1px solid var(--border);
+    color: var(--text-muted);
+    font-size: 13px;
+  }
+
+  @media (max-width: 640px) {
+    .hero h1 { font-size: 24px; }
+    .toc-grid { grid-template-columns: 1fr; }
+    .two-col { grid-template-columns: 1fr; }
+    .dep-diagram { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ══════════ Hero ══════════ -->
+<div class="hero">
+  <div class="hero-badge">@game1991/cc-connect</div>
+  <h1>cc-connect 开发者指南</h1>
+  <p class="subtitle">面向维护者 &amp; 贡献者</p>
+  <div class="version">v1.3.3 &middot; 最后更新 2026-06-11</div>
+</div>
+
+<!-- ══════════ TOC ══════════ -->
+<div class="toc">
+  <div class="toc-grid">
+    <a href="#sec1" class="toc-item"><span class="toc-num">1</span>架构与代码结构</a>
+    <a href="#sec2" class="toc-item"><span class="toc-num">2</span>构建系统</a>
+    <a href="#sec3" class="toc-item"><span class="toc-num">3</span>测试策略</a>
+    <a href="#sec4" class="toc-item"><span class="toc-num">4</span>版本管理</a>
+    <a href="#sec5" class="toc-item"><span class="toc-num">5</span>发布流程</a>
+    <a href="#sec6" class="toc-item"><span class="toc-num">6</span>上游同步工作流</a>
+    <a href="#sec7" class="toc-item"><span class="toc-num">7</span>平台特定开发笔记</a>
+    <a href="#sec8" class="toc-item"><span class="toc-num">8</span>开发环境搭建</a>
+    <a href="#sec9" class="toc-item"><span class="toc-num">9</span>代码风格与提交规范</a>
+  </div>
+</div>
+
+<div class="container">
+
+<!-- ══════════ Section 1 ══════════ -->
+<div class="section" id="sec1">
+  <div class="section-header">
+    <div class="section-num">1</div>
+    <div class="section-title">架构与代码结构</div>
+  </div>
+
+  <!-- 依赖方向图 -->
+  <div class="subsection">
+    <div class="subsection-title">依赖方向</div>
+    <div class="dep-diagram">
+      <div class="dep-box dep-cmd">cmd/<br><span style="font-size:11px;color:var(--text-muted)">CLI, daemon</span></div>
+      <div class="dep-arrow">&rarr;</div>
+      <div class="dep-box dep-core">core/<br><span style="font-size:11px;color:var(--text-muted)">Engine, 接口, i18n</span></div>
+      <div class="dep-arrow">&larr;</div>
+      <div class="dep-box dep-plugin">agent/* &amp; platform/*<br><span style="font-size:11px;color:var(--text-muted)">适配器实现</span></div>
+    </div>
+    <div class="callout callout-danger" style="margin-top:8px">
+      <strong>禁止反向依赖：</strong>core/ 只能引用标准库，绝不引用 agent/ 或 platform/。适配器之间也禁止交叉引用。
+    </div>
+  </div>
+
+  <!-- 插件架构 -->
+  <div class="subsection">
+    <div class="subsection-title">插件架构</div>
+    <p style="color:var(--text-sec);font-size:14px;line-height:1.7;margin-bottom:10px">
+      每个 Agent/Platform 通过 <code>init()</code> 中的 <code>core.RegisterAgent()</code> / <code>core.RegisterPlatform()</code> 自注册。
+      Engine 通过配置中的字符串名称调用工厂创建实例。
+    </p>
+    <div class="flow-diagram">
+      <div class="flow-node flow-start">init()</div>
+      <span class="flow-arrow">&rarr;</span>
+      <div class="flow-node flow-process">RegisterAgent("claudecode", factory)</div>
+      <span class="flow-arrow">&rarr;</span>
+      <div class="flow-node flow-process">plugin_agent_*.go<br><span style="font-size:11px;color:var(--text-muted)">build tag: !no_X</span></div>
+      <span class="flow-arrow">&rarr;</span>
+      <div class="flow-node flow-end">编译进二进制</div>
+    </div>
+  </div>
+
+  <!-- 核心接口表 -->
+  <div class="subsection">
+    <div class="subsection-title">核心接口</div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>接口</th><th>职责</th><th>必需</th></tr></thead>
+        <tbody>
+          <tr><td><code>Platform</code></td><td>IM 平台适配（Start, Reply, Send, Stop）</td><td>是</td></tr>
+          <tr><td><code>Agent</code></td><td>AI Agent 适配（StartSession, ListSessions, Stop）</td><td>是</td></tr>
+          <tr><td><code>AgentSession</code></td><td>运行中的双向会话（Send, RespondPermission, Events）</td><td>是</td></tr>
+          <tr><td><code>Engine</code></td><td>中央编排器，路由消息</td><td>是</td></tr>
+          <tr><td><code>CardSender</code></td><td>富卡片消息</td><td>否</td></tr>
+          <tr><td><code>InlineButtonSender</code></td><td>内联键盘按钮</td><td>否</td></tr>
+          <tr><td><code>ProviderSwitcher</code></td><td>多模型切换</td><td>否</td></tr>
+          <tr><td><code>DoctorChecker</code></td><td>Agent 特定健康检查</td><td>否</td></tr>
+          <tr><td><code>AgentDoctorInfo</code></td><td>CLI 二进制元数据</td><td>否</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 目录布局 -->
+  <div class="subsection">
+    <div class="subsection-title">目录布局</div>
+    <pre>cc-connect/
+├── cmd/cc-connect/        <span class="comment">← 入口：CLI、daemon</span>
+├── config/                <span class="comment">← TOML 配置解析</span>
+├── core/                  <span class="comment">← 核心：Engine、接口、i18n</span>
+├── agent/                 <span class="comment">← 14 个 Agent 适配器</span>
+│   ├── claudecode/        <span class="comment">← 主力，6 种权限模式</span>
+│   ├── codex/ gemini/     <span class="comment">← OpenAI/Google</span>
+│   ├── iflow/ kimi/ pi/   <span class="comment">← 社区 Agent</span>
+│   ├── acp/   devin/      <span class="comment">← ACP 协议层</span>
+│   └── tmux/  cursor/     <span class="comment">← tmux 抓取</span>
+├── platform/              <span class="comment">← 13+1 个 Platform</span>
+│   ├── feishu/ telegram/  <span class="comment">← 主力平台</span>
+│   ├── dingtalk/ wecom/   <span class="comment">← 企业通讯</span>
+│   └── wps-xiezuo/       <span class="comment">← AES-256 + HMAC</span>
+├── daemon/                <span class="comment">← 服务管理</span>
+├── web/                   <span class="comment">← React SPA</span>
+├── npm/                   <span class="comment">← npm 包分发</span>
+├── tests/                 <span class="comment">← 测试套件</span>
+└── .github/workflows/     <span class="comment">← CI/CD</span></pre>
+  </div>
+</div>
+
+<!-- ══════════ Section 2 ══════════ -->
+<div class="section" id="sec2">
+  <div class="section-header">
+    <div class="section-num">2</div>
+    <div class="section-title">构建系统</div>
+  </div>
+
+  <div class="subsection">
+    <div class="subsection-title">Makefile targets</div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Target</th><th>说明</th><th>时间</th></tr></thead>
+        <tbody>
+          <tr><td><code>make build</code></td><td>全量编译（含 Web UI）</td><td>~30s</td></tr>
+          <tr><td><code>make build-noweb</code></td><td>无 Web UI</td><td>~10s</td></tr>
+          <tr><td><code>make web</code></td><td>仅前端构建</td><td>~15s</td></tr>
+          <tr><td><code>make run</code></td><td>编译并运行</td><td>~30s</td></tr>
+          <tr><td><code>make clean</code></td><td>清理构建产物</td><td>即时</td></tr>
+          <tr><td><code>make release-all</code></td><td>全平台交叉编译+打包</td><td>~5 min</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="subsection">
+    <div class="subsection-title">ldflags 注入</div>
+    <pre><span class="key">LDFLAGS</span> := -s -w \
+  -X main.version=$(VERSION) \
+  -X main.commit=$(COMMIT) \
+  -X main.buildTime=$(BUILD_TIME)</pre>
+    <p style="color:var(--text-sec);font-size:13px;margin-top:6px">
+      运行 <code>cc-connect --version</code> 输出：版本号、commit hash、构建时间。
+    </p>
+  </div>
+
+  <div class="subsection">
+    <div class="subsection-title">选择性编译</div>
+    <pre><span class="comment"># 只编译特定组件</span>
+<span class="cmd">make build AGENTS=claudecode PLATFORMS_INCLUDE=feishu,telegram</span>
+
+<span class="comment"># 排除不需要的组件</span>
+<span class="cmd">make build EXCLUDE=discord,dingtalk,qq,qqbot,line,weibo</span>
+
+<span class="comment"># 直接使用 build tag</span>
+<span class="cmd">go build -tags 'no_discord no_dingtalk no_qq' ./cmd/cc-connect</span></pre>
+    <div class="info-grid" style="margin-top:10px">
+      <div class="info-card">
+        <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">Agent tags</div>
+        <code>no_acp no_antigravity no_claudecode no_codex no_copilot no_cursor no_devin no_gemini no_iflow no_kimi no_opencode no_pi no_qoder no_tmux</code>
+      </div>
+      <div class="info-card">
+        <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">Platform tags</div>
+        <code>no_feishu no_telegram no_discord no_slack no_dingtalk no_wecom no_weixin no_qq no_qqbot no_line no_weibo no_max no_wps_xiezuo</code>
+      </div>
+      <div class="info-card">
+        <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">Extra</div>
+        <code>no_web</code>
+      </div>
+    </div>
+  </div>
+
+  <div class="subsection">
+    <div class="subsection-title">6 平台构建矩阵</div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>GOOS</th><th>GOARCH</th><th>产出格式</th></tr></thead>
+        <tbody>
+          <tr><td>linux</td><td>amd64</td><td>.tar.gz</td></tr>
+          <tr><td>linux</td><td>arm64</td><td>.tar.gz</td></tr>
+          <tr><td>darwin</td><td>amd64</td><td>.tar.gz</td></tr>
+          <tr><td>darwin</td><td>arm64</td><td>.tar.gz</td></tr>
+          <tr><td>windows</td><td>amd64</td><td>.zip</td></tr>
+          <tr><td>windows</td><td>arm64</td><td>.zip</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ Section 3 ══════════ -->
+<div class="section" id="sec3">
+  <div class="section-header">
+    <div class="section-num">3</div>
+    <div class="section-title">测试策略</div>
+  </div>
+
+  <div class="subsection">
+    <div class="subsection-title">测试层级</div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>层级</th><th>命令</th><th>覆盖范围</th><th>时间</th><th>触发</th></tr></thead>
+        <tbody>
+          <tr><td>冒烟</td><td><code>make test-smoke</code></td><td>启动/关闭/消息</td><td>&lt; 1 min</td><td>每次推送</td></tr>
+          <tr><td>快速</td><td><code>make test-fast</code></td><td>单元 + 冒烟</td><td>&lt; 2 min</td><td>每次推送</td></tr>
+          <tr><td>完整</td><td><code>make test-full</code></td><td>含回归</td><td>&lt; 10 min</td><td>PR 合入</td></tr>
+          <tr><td>E2E</td><td><code>make test-e2e</code></td><td>Agent-Platform 集成</td><td>~5 min</td><td>PR 合入</td></tr>
+          <tr><td>性能</td><td><code>make test-performance</code></td><td>吞吐/延迟基准</td><td>~3 min</td><td>发布前</td></tr>
+          <tr><td>发布验证</td><td><code>make test-release</code></td><td>完整 + 性能</td><td>~12 min</td><td>打 tag 前</td></tr>
+          <tr><td>本地发布</td><td><code>make test-release-local</code></td><td>精选核心场景</td><td>~2 min</td><td>打 tag 前</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="subsection">
+    <div class="subsection-title">测试目录结构</div>
+    <pre>tests/
+├── e2e/                   <span class="comment">← build tags: smoke, regression</span>
+├── blackbox/              <span class="comment">← p0/p1/p2 优先级分级</span>
+├── integration/           <span class="comment">← config_matrix, engine_matrix, media</span>
+├── performance/           <span class="comment">← build tag: performance</span>
+├── mocks/                 <span class="comment">← mock_agent.go, mock_platform.go</span>
+└── release_local/         <span class="comment">← 精选核心测试</span></pre>
+  </div>
+
+  <div class="subsection">
+    <div class="subsection-title">测试模式</div>
+    <div class="info-grid">
+      <div class="info-card" style="border-left:3px solid var(--accent)">
+        <strong>stub 模式</strong>
+        <div style="font-size:12.5px;color:var(--text-sec);line-height:1.6;margin-top:4px">不启动真实 Agent，使用 mock 实现</div>
+      </div>
+      <div class="info-card" style="border-left:3px solid var(--blue)">
+        <strong>channel 模拟</strong>
+        <div style="font-size:12.5px;color:var(--text-sec);line-height:1.6;margin-top:4px">Go channel 模拟事件流，验证 Engine 逻辑</div>
+      </div>
+      <div class="info-card" style="border-left:3px solid var(--green)">
+        <strong>Race detector</strong>
+        <div style="font-size:12.5px;color:var(--text-sec);line-height:1.6;margin-top:4px">CI 和 test-fast/test-full 启用 -race</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ Section 4 ══════════ -->
+<div class="section" id="sec4">
+  <div class="section-header">
+    <div class="section-num">4</div>
+    <div class="section-title">版本管理 <span class="tag tag-danger">CRITICAL</span></div>
+  </div>
+
+  <div class="subsection">
+    <div class="subsection-title">版本号格式</div>
+    <pre><span class="key">v</span>&lt;major&gt;.&lt;minor&gt;.&lt;patch&gt;-<span class="key">fork</span>.&lt;N&gt;</pre>
+    <p style="color:var(--text-sec);font-size:14px;line-height:1.7;margin-top:8px">
+      两处存储须同步：
+    </p>
+    <div class="info-grid">
+      <div class="info-card">
+        <div style="font-size:12px;color:var(--accent);margin-bottom:4px">Makefile</div>
+        <code>VERSION := v1.3.3</code>
+      </div>
+      <div class="info-card">
+        <div style="font-size:12px;color:var(--accent);margin-bottom:4px">npm/package.json</div>
+        <code>"version": "1.3.3"</code>
+      </div>
+    </div>
+    <p style="color:var(--text-sec);font-size:13px;margin-top:8px">
+      同步校验：<code>grep '^VERSION' Makefile</code> 与 <code>node -e "console.log(require('./npm/package.json').version)"</code>
+    </p>
+  </div>
+
+  <!-- fork.N 陷阱详解 -->
+  <div class="subsection">
+    <div class="subsection-title">fork.N 排序陷阱 <span class="tag tag-danger">TRAP</span></div>
+    <p style="color:var(--text-sec);font-size:14px;line-height:1.7;margin-bottom:12px">
+      <code>run.js</code> 在每次执行时调用 <code>isNewerOrEqual()</code> 判断本地二进制是否需要更新：
+    </p>
+    <div class="ver-flow">
+      <div class="ver-step">
+        <div class="ver-num">1</div>
+        <div>解析版本号：<code>parseVersion("1.3.3-fork.4")</code> → <code>{nums:[1,3,3], preTag:"fork", preNum:4}</code></div>
+      </div>
+      <div class="ver-step">
+        <div class="ver-num">2</div>
+        <div>比较 major.minor.patch 数字 → 大者胜出</div>
+      </div>
+      <div class="ver-step">
+        <div class="ver-num">3</div>
+        <div>数字相同 → 比较预发布标签：无预发布 &gt; 有预发布</div>
+      </div>
+      <div class="ver-step">
+        <div class="ver-num">4</div>
+        <div>都有预发布 → <strong style="color:var(--accent)">preTag 按字典序比较</strong>，然后比较 preNum</div>
+      </div>
+    </div>
+
+    <div class="two-col" style="margin-top:16px">
+      <div class="info-card" style="border-left:3px solid var(--green)">
+        <div style="font-size:14px;font-weight:600;color:var(--green);margin-bottom:8px">正确：fork &gt; beta</div>
+        <div style="font-size:13px;color:var(--text-sec);line-height:1.7">
+          本地 <code>v1.3.3-fork.4</code> vs 上游 <code>v1.3.3-beta.5</code><br>
+          字典序：<code>"fork" &gt; "beta"</code> (f &gt; b)<br>
+          → <code>isNewerOrEqual</code> 返回 <span style="color:var(--green)">true</span> → 不重新下载 ✓
+        </div>
+      </div>
+      <div class="info-card" style="border-left:3px solid var(--red)">
+        <div style="font-size:14px;font-weight:600;color:var(--red);margin-bottom:8px">陷阱：alpha &lt; beta</div>
+        <div style="font-size:13px;color:var(--text-sec);line-height:1.7">
+          本地 <code>v1.3.3-alpha.4</code> vs 上游 <code>v1.3.3-beta.5</code><br>
+          字典序：<code>"alpha" &lt; "beta"</code> (a &lt; b)<br>
+          → <code>isNewerOrEqual</code> 返回 <span style="color:var(--red)">false</span> → 自动下载覆盖 ✗
+        </div>
+      </div>
+    </div>
+    <div class="callout callout-danger" style="margin-top:12px">
+      <strong>违反后果：</strong><code>run.js</code> 自动下载上游版本覆盖本地二进制，导致 fork 功能丢失。<strong>必须确保 preTag 字典序始终大于上游可能使用的标签。</strong><code>fork</code> 满足此条件（f &gt; b）。
+    </div>
+  </div>
+
+  <!-- 版本修改检查清单 -->
+  <div class="subsection">
+    <div class="subsection-title">版本修改检查清单</div>
+    <div class="checklist">
+      <div class="check-item"><div class="check-box"></div>编辑 <code>Makefile</code> 中的 <code>VERSION</code></div>
+      <div class="check-item"><div class="check-box"></div>编辑 <code>npm/package.json</code> 中的 <code>version</code></div>
+      <div class="check-item"><div class="check-box"></div>两处版本号一致</div>
+      <div class="check-item"><div class="check-box"></div><code>preTag</code> 必须使用 <code>fork</code>，不可改为 <code>alpha</code>/<code>beta</code>/<code>rc</code></div>
+      <div class="check-item"><div class="check-box"></div>提交信息：<code>chore: bump version to vX.Y.Z-fork.N</code></div>
+      <div class="check-item"><div class="check-box"></div>打 tag：<code>git tag vX.Y.Z-fork.N</code></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ Section 5 ══════════ -->
+<div class="section" id="sec5">
+  <div class="section-header">
+    <div class="section-num">5</div>
+    <div class="section-title">发布流程</div>
+  </div>
+
+  <div class="subsection">
+    <div class="subsection-title">CI 流程</div>
+    <div class="ci-flow">
+      <div class="ci-node ci-trigger">git tag v*-fork.*</div>
+      <span class="ci-arrow">&rarr;</span>
+      <div class="ci-node ci-build">5 平台编译</div>
+      <span class="ci-arrow">&rarr;</span>
+      <div class="ci-node ci-release">GitHub Release</div>
+      <span class="ci-arrow">&rarr;</span>
+      <div class="ci-node ci-npm">npm.pkg.github.com</div>
+    </div>
+  </div>
+
+  <div class="subsection">
+    <div class="subsection-title">完整步骤</div>
+    <pre><span class="comment"># 1. 确认版本号同步</span>
+<span class="cmd">grep '^VERSION' Makefile && node -e "console.log(require('./npm/package.json').version)"</span>
+
+<span class="comment"># 2. 运行完整测试</span>
+<span class="cmd">make test-release</span>
+
+<span class="comment"># 3. 本地发布验证</span>
+<span class="cmd">make test-release-local</span>
+
+<span class="comment"># 4. 提交版本修改</span>
+<span class="cmd">git add Makefile npm/package.json && git commit -m "chore: bump version"</span>
+
+<span class="comment"># 5. 打 tag</span>
+<span class="cmd">git tag vX.Y.Z-fork.N</span>
+
+<span class="comment"># 6. 推送</span>
+<span class="cmd">git push origin &lt;branch&gt; --tags</span></pre>
+  </div>
+
+  <div class="subsection">
+    <div class="subsection-title">三阶段 CI Job</div>
+    <div class="info-grid">
+      <div class="info-card" style="border-left:3px solid var(--accent)">
+        <strong>build-and-release</strong>
+        <div style="font-size:12.5px;color:var(--text-sec);line-height:1.6;margin-top:4px">5 平台矩阵编译（Go 1.24 + Node 20 + pnpm 9）<br>前端构建 → 二进制编译 → 归档打包 → artifact 上传</div>
+      </div>
+      <div class="info-card" style="border-left:3px solid var(--green)">
+        <strong>github-release</strong>
+        <div style="font-size:12.5px;color:var(--text-sec);line-height:1.6;margin-top:4px">下载所有 artifact → 生成 SHA256 校验和<br>创建 GitHub Release（自动 release notes）</div>
+      </div>
+      <div class="info-card" style="border-left:3px solid var(--yellow)">
+        <strong>publish-npm</strong>
+        <div style="font-size:12.5px;color:var(--text-sec);line-height:1.6;margin-top:4px">解压 Windows 二进制到 npm/bin/<br>同步 package.json 版本 → npm publish 到 GitHub Packages</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="subsection">
+    <div class="subsection-title">npm 包结构</div>
+    <pre><span class="key">@game1991/cc-connect</span>
+├── package.json       <span class="comment">← bin.cc-connect → run.js</span>
+├── install.js         <span class="comment">← postinstall 钩子，下载二进制到 bin/</span>
+├── run.js             <span class="comment">← 版本检查 + 代理执行</span>
+├── README.md
+└── bin/
+    ├── cc-connect     <span class="comment">← Linux/macOS 二进制</span>
+    └── cc-connect.exe <span class="comment">← Windows 二进制</span></pre>
+    <div class="callout callout-info" style="margin-top:8px">
+      <strong>run.js 执行流程：</strong>解析 EXPECTED_VER → 检查 bin/ 下二进制 → 执行 <code>--version</code> 获取已安装版本 → <code>isNewerOrEqual()</code> 比较版本 → 如需更新则调 install.js → <code>execFileSync</code> 代理执行。
+    </div>
+  </div>
+
+  <div class="subsection">
+    <div class="subsection-title">双源分发</div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>源</th><th>地址</th><th>面向</th><th>优先级</th></tr></thead>
+        <tbody>
+          <tr><td>GitHub</td><td><code>github.com/game1991/cc-connect</code></td><td>全球</td><td>主</td></tr>
+          <tr><td>Gitee</td><td><code>gitee.com/game1991/cc-connect</code></td><td>中国</td><td>备</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p style="color:var(--text-sec);font-size:13px;margin-top:6px">
+      配置 <code>prefer_gitee = true</code> 切换优先级。
+    </p>
+  </div>
+</div>
+
+<!-- ══════════ Section 6 ══════════ -->
+<div class="section" id="sec6">
+  <div class="section-header">
+    <div class="section-num">6</div>
+    <div class="section-title">上游同步工作流</div>
+  </div>
+
+  <div class="subsection">
+    <div class="subsection-title">添加 upstream remote</div>
+    <pre><span class="cmd">git remote add upstream https://github.com/chenhg5/cc-connect.git</span></pre>
+  </div>
+
+  <div class="subsection">
+    <div class="subsection-title">fetch + merge</div>
+    <pre><span class="cmd">git fetch upstream</span>
+<span class="cmd">git merge upstream/main</span>
+<span class="cmd">make build && go test ./...</span></pre>
+  </div>
+
+  <div class="subsection">
+    <div class="subsection-title">合并后必查项</div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>检查项</th><th>说明</th></tr></thead>
+        <tbody>
+          <tr><td><code>npm/install.js</code></td><td>确认下载源指向 fork 仓库</td></tr>
+          <tr><td><code>npm/run.js</code></td><td>确认 <code>isNewerOrEqual</code> 逻辑未被覆盖</td></tr>
+          <tr><td><code>daemon/manager.go</code></td><td>确认 Meta 结构体未被修改</td></tr>
+          <tr><td><code>Makefile VERSION</code></td><td>确认版本号未被覆盖</td></tr>
+          <tr><td><code>package.json</code></td><td>确认 name/repository/publishConfig 指向 fork</td></tr>
+          <tr><td><code>.github/workflows/</code></td><td>确认 CI 仍为 fork 版本</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="subsection">
+    <div class="subsection-title">冲突解决策略</div>
+    <div class="info-grid">
+      <div class="info-card" style="border-left:3px solid var(--accent)">
+        <strong>版本号冲突</strong>
+        <div style="font-size:12.5px;color:var(--text-sec);line-height:1.6;margin-top:4px">保留 fork 版本号</div>
+      </div>
+      <div class="info-card" style="border-left:3px solid var(--blue)">
+        <strong>CI 工作流冲突</strong>
+        <div style="font-size:12.5px;color:var(--text-sec);line-height:1.6;margin-top:4px">保留 fork 的 tag pattern 和 npm 配置</div>
+      </div>
+      <div class="info-card" style="border-left:3px solid var(--green)">
+        <strong>功能代码冲突</strong>
+        <div style="font-size:12.5px;color:var(--text-sec);line-height:1.6;margin-top:4px">优先保留上游修复，叠回 fork 定制</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ Section 7 ══════════ -->
+<div class="section" id="sec7">
+  <div class="section-header">
+    <div class="section-num">7</div>
+    <div class="section-title">平台特定开发笔记</div>
+  </div>
+
+  <div class="subsection">
+    <div class="subsection-title">Windows</div>
+    <div class="info-grid">
+      <div class="info-card" style="border-left:3px solid var(--yellow)">
+        <strong>无 pty</strong>
+        <div style="font-size:12.5px;color:var(--text-sec);line-height:1.6;margin-top:4px">iFlow 使用 creack/pty，Windows 不支持，跳过 pty 测试</div>
+      </div>
+      <div class="info-card" style="border-left:3px solid var(--yellow)">
+        <strong>schtasks</strong>
+        <div style="font-size:12.5px;color:var(--text-sec);line-height:1.6;margin-top:4px">使用任务计划程序而非 systemd</div>
+      </div>
+      <div class="info-card" style="border-left:3px solid var(--red)">
+        <strong>.old 备份</strong>
+        <div style="font-size:12.5px;color:var(--text-sec);line-height:1.6;margin-top:4px">自更新时当前二进制重命名为 <code>.old</code></div>
+      </div>
+      <div class="info-card" style="border-left:3px solid var(--red)">
+        <strong>无 syscall.Exec</strong>
+        <div style="font-size:12.5px;color:var(--text-sec);line-height:1.6;margin-top:4px">不支持进程替换，使用 <code>execFileSync</code> 代理</div>
+      </div>
+      <div class="info-card" style="border-left:3px solid var(--red)">
+        <strong>.cmd 弹框</strong>
+        <div style="font-size:12.5px;color:var(--text-sec);line-height:1.6;margin-top:4px"><code>ensureCmdFileAssociation</code> 创建空 <code>OpenWithList</code> 键导致弹框，<strong>已移除</strong></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="subsection">
+    <div class="subsection-title">macOS</div>
+    <div class="info-grid">
+      <div class="info-card" style="border-left:3px solid var(--blue)">
+        <strong>quarantine</strong>
+        <div style="font-size:12.5px;color:var(--text-sec);line-height:1.6;margin-top:4px">下载的二进制可能被 Gatekeeper 隔离，需 <code>xattr -cr cc-connect</code></div>
+      </div>
+      <div class="info-card" style="border-left:3px solid var(--blue)">
+        <strong>launchd</strong>
+        <div style="font-size:12.5px;color:var(--text-sec);line-height:1.6;margin-top:4px">daemon 使用 <code>~/Library/LaunchAgents/com.game1991.cc-connect.plist</code></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="subsection">
+    <div class="subsection-title">Linux</div>
+    <div class="info-grid">
+      <div class="info-card" style="border-left:3px solid var(--green)">
+        <strong>systemd</strong>
+        <div style="font-size:12.5px;color:var(--text-sec);line-height:1.6;margin-top:4px">daemon 使用 <code>~/.config/systemd/user/cc-connect.service</code></div>
+      </div>
+      <div class="info-card" style="border-left:3px solid var(--green)">
+        <strong>run_as_user</strong>
+        <div style="font-size:12.5px;color:var(--text-sec);line-height:1.6;margin-top:4px">通过 sudo 以指定用户身份运行 Agent，含审计日志和预检探针</div>
+      </div>
+      <div class="info-card" style="border-left:3px solid var(--green)">
+        <strong>Unix socket</strong>
+        <div style="font-size:12.5px;color:var(--text-sec);line-height:1.6;margin-top:4px">API Server 使用 <code>~/.cc-connect/run/api.sock</code></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ Section 8 ══════════ -->
+<div class="section" id="sec8">
+  <div class="section-header">
+    <div class="section-num">8</div>
+    <div class="section-title">开发环境搭建</div>
+  </div>
+
+  <div class="subsection">
+    <div class="subsection-title">前置依赖</div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>依赖</th><th>最低版本</th><th>用途</th></tr></thead>
+        <tbody>
+          <tr><td>Go</td><td>1.23+</td><td>后端编译</td></tr>
+          <tr><td>Node.js + npm</td><td>18+</td><td>前端构建 + npm 分发</td></tr>
+          <tr><td>pnpm</td><td>9+</td><td>前端依赖锁定（可选）</td></tr>
+          <tr><td>Git</td><td>任意</td><td>版本控制</td></tr>
+          <tr><td>ffmpeg</td><td>任意</td><td>语音消息处理（可选）</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="subsection">
+    <div class="subsection-title">首次构建</div>
+    <pre><span class="comment"># 克隆</span>
+<span class="cmd">git clone https://github.com/game1991/cc-connect.git</span>
+<span class="cmd">cd cc-connect</span>
+
+<span class="comment"># 全量编译（含 Web UI）</span>
+<span class="cmd">make build</span>
+
+<span class="comment"># 无 Web UI</span>
+<span class="cmd">make build-noweb</span>
+
+<span class="comment"># 运行</span>
+<span class="cmd">./cc-connect --version</span></pre>
+  </div>
+
+  <div class="subsection">
+    <div class="subsection-title">前端开发模式</div>
+    <pre><span class="cmd">cd web && pnpm install && pnpm dev</span>
+<span class="comment"># 浏览器访问 http://localhost:9821</span>
+<span class="comment"># 同时启动 Go 后端连接 Vite 代理</span></pre>
+  </div>
+
+  <div class="subsection">
+    <div class="subsection-title">IDE 建议</div>
+    <div class="info-grid">
+      <div class="info-card" style="border-left:3px solid var(--blue)">
+        <strong>VSCode</strong>
+        <div style="font-size:12.5px;color:var(--text-sec);line-height:1.6;margin-top:4px">Go 扩展 + ESLint</div>
+      </div>
+      <div class="info-card" style="border-left:3px solid var(--accent)">
+        <strong>GoLand</strong>
+        <div style="font-size:12.5px;color:var(--text-sec);line-height:1.6;margin-top:4px">原生支持，推荐 Engine 调试</div>
+      </div>
+      <div class="info-card" style="border-left:3px solid var(--green)">
+        <strong>调试</strong>
+        <div style="font-size:12.5px;color:var(--text-sec);line-height:1.6;margin-top:4px"><code>dlv debug ./cmd/cc-connect -- --config path/to/config.toml</code></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ Section 9 ══════════ -->
+<div class="section" id="sec9">
+  <div class="section-header">
+    <div class="section-num">9</div>
+    <div class="section-title">代码风格与提交规范</div>
+  </div>
+
+  <div class="subsection">
+    <div class="subsection-title">Go 风格规则</div>
+    <pre><span class="comment"># 工具检查</span>
+<span class="cmd">gofmt -w .</span>
+<span class="cmd">go vet ./...</span>
+<span class="cmd">golangci-lint run ./...</span></pre>
+    <ul style="color:var(--text-sec);font-size:13.5px;line-height:2;margin-top:8px;padding-left:20px">
+      <li>使用 <code>strings.EqualFold</code> 进行大小写不敏感比较</li>
+      <li><code>init()</code> 仅用于插件注册</li>
+      <li>函数超过 ~80 行时提取辅助函数</li>
+      <li>命名：<code>New()</code> 构造、<code>Get/Set</code> 访问、避免 <code>feishu.FeishuPlatform</code></li>
+    </ul>
+  </div>
+
+  <div class="subsection">
+    <div class="subsection-title">错误处理</div>
+    <pre><span class="comment">// 正确：包装错误上下文</span>
+<span class="key">return</span> fmt.Errorf(<span class="str">"feishu: reply card: %w"</span>, err)
+
+<span class="comment">// 错误：静默吞掉</span>
+<span class="key">if</span> err != <span class="key">nil</span> {
+    <span class="comment">// 什么也不做 ← 禁止</span>
+}
+
+<span class="comment">// 日志遮蔽：使用 slog + RedactToken</span>
+slog.Error(<span class="str">"send failed"</span>, <span class="str">"token"</span>, core.RedactToken(token))</pre>
+  </div>
+
+  <div class="subsection">
+    <div class="subsection-title">并发安全</div>
+    <ul style="color:var(--text-sec);font-size:13.5px;line-height:2;padding-left:20px">
+      <li>Agent session 用 <code>sync.Mutex</code> 或 <code>atomic</code> 保护共享状态</li>
+      <li>使用 <code>context.Context</code> 传播取消</li>
+      <li>Channel 须明确所有权</li>
+      <li>一次性清理用 <code>sync.Once</code>（如 <code>pendingPermission.resolve()</code>）</li>
+    </ul>
+  </div>
+
+  <div class="subsection">
+    <div class="subsection-title">i18n</div>
+    <pre><span class="comment">// 1. 定义消息键</span>
+<span class="key">const</span> MsgKeyPermissionDenied = <span class="str">"permission.denied"</span>
+
+<span class="comment">// 2. 添加翻译</span>
+<span class="comment">// core/i18n.go — EN, ZH, ZH-TW, JA, ES</span>
+
+<span class="comment">// 3. 使用</span>
+e.i18n.T(MsgKeyPermissionDenied)
+e.i18n.Tf(MsgKeyPermissionDenied, <span class="str">"tool"</span>, toolName)</pre>
+  </div>
+
+  <div class="subsection">
+    <div class="subsection-title">提交信息格式</div>
+    <pre><span class="key">&lt;type&gt;</span>(<span class="key">&lt;scope&gt;</span>): <span class="str">&lt;description&gt;</span>
+
+<span class="comment"># type: feat / fix / refactor / docs / chore / test / ci</span>
+<span class="comment"># scope: engine / feishu / claudecode / daemon / config / etc</span>
+
+<span class="comment"># 示例</span>
+<span class="key">feat</span>(<span class="key">engine</span>): <span class="str">add multi-workspace channel binding</span>
+<span class="key">fix</span>(<span class="key">dingtalk</span>): <span class="str">handle AI card degradation to plain text</span>
+<span class="key">docs</span>: <span class="str">restructure fork-guide into product + developer guides</span>
+<span class="key">chore</span>: <span class="str">bump version to v1.3.3-fork.11</span></pre>
+  </div>
+
+  <div class="subsection">
+    <div class="subsection-title">Pre-Commit 清单</div>
+    <div class="checklist">
+      <div class="check-item"><div class="check-box"></div>构建通过：<code>go build ./...</code></div>
+      <div class="check-item"><div class="check-box"></div>测试通过：<code>go test ./...</code></div>
+      <div class="check-item"><div class="check-box"></div>Core 无硬编码：<code>grep -r 'Name() == "feishu"' core/</code>（应无结果）</div>
+      <div class="check-item"><div class="check-box"></div>i18n 完整：所有新字符串有 5 语言翻译</div>
+      <div class="check-item"><div class="check-box"></div>无密钥泄露：源码中不含 API Key / Token / 密码</div>
+    </div>
+  </div>
+</div>
+
+</div><!-- end container -->
+
+<!-- ══════════ Footer ══════════ -->
+<div class="footer">
+  @game1991/cc-connect &middot; MIT License &middot; 2026
+</div>
+
+</body>
+</html>

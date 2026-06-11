@@ -1,0 +1,156 @@
+name: Fork Release
+
+on:
+  push:
+    tags:
+      - 'v*-fork.*'
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - goos: linux
+            goarch: amd64
+          - goos: linux
+            goarch: arm64
+          - goos: darwin
+            goarch: amd64
+          - goos: darwin
+            goarch: arm64
+          - goos: windows
+            goarch: amd64
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+
+      - name: Build web frontend
+        run: |
+          cd web
+          pnpm install --frozen-lockfile
+          pnpm build
+
+      - name: Build Go binary (with web)
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: 0
+        run: |
+          VERSION=${GITHUB_REF_NAME}
+          COMMIT=$(git rev-parse --short HEAD)
+          BUILD_TIME=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
+          EXT=${{ matrix.goos == 'windows' && '.exe' || '' }}
+          OUT=dist/cc-connect-${VERSION}-${{ matrix.goos }}-${{ matrix.goarch }}${EXT}
+          mkdir -p dist
+          go build -ldflags "-s -w \
+            -X main.version=${VERSION} \
+            -X main.commit=${COMMIT} \
+            -X main.buildTime=${BUILD_TIME}" \
+            -o ${OUT} ./cmd/cc-connect
+
+      - name: Package archive
+        id: package
+        run: |
+          VERSION=${GITHUB_REF_NAME}
+          EXT=${{ matrix.goos == 'windows' && '.zip' || '.tar.gz' }}
+          BASENAME=cc-connect-${VERSION}-${{ matrix.goos }}-${{ matrix.goarch }}
+          cd dist
+          if [ "${{ matrix.goos }}" = "windows" ]; then
+            zip ${BASENAME}.zip ${BASENAME}.exe
+          else
+            tar czf ${BASENAME}.tar.gz ${BASENAME}
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cc-connect-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: dist/cc-connect-*
+
+  github-release:
+    needs: build-and-release
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Generate checksums
+        run: |
+          cd dist
+          sha256sum *.zip *.tar.gz > checksums.txt
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: cc-connect ${{ github.ref_name }}
+          draft: false
+          generate_release_notes: true
+          files: |
+            dist/*.zip
+            dist/*.tar.gz
+            dist/checksums.txt
+
+  publish-npm:
+    needs: build-and-release
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Extract Windows binary for npm package
+        run: |
+          mkdir -p npm/bin
+          cd dist
+          unzip -o cc-connect-*-windows-amd64.zip
+          mv cc-connect-*-windows-amd64.exe ../npm/bin/cc-connect.exe
+          cd ..
+          # Also extract Linux/macOS binaries for universal npm install.js
+          for f in dist/*.tar.gz; do
+            tar xzf "$f" -C npm/bin/ --strip-components=0 || true
+          done
+          ls -la npm/bin/
+
+      - name: Sync package.json version to tag
+        working-directory: npm
+        run: |
+          TAG_VER="${GITHUB_REF_NAME#v}"
+          node -e "const p=require('./package.json');p.version='$TAG_VER';require('fs').writeFileSync('package.json',JSON.stringify(p,null,2)+'\n')"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: https://npm.pkg.github.com
+
+      - name: Publish to GitHub Packages
+        working-directory: npm
+        run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -125,6 +125,8 @@ type bridgeCardAction struct {
 	Action     string `json:"action"`
 	ReplyCtx   string `json:"reply_ctx"`
 	Project    string `json:"project,omitempty"`
+	UserID     string `json:"user_id,omitempty"`
+	UserName   string `json:"user_name,omitempty"`
 }
 
 type bridgePreviewAck struct {
@@ -969,20 +971,20 @@ func (a *bridgeAdapter) handleCardAction(raw json.RawMessage) {
 		default:
 			return
 		}
-		a.dispatchAsPermissionResponse(ref, ca.SessionKey, ca.ReplyCtx, responseText)
+			a.dispatchAsPermissionResponse(ref, ca.SessionKey, ca.ReplyCtx, responseText)
 		return
 	}
 
 	// askq: — AskUserQuestion answer; forward as a regular message
 	if strings.HasPrefix(ca.Action, "askq:") {
-		a.dispatchAsMessage(ref, ca.SessionKey, ca.ReplyCtx, ca.Action)
+		a.dispatchAsMessage(ref, ca.SessionKey, ca.ReplyCtx, ca.Action, ca.UserID, ca.UserName)
 		return
 	}
 
 	// cmd: — command shortcut from a card button; forward as a message
 	if strings.HasPrefix(ca.Action, "cmd:") {
 		cmdText := strings.TrimPrefix(ca.Action, "cmd:")
-		a.dispatchAsMessage(ref, ca.SessionKey, ca.ReplyCtx, cmdText)
+		a.dispatchAsMessage(ref, ca.SessionKey, ca.ReplyCtx, cmdText, ca.UserID, ca.UserName)
 		return
 	}
 
@@ -1011,15 +1013,21 @@ func (a *bridgeAdapter) handleCardAction(raw json.RawMessage) {
 
 // dispatchAsMessage converts a card action into a regular user message
 // and dispatches it to the engine's message handler.
-func (a *bridgeAdapter) dispatchAsMessage(ref *bridgeEngineRef, sessionKey, replyCtx, content string) {
+func (a *bridgeAdapter) dispatchAsMessage(ref *bridgeEngineRef, sessionKey, replyCtx, content, userID, userName string) {
 	if ref.platform.handler == nil {
 		return
+	}
+	if userID == "" {
+		userID = "bridge-user"
+	}
+	if userName == "" {
+		userName = userID
 	}
 	msg := &Message{
 		SessionKey: sessionKey,
 		Platform:   a.platform,
-		UserID:     "web-admin",
-		UserName:   "Web Admin",
+		UserID:     userID,
+		UserName:   userName,
 		Content:    content,
 		ReplyCtx:   newBridgeReplyCtx(a, sessionKey, replyCtx),
 	}

@@ -524,7 +524,9 @@ cc-connect send --tts "你好"
 
 ## 📚 文档
 
-- [使用指南](docs/usage.zh-CN.md) — 完整功能文档
+- [产品指南](docs/product-guide.zh-CN.md) — 完整特性文档、配置参考、运维手册
+- [开发者指南](docs/developer-guide.zh-CN.md) — 架构、构建、测试、版本管理、发布流程
+- [使用指南](docs/usage.zh-CN.md) — 斜杠命令与功能详解
 - [INSTALL.md](INSTALL.md) — AI Agent 友好的安装指南
 - [config.example.toml](config.example.toml) — 配置模板
 - [CONTRIBUTING.md](CONTRIBUTING.md) — Issue / PR 提交流程与贡献说明

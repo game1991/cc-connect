@@ -1,26 +1,38 @@
-# cc-connect
+# @game1991/cc-connect
 
-Bridge local AI coding agents (Claude Code, Cursor, Gemini CLI, Codex) to messaging platforms (Feishu/Lark, DingTalk, Slack, Telegram, Discord, LINE, WeChat Work).
-
-Chat with your AI dev assistant from anywhere.
+Fork of cc-connect with role-based tool permissions and daemon fixes.
 
 ## Install
 
+### Option 1: GitHub Packages (recommended for teams)
+
 ```bash
-npm install -g cc-connect
+# Configure npm to use GitHub Packages for this scope
+echo "@game1991:registry=https://npm.pkg.github.com" >> ~/.npmrc
+
+# Install (requires GitHub PAT with read:packages scope)
+npm install -g @game1991/cc-connect
 ```
+
+### Option 2: GitHub direct install
+
+```bash
+npm install -g github:game1991/cc-connect#feat/role-based-tool-permissions
+```
+
+### Option 3: Manual binary replace
+
+See [docs/fork-verify-flow.html](../docs/fork-verify-flow.html) for the full tutorial.
 
 ## Usage
 
 ```bash
-# Create config
 cc-connect --version
-
-# Edit config.toml, then run
-cc-connect
-cc-connect -config /path/to/config.toml
+cc-connect daemon install
+cc-connect daemon status
 ```
 
 ## Documentation
 
-See full documentation at: https://github.com/chenhg5/cc-connect
+- Fork: https://github.com/game1991/cc-connect
+- Upstream: https://github.com/chenhg5/cc-connect

@@ -11,7 +11,9 @@ import (
 // UserRole holds the resolved policy for a single role.
 type UserRole struct {
 	Name         string
-	DisabledCmds map[string]bool // resolved command IDs (including "*" wildcard)
+	Mode         string           // agent permission mode for this role (e.g. "yolo", "dontAsk", "default")
+	AllowedTools map[string]bool  // allowed_tools set for this role (only effective with dontAsk mode)
+	DisabledCmds map[string]bool  // resolved command IDs (including "*" wildcard)
 	RateLimitCfg *RateLimitCfg   // nil = no role-specific limit; use global fallback
 }
 
@@ -19,6 +21,8 @@ type UserRole struct {
 type RoleInput struct {
 	Name             string
 	UserIDs          []string
+	Mode             string
+	AllowedTools     []string
 	DisabledCommands []string
 	RateLimit        *RateLimitCfg
 }
@@ -70,6 +74,8 @@ func (m *UserRoleManager) Configure(defaultRole string, roles []RoleInput) {
 	for _, ri := range sorted {
 		role := &UserRole{
 			Name:         ri.Name,
+			Mode:         ri.Mode,
+			AllowedTools: sliceToSet(ri.AllowedTools),
 			DisabledCmds: resolveDisabledCmds(ri.DisabledCommands),
 			RateLimitCfg: ri.RateLimit,
 		}
@@ -183,6 +189,17 @@ func (m *UserRoleManager) Snapshot() map[string]any {
 			"user_ids":          userIDs,
 			"disabled_commands": disabledCmds,
 		}
+		if role.Mode != "" {
+			roleData["mode"] = role.Mode
+		}
+		if len(role.AllowedTools) > 0 {
+			tools := make([]string, 0, len(role.AllowedTools))
+			for t := range role.AllowedTools {
+				tools = append(tools, t)
+			}
+			sort.Strings(tools)
+			roleData["allowed_tools"] = tools
+		}
 		if role.RateLimitCfg != nil {
 			roleData["rate_limit"] = map[string]any{
 				"max_messages": role.RateLimitCfg.MaxMessages,
@@ -246,4 +263,15 @@ func (m *UserRoleManager) Stop() {
 	for _, rl := range m.limiters {
 		rl.Stop()
 	}
+}
+
+// sliceToSet converts a string slice to a map[string]bool set.
+func sliceToSet(items []string) map[string]bool {
+	s := make(map[string]bool, len(items))
+	for _, v := range items {
+		if v != "" {
+			s[v] = true
+		}
+	}
+	return s
 }

@@ -307,15 +307,19 @@ func captureStderr(t *testing.T, fn func()) string {
 		os.Stderr = old
 	}()
 
+	var buf bytes.Buffer
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		io.Copy(&buf, r)
+	}()
+
 	fn()
 
 	if err := w.Close(); err != nil {
 		t.Fatalf("close writer: %v", err)
 	}
-	var buf bytes.Buffer
-	if _, err := io.Copy(&buf, r); err != nil {
-		t.Fatalf("copy stderr: %v", err)
-	}
+	<-done
 	if err := r.Close(); err != nil {
 		t.Fatalf("close reader: %v", err)
 	}
