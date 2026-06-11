@@ -15,12 +15,13 @@ func normalizeWorkspacePath(path string) string {
 	cleaned := filepath.Clean(path)
 	resolved, err := filepath.EvalSymlinks(cleaned)
 	if err != nil {
-		return cleaned
+		return filepath.ToSlash(cleaned)
 	}
-	if resolved != path {
-		slog.Debug("workspace path normalized", "original", path, "normalized", resolved)
+	result := filepath.ToSlash(resolved)
+	if result != filepath.ToSlash(path) {
+		slog.Debug("workspace path normalized", "original", path, "normalized", result)
 	}
-	return resolved
+	return result
 }
 
 // workspaceState holds the runtime state for a single workspace.

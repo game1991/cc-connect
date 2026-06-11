@@ -646,6 +646,7 @@ const (
 	MsgWsInitInvalidTarget      MsgKey = "ws_init_invalid_target"
 	MsgWsInitLocalPathsDisabled MsgKey = "ws_init_local_paths_disabled"
 	MsgBackgroundAutoDenied     MsgKey = "background_auto_denied"
+	MsgPermIdentityDenied       MsgKey = "perm_identity_denied"
 )
 
 var messages = map[MsgKey]map[Language]string{
@@ -807,6 +808,13 @@ var messages = map[MsgKey]map[Language]string{
 		LangJapanese:           "⚠️ バックグラウンドタスクがツール `%s` の権限を要求しましたが、自動的に拒否されました（アクティブなユーザーターンなし）。メッセージを送信するか `/yolo` を使用して今後のリクエストを承認してください。",
 		LangSpanish:            "⚠️ Una tarea en segundo plano solicitó permiso para `%s` pero se denegó automáticamente (sin turno de usuario activo). Envía un mensaje o usa `/yolo` para aprobar solicitudes futuras.",
 	},
+	MsgPermIdentityDenied: {
+		LangEnglish:            "⚠️ Only the requesting user or an admin can approve this permission request.",
+		LangChinese:            "⚠️ 只有请求用户或管理员才能批准此权限请求。",
+		LangTraditionalChinese: "⚠️ 只有請求使用者或管理員才能批准此權限請求。",
+		LangJapanese:           "⚠️ 要求したユーザーまたは管理者のみがこの権限リクエストを承認できます。",
+		LangSpanish:            "⚠️ Solo el usuario solicitante o un administrador pueden aprobar esta solicitud de permiso.",
+		},
 	MsgSessionNotFound: {
 		LangEnglish:            "⚠️ Session expired. Use /new to start a fresh conversation.",
 		LangChinese:            "⚠️ 会话已过期，请发送 /new 开始新会话",

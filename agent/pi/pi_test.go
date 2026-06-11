@@ -329,8 +329,9 @@ func TestSettingsPath(t *testing.T) {
 	}()
 
 	t.Setenv("PI_CODING_AGENT_DIR", "/custom")
-	if p := settingsPath(); p != "/custom/settings.json" {
-		t.Errorf("settingsPath() = %q, want /custom/settings.json", p)
+	want := filepath.Join("/custom", "settings.json")
+	if p := settingsPath(); p != want {
+		t.Errorf("settingsPath() = %q, want %q", p, want)
 	}
 }
 
@@ -1363,7 +1364,7 @@ func TestPiSession_ReadLoopWithEcho(t *testing.T) {
 	line1, _ := json.Marshal(sessionEvent)
 	line2, _ := json.Marshal(textEvent)
 
-	s, err := newPiSession(context.Background(), "sh", "/tmp", "", "default", "", "", nil)
+	s, err := newPiSession(context.Background(), "sh", t.TempDir(), "", "default", "", "", nil)
 	if err != nil {
 		t.Fatalf("newPiSession: %v", err)
 	}
@@ -1382,7 +1383,7 @@ func TestPiSession_ReadLoopWithEcho(t *testing.T) {
 	// Instead, test readLoop directly.
 	ctx := s.ctx
 	cmd := exec.CommandContext(ctx, "sh", "-c", script)
-	cmd.Dir = "/tmp"
+	cmd.Dir = s.workDir
 
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {

@@ -21,13 +21,14 @@ const (
 )
 
 type Config struct {
-	BinaryPath        string
-	WorkDir           string
-	LogFile           string
-	LogMaxSize        int64
-	LogMaxBackups     int
-	EnvPATH           string            // capture user's PATH so agents are accessible
-	EnvExtra          map[string]string // selected environment variables needed by the service runtime
+	BinaryPath    string
+	WorkDir       string
+	ConfigFile    string // explicit config file path (when --config is used)
+	LogFile       string
+	LogMaxSize    int64
+	LogMaxBackups int
+	EnvPATH       string            // capture user's PATH so agents are accessible
+	EnvExtra      map[string]string // selected environment variables needed by the service runtime
 	// NoCaptureSecrets, when true, restricts the install-time env capture
 	// to proxy-related variables only and skips both the config.toml ${ENV}
 	// placeholder scan and any extension discoverers registered via
@@ -74,12 +75,13 @@ func DefaultDataDir() string {
 // etc. can locate the log file without parsing service definitions.
 
 type Meta struct {
-	LogFile      string `json:"log_file"`
-	LogMaxSize   int64  `json:"log_max_size"`
-	LogMaxBackups int   `json:"log_max_backups"`
-	WorkDir      string `json:"work_dir"`
-	BinaryPath   string `json:"binary_path"`
-	InstalledAt  string `json:"installed_at"`
+	LogFile       string `json:"log_file"`
+	LogMaxSize    int64  `json:"log_max_size"`
+	LogMaxBackups int    `json:"log_max_backups"`
+	WorkDir       string `json:"work_dir"`
+	BinaryPath    string `json:"binary_path"`
+	ConfigFile    string `json:"config_file,omitempty"`
+	InstalledAt   string `json:"installed_at"`
 }
 
 func metaPath() string {
@@ -94,7 +96,7 @@ func SaveMeta(m *Meta) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(metaPath(), data, 0644)
+	return os.WriteFile(metaPath(), data, 0600)
 }
 
 func LoadMeta() (*Meta, error) {

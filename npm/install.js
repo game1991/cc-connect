@@ -13,8 +13,8 @@ const PACKAGE = require("./package.json");
 const VERSION = `v${PACKAGE.version}`;
 const NAME = "cc-connect";
 
-const GITHUB_REPO = "chenhg5/cc-connect";
-const GITEE_REPO = "cg33/cc-connect";
+const GITHUB_REPO = "game1991/cc-connect";
+const GITEE_REPO = "game1991/cc-connect";
 
 const PLATFORM_MAP = {
   darwin: "darwin",

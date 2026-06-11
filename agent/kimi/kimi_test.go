@@ -3,6 +3,7 @@ package kimi
 import (
 	"context"
 	"os/exec"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -146,13 +147,15 @@ func TestAgentStartSession(t *testing.T) {
 func TestAgentMemoryAndSkill(t *testing.T) {
 	a := &Agent{workDir: "/tmp/my-project", activeIdx: -1}
 
-	assert.Equal(t, "/tmp/my-project/AGENTS.md", a.ProjectMemoryFile())
+	absDir, err := filepath.Abs("/tmp/my-project")
+	require.NoError(t, err)
+	assert.Equal(t, filepath.Join(absDir, "AGENTS.md"), a.ProjectMemoryFile())
 	assert.NotEmpty(t, a.GlobalMemoryFile())
 
 	skillDirs := a.SkillDirs()
 	require.Len(t, skillDirs, 2)
-	assert.Contains(t, skillDirs[0], ".kimi/skills")
-	assert.Contains(t, skillDirs[1], ".kimi/skills")
+	assert.Contains(t, filepath.ToSlash(skillDirs[0]), ".kimi/skills")
+	assert.Contains(t, filepath.ToSlash(skillDirs[1]), ".kimi/skills")
 }
 
 func TestAgentAvailableModels(t *testing.T) {

@@ -20,6 +20,8 @@ import (
 	"github.com/chenhg5/cc-connect/core"
 )
 
+var sessionSeq uint64
+
 // piSession manages a multi-turn pi coding agent conversation.
 // Each Send() spawns `pi --mode json -p <prompt>`.
 // Subsequent turns use `--session <sessionID>` to resume.
@@ -63,7 +65,7 @@ func newPiSession(ctx context.Context, cmd, workDir, model, mode, thinking, resu
 		thinking: thinking,
 		extraEnv: extraEnv,
 		attachDir: filepath.Join(workDir, ".cc-connect", "attachments",
-			fmt.Sprintf("pi_%d", time.Now().UnixNano())),
+			fmt.Sprintf("pi_%d_%d", time.Now().UnixNano(), atomic.AddUint64(&sessionSeq, 1))),
 		events:   make(chan core.Event, 64),
 		ctx:      sessionCtx,
 		cancel:   cancel,

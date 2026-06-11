@@ -11,6 +11,9 @@ import (
 )
 
 func TestNew_ParsesRunAsUserAndRunAsEnv(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("claude CLI not on PATH in this test env (use kscc on Windows)")
+	}
 	opts := map[string]any{
 		"work_dir":    "/tmp/claudecode-test",
 		"run_as_user": "partseeker-coder",
@@ -33,6 +36,11 @@ func TestNew_ParsesRunAsUserAndRunAsEnv(t *testing.T) {
 }
 
 func TestNew_RunAsUserSkipsClaudeLookPath(t *testing.T) {
+	// On Windows, IsolationMode() always returns false, so LookPath is never
+	// skipped regardless of run_as_user. Only test this on Unix.
+	if runtime.GOOS == "windows" {
+		t.Skip("run_as_user LookPath bypass is Unix-only (IsolationMode=false on Windows)")
+	}
 	// With run_as_user set, the supervisor's PATH lookup for "claude" is
 	// skipped because the target user's PATH is what matters. Verify that
 	// New() doesn't fail even when claude isn't on this test process's PATH.
