@@ -3,6 +3,7 @@ package claudecode
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -57,6 +58,9 @@ func TestSkillDirs_FallsBackToHomeClaudeDir(t *testing.T) {
 	}
 	t.Setenv("HOME", home)
 	t.Setenv("CLAUDE_CONFIG_DIR", "")
+	if runtime.GOOS == "windows" {
+		t.Setenv("USERPROFILE", home)
+	}
 
 	a := &Agent{workDir: workDir}
 	got := a.SkillDirs()

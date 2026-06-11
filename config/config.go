@@ -637,7 +637,7 @@ func resolveEnvPlaceholders(s string) string {
 	if !strings.Contains(s, "${") {
 		return s
 	}
-	return envPlaceholderPattern.ReplaceAllStringFunc(s, func(match string) string {
+	resolved := envPlaceholderPattern.ReplaceAllStringFunc(s, func(match string) string {
 		parts := envPlaceholderPattern.FindStringSubmatch(match)
 		if len(parts) != 2 {
 			return match
@@ -649,6 +649,25 @@ func resolveEnvPlaceholders(s string) string {
 		}
 		return val
 	})
+	if strings.ContainsAny(resolved, "/\\") {
+		if isPathLike(resolved) {
+			resolved = filepath.Clean(resolved)
+		}
+	}
+	return resolved
+}
+
+func isPathLike(s string) bool {
+	if strings.HasPrefix(s, "http://") || strings.HasPrefix(s, "https://") {
+		return false
+	}
+	if strings.HasPrefix(s, "ws://") || strings.HasPrefix(s, "wss://") {
+		return false
+	}
+	if strings.HasPrefix(s, "ftp://") || strings.HasPrefix(s, "s3://") {
+		return false
+	}
+	return true
 }
 
 // projectQuietEffective returns whether legacy quiet applies to this project: an explicit

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 	"testing"
@@ -26,6 +27,9 @@ func (errWriter) Write(_ []byte) (int, error) {
 // When exitCode != 0, the script exits immediately with that code.
 func writeFakeModelsBin(t *testing.T, lines []string, exitCode int) string {
 	t.Helper()
+	if runtime.GOOS == "windows" {
+		t.Skip("fake CLI binary (bash script) not executable on Windows")
+	}
 	tmpDir := t.TempDir()
 	name := filepath.Join(tmpDir, "fake-opencode")
 
@@ -112,6 +116,9 @@ func writePersistentModelCacheWithSnapshot(t *testing.T, cachePath string, snaps
 
 func writeBlockingModelsBin(t *testing.T, gatePath string, lines []string) string {
 	t.Helper()
+	if runtime.GOOS == "windows" {
+		t.Skip("fake CLI binary (bash script) not executable on Windows")
+	}
 	tmpDir := t.TempDir()
 	name := filepath.Join(tmpDir, "fake-opencode")
 
@@ -136,6 +143,9 @@ func writeBlockingModelsBin(t *testing.T, gatePath string, lines []string) strin
 
 func writeCountingModelsBin(t *testing.T, countPath, gatePath string, lines []string, requireEnvKey string, exitCode int) string {
 	t.Helper()
+	if runtime.GOOS == "windows" {
+		t.Skip("fake CLI binary (bash script) not executable on Windows")
+	}
 	tmpDir := t.TempDir()
 	name := filepath.Join(tmpDir, "fake-opencode")
 
@@ -547,6 +557,9 @@ func TestAvailableModels_ConfiguredFallbackUsesSnapshot(t *testing.T) {
 // TestAvailableModels_CustomCmdUsedForDiscovery verifies that a.cmd (not the
 // literal string "opencode") is used when running the models sub-command.
 func TestAvailableModels_CustomCmdUsedForDiscovery(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("fake CLI binary (bash script) not executable on Windows")
+	}
 	tmpDir := t.TempDir()
 	customBin := filepath.Join(tmpDir, "my-ai-cli")
 	script := "#!/bin/sh\nif [ \"$1\" = \"models\" ]; then\nprintf '%s\\n' 'custom/model-a'\nfi\n"
@@ -1168,6 +1181,9 @@ func TestAvailableModels_IgnoresPersistentCacheForWorkDirMismatch(t *testing.T) 
 // If wantID is non-empty the script validates the session ID matches.
 func writeFakeDeleteBin(t *testing.T, wantID string, exitCode int, stderr string) string {
 	t.Helper()
+	if runtime.GOOS == "windows" {
+		t.Skip("fake CLI binary (bash script) not executable on Windows")
+	}
 	tmpDir := t.TempDir()
 	name := filepath.Join(tmpDir, "fake-opencode")
 
