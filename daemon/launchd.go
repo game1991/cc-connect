@@ -259,7 +259,7 @@ func buildPlist(cfg Config) string {
 	<key>ProgramArguments</key>
 	<array>
 		<string>%s</string>
-	</array>
+%s	</array>
 	<key>WorkingDirectory</key>
 	<string>%s</string>
 	<key>RunAtLoad</key>
@@ -289,7 +289,14 @@ func buildPlist(cfg Config) string {
 	<string>/dev/null</string>
 </dict>
 </plist>
-`, launchdLabel, xmlEscape(cfg.BinaryPath), xmlEscape(cfg.WorkDir), xmlEscape(cfg.LogFile), cfg.LogMaxSize, xmlEscape(envPATH))
+`, launchdLabel, xmlEscape(cfg.BinaryPath), launchdConfigArg(cfg), xmlEscape(cfg.WorkDir), xmlEscape(cfg.LogFile), cfg.LogMaxSize, xmlEscape(envPATH))
+}
+
+func launchdConfigArg(cfg Config) string {
+	if cfg.ConfigFile == "" {
+		return ""
+	}
+	return "\t\t<string>--config</string>\n\t\t<string>" + xmlEscape(cfg.ConfigFile) + "</string>\n"
 }
 
 // xmlEscape escapes the five XML-reserved characters in a string so it can

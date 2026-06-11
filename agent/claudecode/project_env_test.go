@@ -1,12 +1,16 @@
 package claudecode
 
 import (
+	"runtime"
 	"testing"
 
 	"github.com/chenhg5/cc-connect/core"
 )
 
 func TestNew_ParsesProjectEnvFromOpts(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("run_as_user LookPath bypass is Unix-only (IsolationMode=false on Windows)")
+	}
 	opts := map[string]any{
 		"work_dir":    "/tmp/test",
 		"run_as_user": "skip-lookpath",
@@ -45,6 +49,9 @@ func TestNew_ParsesProjectEnvFromOpts(t *testing.T) {
 }
 
 func TestNew_ParsesProjectEnvFromMapStringAny(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("run_as_user LookPath bypass is Unix-only (IsolationMode=false on Windows)")
+	}
 	opts := map[string]any{
 		"work_dir":    "/tmp/test",
 		"run_as_user": "test-user",
@@ -74,6 +81,9 @@ func TestNew_ParsesProjectEnvFromMapStringAny(t *testing.T) {
 }
 
 func TestNew_NoEnvOpts(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("run_as_user LookPath bypass is Unix-only (IsolationMode=false on Windows)")
+	}
 	opts := map[string]any{
 		"work_dir":    "/tmp/test",
 		"run_as_user": "test-user",
@@ -94,6 +104,9 @@ func TestNew_NoEnvOpts(t *testing.T) {
 }
 
 func TestNew_ProjectEnvOverridesProviderEnv(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("run_as_user LookPath bypass is Unix-only (IsolationMode=false on Windows)")
+	}
 	opts := map[string]any{
 		"work_dir":    "/tmp/test",
 		"run_as_user": "test-user",

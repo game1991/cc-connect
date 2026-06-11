@@ -16,6 +16,7 @@ const (
 type Config struct {
 	BinaryPath string
 	WorkDir    string
+	ConfigFile string // explicit config file path (when --config is used)
 	LogFile    string
 	LogMaxSize int64
 	EnvPATH    string            // capture user's PATH so agents are accessible
@@ -63,6 +64,7 @@ type Meta struct {
 	LogMaxSize  int64  `json:"log_max_size"`
 	WorkDir     string `json:"work_dir"`
 	BinaryPath  string `json:"binary_path"`
+	ConfigFile  string `json:"config_file,omitempty"`
 	InstalledAt string `json:"installed_at"`
 }
 
@@ -78,7 +80,7 @@ func SaveMeta(m *Meta) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(metaPath(), data, 0644)
+	return os.WriteFile(metaPath(), data, 0600)
 }
 
 func LoadMeta() (*Meta, error) {

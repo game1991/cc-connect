@@ -1,8 +1,13 @@
 package main
 
 import (
+	"bytes"
+	"fmt"
 	"path/filepath"
+	"strings"
 	"testing"
+
+	"github.com/chenhg5/cc-connect/daemon"
 )
 
 func TestParseDaemonInstallArgs_ConfigSetsWorkDir(t *testing.T) {
@@ -14,8 +19,8 @@ func TestParseDaemonInstallArgs_ConfigSetsWorkDir(t *testing.T) {
 		t.Fatalf("force = true, want false")
 	}
 
-	want := filepath.Clean("/tmp/example")
-	if cfg.WorkDir != want {
+	want := "/tmp/example"
+	if filepath.ToSlash(cfg.WorkDir) != want {
 		t.Fatalf("cfg.WorkDir = %q, want %q", cfg.WorkDir, want)
 	}
 }
@@ -26,8 +31,8 @@ func TestParseDaemonInstallArgs_ConfigEqualsFormSetsWorkDir(t *testing.T) {
 		t.Fatalf("parseDaemonInstallArgs returned error: %v", err)
 	}
 
-	want := filepath.Clean("/tmp/example")
-	if cfg.WorkDir != want {
+	want := "/tmp/example"
+	if filepath.ToSlash(cfg.WorkDir) != want {
 		t.Fatalf("cfg.WorkDir = %q, want %q", cfg.WorkDir, want)
 	}
 }
@@ -45,8 +50,155 @@ func TestParseDaemonInstallArgs_WorkDirOverridesConfig(t *testing.T) {
 		t.Fatalf("force = false, want true")
 	}
 
-	want := filepath.Clean("/tmp/override")
-	if cfg.WorkDir != want {
+	want := "/tmp/override"
+	if filepath.ToSlash(cfg.WorkDir) != want {
 		t.Fatalf("cfg.WorkDir = %q, want %q", cfg.WorkDir, want)
+	}
+}
+
+func TestMetaConfigPath_WithConfigFile(t *testing.T) {
+	meta := &daemon.Meta{
+		WorkDir:    "/tmp/workdir",
+		ConfigFile: "/custom/path/my-config.toml",
+	}
+	got := metaConfigPath(meta)
+	want := "/custom/path/my-config.toml"
+	if got != want {
+		t.Errorf("metaConfigPath = %q, want %q", got, want)
+	}
+}
+
+func TestMetaConfigPath_FallbackToWorkDir(t *testing.T) {
+	meta := &daemon.Meta{
+		WorkDir: "/tmp/workdir",
+	}
+	got := metaConfigPath(meta)
+	want := filepath.Join("/tmp/workdir", "config.toml")
+	if got != want {
+		t.Errorf("metaConfigPath = %q, want %q", got, want)
+	}
+}
+
+func TestMetaConfigPath_EmptyConfigFile(t *testing.T) {
+	meta := &daemon.Meta{
+		WorkDir:    "/tmp/workdir",
+		ConfigFile: "",
+	}
+	got := metaConfigPath(meta)
+	want := filepath.Join("/tmp/workdir", "config.toml")
+	if got != want {
+		t.Errorf("metaConfigPath = %q, want %q", got, want)
+	}
+}
+
+func TestMetaConfigPath_BothEmpty(t *testing.T) {
+	meta := &daemon.Meta{}
+	got := metaConfigPath(meta)
+	want := filepath.Join("", "config.toml")
+	if got != want {
+		t.Errorf("metaConfigPath = %q, want %q", got, want)
+	}
+}
+
+// ── stopWithFallback tests ──────────────────────────────────
+
+type stubManager struct {
+	stopErr   error
+	status    *daemon.Status
+	statusErr error
+}
+
+func (s *stubManager) Install(daemon.Config) error { return nil }
+func (s *stubManager) Uninstall() error            { return nil }
+func (s *stubManager) Start() error                { return nil }
+func (s *stubManager) Stop() error                 { return s.stopErr }
+func (s *stubManager) Restart() error              { return nil }
+func (s *stubManager) Status() (*daemon.Status, error) { return s.status, s.statusErr }
+func (s *stubManager) Platform() string             { return "test" }
+
+func TestStopWithFallback_StopSucceeds_ProcessGone(t *testing.T) {
+	err := stopWithFallback(
+		func() (daemon.Manager, error) {
+			return &stubManager{stopErr: nil, status: &daemon.Status{Installed: true}}, nil
+		},
+		func() (*daemon.Meta, error) {
+			return &daemon.Meta{WorkDir: "/tmp/work", ConfigFile: "/tmp/work/config.toml"}, nil
+		},
+		func(string) bool { return false }, // kill returns false → process already gone
+		&bytes.Buffer{},
+	)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestStopWithFallback_StopSucceeds_ProcessStillAlive(t *testing.T) {
+	var stderr bytes.Buffer
+	err := stopWithFallback(
+		func() (daemon.Manager, error) {
+			return &stubManager{stopErr: nil, status: &daemon.Status{Installed: true}}, nil
+		},
+		func() (*daemon.Meta, error) {
+			return &daemon.Meta{WorkDir: "/tmp/work", ConfigFile: "/tmp/work/config.toml"}, nil
+		},
+		func(string) bool { return true }, // kill returns true → process was still alive
+		&stderr,
+	)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(stderr.String(), "Warning:") {
+		t.Errorf("expected warning about process still running, got %q", stderr.String())
+	}
+}
+
+func TestStopWithFallback_LoadMetaFails(t *testing.T) {
+	err := stopWithFallback(
+		func() (daemon.Manager, error) {
+			return &stubManager{stopErr: fmt.Errorf("schtasks failed"), status: &daemon.Status{Installed: true}}, nil
+		},
+		func() (*daemon.Meta, error) {
+			return nil, fmt.Errorf("no daemon.json")
+		},
+		func(string) bool { return false },
+		&bytes.Buffer{},
+	)
+	if err != nil {
+		t.Fatalf("should return nil when loadMeta fails (assume platform stop worked): %v", err)
+	}
+}
+
+func TestStopWithFallback_NotInstalled(t *testing.T) {
+	err := stopWithFallback(
+		func() (daemon.Manager, error) {
+			return &stubManager{
+				status:    &daemon.Status{Installed: false},
+				statusErr: nil,
+			}, nil
+		},
+		func() (*daemon.Meta, error) { return &daemon.Meta{}, nil },
+		func(string) bool { return false },
+		&bytes.Buffer{},
+	)
+	if err == nil {
+		t.Fatal("expected error when service is not installed")
+	}
+	if !strings.Contains(err.Error(), "not installed") {
+		t.Errorf("error should mention not installed, got %q", err.Error())
+	}
+}
+
+func TestStopWithFallback_NewManagerFails(t *testing.T) {
+	err := stopWithFallback(
+		func() (daemon.Manager, error) { return nil, fmt.Errorf("unsupported platform") },
+		func() (*daemon.Meta, error) { return &daemon.Meta{}, nil },
+		func(string) bool { return false },
+		&bytes.Buffer{},
+	)
+	if err == nil {
+		t.Fatal("expected error when NewManager fails")
+	}
+	if !strings.Contains(err.Error(), "unsupported platform") {
+		t.Errorf("error should propagate original message, got %q", err.Error())
 	}
 }

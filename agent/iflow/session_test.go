@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -359,6 +360,9 @@ func TestIFlowSessionDefaultToolTimeout(t *testing.T) {
 }
 
 func TestIFlowSessionPendingToolTimeoutClearsBusyState(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("iflow uses pty which is not supported on Windows")
+	}
 	oldTimeout := iflowPendingToolTimeout
 	oldDefaultTimeout := iflowPendingToolTimeoutDefaultMode
 	iflowPendingToolTimeout = 80 * time.Millisecond

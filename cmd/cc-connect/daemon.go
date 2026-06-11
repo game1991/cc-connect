@@ -55,12 +55,30 @@ func daemonInstall(args []string) {
 		os.Exit(1)
 	}
 
-	configPath := cfg.WorkDir + "/config.toml"
-	if _, err := os.Stat(configPath); err != nil {
-		fmt.Fprintf(os.Stderr, "Warning: config.toml not found in %s\n", cfg.WorkDir)
-		fmt.Fprintf(os.Stderr, "  Use --work-dir to specify the config directory or --config to point to the config file\n")
-		os.Exit(1)
+	// Resolve config path using the same logic as the main program:
+	// explicit --config → WorkDir/config.toml → ~/.cc-connect/config.toml
+	configPath := ""
+	if cfg.ConfigFile != "" {
+		configPath = cfg.ConfigFile
+	} else {
+		cwdConfig := filepath.Join(cfg.WorkDir, "config.toml")
+		if _, err := os.Stat(cwdConfig); err == nil {
+			configPath = cwdConfig
+		} else if home, err := os.UserHomeDir(); err == nil {
+			homeConfig := filepath.Join(home, ".cc-connect", "config.toml")
+			if _, err := os.Stat(homeConfig); err == nil {
+				configPath = homeConfig
+				// Adjust WorkDir so the daemon starts in ~/.cc-connect
+				cfg.WorkDir = filepath.Join(home, ".cc-connect")
+			}
+		}
 	}
+
+	if configPath == "" {
+		fmt.Fprintf(os.Stderr, "Warning: config.toml not found in %s or ~/.cc-connect/\n", cfg.WorkDir)
+		fmt.Fprintf(os.Stderr, "  Use --work-dir to specify the config directory or --config to point to the config file\n")
+	}
+	cfg.ConfigFile = configPath
 
 	mgr, err := daemon.NewManager()
 	if err != nil {
@@ -80,10 +98,11 @@ func daemonInstall(args []string) {
 	}
 
 	if err := daemon.SaveMeta(&daemon.Meta{
-		LogFile:     cfg.LogFile,
+		LogFile:     filepath.ToSlash(cfg.LogFile),
 		LogMaxSize:  cfg.LogMaxSize,
-		WorkDir:     cfg.WorkDir,
-		BinaryPath:  cfg.BinaryPath,
+		WorkDir:     filepath.ToSlash(cfg.WorkDir),
+		BinaryPath:  filepath.ToSlash(cfg.BinaryPath),
+		ConfigFile:  filepath.ToSlash(cfg.ConfigFile),
 		InstalledAt: daemon.NowISO(),
 	}); err != nil {
 		fmt.Fprintf(os.Stderr, "Warning: failed to save metadata: %v\n", err)
@@ -167,12 +186,15 @@ func parseDaemonInstallArgs(args []string) (daemon.Config, bool, error) {
 			if err != nil {
 				return daemon.Config{}, false, err
 			}
+			cfg.ConfigFile = value
 			cfg.WorkDir = filepath.Dir(value)
 			i = next
 		case strings.HasPrefix(arg, "--config="):
-			cfg.WorkDir = filepath.Dir(strings.TrimPrefix(arg, "--config="))
+			cfg.ConfigFile = strings.TrimPrefix(arg, "--config=")
+			cfg.WorkDir = filepath.Dir(cfg.ConfigFile)
 		case strings.HasPrefix(arg, "-config="):
-			cfg.WorkDir = filepath.Dir(strings.TrimPrefix(arg, "-config="))
+			cfg.ConfigFile = strings.TrimPrefix(arg, "-config=")
+			cfg.WorkDir = filepath.Dir(cfg.ConfigFile)
 		default:
 			return daemon.Config{}, false, fmt.Errorf("unknown flag: %s", arg)
 		}
@@ -226,13 +248,38 @@ func daemonStart() {
 }
 
 func daemonStop() {
-	mgr := mustManager()
-	requireInstalled(mgr)
-	if err := mgr.Stop(); err != nil {
-		fmt.Fprintf(os.Stderr, "Stop failed: %v\n", err)
+	if err := stopWithFallback(daemon.NewManager, daemon.LoadMeta, KillExistingInstance, os.Stderr); err != nil {
+		fmt.Fprintln(os.Stderr, err.Error())
 		os.Exit(1)
 	}
 	fmt.Println("cc-connect daemon stopped.")
+}
+
+func stopWithFallback(newMgr func() (daemon.Manager, error), loadMeta func() (*daemon.Meta, error), kill func(string) bool, stderr io.Writer) error {
+	mgr, err := newMgr()
+	if err != nil {
+		return fmt.Errorf("error: %v", err)
+	}
+	st, _ := mgr.Status()
+	if st == nil || !st.Installed {
+		return fmt.Errorf("service is not installed. Run first:\n  cc-connect daemon install --work-dir /path/to/config-dir")
+	}
+	// Always attempt the platform stop first; ignore error — we'll verify below.
+	_ = mgr.Stop()
+
+	// Verify the process actually exited by probing the instance lock PID.
+	// KillExistingInstance returns true only when it found and terminated a
+	// live cc-connect process, so a true result means the platform stop
+	// reported success prematurely.
+	meta, merr := loadMeta()
+	if merr != nil {
+		return nil
+	}
+	configPath := metaConfigPath(meta)
+	if kill(configPath) {
+		fmt.Fprintln(stderr, "Warning: task scheduler reported stopped but process was still running; killed via instance lock PID")
+	}
+	return nil
 }
 
 func daemonRestart(args []string) {
@@ -248,8 +295,10 @@ func daemonRestart(args []string) {
 
 	if force {
 		if meta, err := daemon.LoadMeta(); err == nil {
-			configPath := meta.WorkDir + "/config.toml"
-			KillExistingInstance(configPath)
+			configPath := metaConfigPath(meta)
+			if KillExistingInstance(configPath) {
+				time.Sleep(500 * time.Millisecond)
+			}
 		}
 	}
 
@@ -258,6 +307,13 @@ func daemonRestart(args []string) {
 		os.Exit(1)
 	}
 	fmt.Println("cc-connect daemon restarted.")
+}
+
+func metaConfigPath(meta *daemon.Meta) string {
+	if meta.ConfigFile != "" {
+		return meta.ConfigFile
+	}
+	return filepath.Join(meta.WorkDir, "config.toml")
 }
 
 func requireInstalled(mgr daemon.Manager) {
