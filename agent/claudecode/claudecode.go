@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/fs"
 	"log/slog"
 	"net/http"
 	"os"
@@ -914,7 +915,51 @@ func appendProjectClaudeSkillDirs(workDir, configHome string) []string {
 	if configHome == "" {
 		return projectDirs
 	}
-	return uniqueSkillDirs(append(projectDirs, filepath.Join(configHome, "skills")))
+	dirs := append(projectDirs, filepath.Join(configHome, "skills"))
+	dirs = append(dirs, discoverPluginSkillDirs(filepath.Join(configHome, "plugins", "cache"))...)
+	return uniqueSkillDirs(dirs)
+}
+
+// discoverPluginSkillDirs walks the plugin cache directory and returns
+// directories that match the patterns <plugin-path>/skills/ or
+// <plugin-path>/.claude/skills/, where actual skill subdirectories exist.
+// Symlinks that escape the cache directory are skipped.
+func discoverPluginSkillDirs(cacheDir string) []string {
+	absCache, _ := filepath.Abs(cacheDir)
+	var dirs []string
+	filepath.WalkDir(cacheDir, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			if !os.IsNotExist(err) {
+				slog.Debug("claudecode: plugin skill walk error", "path", path, "error", err)
+			}
+			return nil
+		}
+		if !d.IsDir() {
+			return nil
+		}
+		if d.Name() == "skills" || d.Name() == ".claude" {
+			resolved, linkErr := filepath.EvalSymlinks(path)
+			if linkErr != nil {
+				return fs.SkipDir
+			}
+			absResolved, _ := filepath.Abs(resolved)
+			if !strings.HasPrefix(absResolved, absCache+string(filepath.Separator)) && absResolved != absCache {
+				slog.Warn("claudecode: skipping plugin skill symlink outside cache", "path", path, "target", absResolved)
+				return fs.SkipDir
+			}
+			if d.Name() == ".claude" {
+				skillDir := filepath.Join(path, "skills")
+				if fi, err := os.Stat(skillDir); err == nil && fi.IsDir() {
+					dirs = append(dirs, skillDir)
+				}
+				return fs.SkipDir
+			}
+			dirs = append(dirs, path)
+			return fs.SkipDir
+		}
+		return nil
+	})
+	return dirs
 }
 
 func walkUpClaudeSkillDirs(workDir, home string) []string {
