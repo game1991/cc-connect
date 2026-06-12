@@ -201,6 +201,11 @@ func runUpdate() {
 
 	syncNpmPackageVersion(execPath, strings.TrimPrefix(latest, "v"))
 
+	if err := postUpdateDaemonRestart(); err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: daemon restart failed: %v\n", err)
+		fmt.Fprintln(os.Stderr, "Run manually: cc-connect daemon restart --force")
+	}
+
 	fmt.Printf("Updated to %s\n", latest)
 	fmt.Println("Restart cc-connect to use the new version.")
 }

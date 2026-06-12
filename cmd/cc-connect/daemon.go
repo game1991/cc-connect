@@ -318,6 +318,10 @@ func daemonRestart(args []string) {
 			if KillExistingInstance(configPath) {
 				time.Sleep(500 * time.Millisecond)
 			}
+			cfg := daemon.ConfigFromMeta(meta)
+			if err := daemon.RewriteLauncherScript(cfg); err != nil {
+				fmt.Fprintf(os.Stderr, "Warning: failed to regenerate launcher script: %v\n", err)
+			}
 		}
 	}
 

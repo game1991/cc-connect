@@ -20,27 +20,37 @@ func runClean(args []string) {
 	cleanRuntime()
 }
 
-// cleanRuntime stops the daemon, removes runtime/ephemeral files, and
-// preserves config.toml and crons/. It is safe to run even when the daemon
-// is not installed.
+// cleanRuntime stops the daemon, kills residual processes, removes
+// runtime/ephemeral files, and preserves config.toml and crons/.
+// It is safe to run even when the daemon is not installed.
 func cleanRuntime() {
 	dataDir := daemon.DefaultDataDir()
 
 	fmt.Println("Cleaning cc-connect runtime state...")
 
-	// 1. Stop the daemon — gracefully handle "not installed".
+	// 1. Snapshot daemon metadata BEFORE any destructive operations.
+	//    This ensures killResidualProcess can find the config path even
+	//    after the service is uninstalled and daemon.json is deleted.
+	var metaSnapshot *daemon.Meta
+	if m, err := daemon.LoadMeta(); err == nil {
+		metaSnapshot = m
+	}
+
+	// 2. Stop the daemon — gracefully handle "not installed".
 	stopDaemonForClean()
 
-	// 2. Uninstall the daemon service — only if installed.
-	uninstallDaemonForClean()
+	// 3. Kill any residual process via instance lock PID.
+	//    Uses the snapshotted meta to resolve the config path.
+	killResidualProcessWithMeta(metaSnapshot)
 
-	// 3. Wait for process exit and file-handle release (especially on Windows).
+	// 4. Wait for process exit and file-handle release (especially on Windows).
 	time.Sleep(1 * time.Second)
 
-	// 4. Kill any residual process via instance lock PID.
-	killResidualProcess()
+	// 5. Uninstall the daemon service — only if installed.
+	//    This also deletes daemon.json (last destructive operation on meta).
+	uninstallDaemonForClean()
 
-	// 5. Remove runtime/ephemeral files.
+	// 6. Remove runtime/ephemeral files.
 	//    daemon.json and cc-connect-daemon.ps1 are explicitly listed because
 	//    they may remain if the daemon was never installed. os.RemoveAll on
 	//    a non-existent path is safe.
@@ -202,12 +212,12 @@ func uninstallDaemonForClean() {
 	}
 }
 
-// killResidualProcess attempts to kill any lingering cc-connect process
-// via the instance lock PID. It resolves the actual config path from
-// daemon metadata when available, falling back to the default path.
-func killResidualProcess() {
+// killResidualProcessWithMeta attempts to kill any lingering cc-connect process
+// via the instance lock PID. It uses the pre-snapshotted meta to resolve the
+// actual config path, falling back to the default path if meta is nil.
+func killResidualProcessWithMeta(meta *daemon.Meta) {
 	configPath := filepath.Join(daemon.DefaultDataDir(), "config.toml")
-	if meta, err := daemon.LoadMeta(); err == nil && meta.ConfigFile != "" {
+	if meta != nil && meta.ConfigFile != "" {
 		configPath = meta.ConfigFile
 	}
 	if KillExistingInstance(configPath) {
