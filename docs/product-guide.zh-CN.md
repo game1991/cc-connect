@@ -685,6 +685,17 @@ Agent 生成的图片/文件可自动回传到聊天。需要 `/bind setup` 初�
 
 ## 8. 运维命令手册
 
+### Daemon 安装模式
+
+Windows 上 daemon 有两种安装模式，取决于安装时的权限：
+
+| 权限 | 模式 | 管理 | 特点 |
+|------|------|------|------|
+| 管理员 | Windows Service | `services.msc` 或 `sc.exe` | 无弹窗，开机自启，最稳定 |
+| 普通用户 | 任务计划（schtasks） | `schtasks.exe` | 可能有 PowerShell 弹窗 |
+
+> **建议**：Windows 用户优先以管理员权限安装，选择 Windows Service 模式。
+
 ### Daemon 管理
 
 ```bash
@@ -694,11 +705,56 @@ cc-connect daemon logs -f       # 实时跟踪
 cc-connect daemon logs -n 100   # 最近 100 行
 cc-connect daemon stop
 cc-connect daemon restart
-cc-connect daemon restart --force   # 杀进程 → 500ms → 重启
+cc-connect daemon restart --force   # 进程卡死时：杀进程 → 500ms → 重启
 cc-connect daemon uninstall
 ```
 
 日志自动轮转（10MB），保留一份备份。
+
+### daemon install --force 的使用场景
+
+`daemon install --force` 用于**已安装 daemon 时覆盖重装**。普通 `install` 检测到已注册的服务/任务会拒绝并提示加 `--force`。常见场景：
+
+- **更换配置路径**：如从 `--config A` 改为 `--config B`
+- **更换工作目录**：如从 `--work-dir /old` 改为 `--work-dir /new`
+- **修复损坏的注册**：服务/任务注册信息异常时强制覆盖
+
+> **注意**：正常版本升级**不需要** `--force`，使用 `daemon restart` 即可。`--force` 会先删除再重建服务/任务，产生短暂中断。
+
+### 升级
+
+**常规升级**（daemon 已运行，保留配置）：
+
+```bash
+cc-connect daemon stop
+npm install -g @game1991/cc-connect
+cc-connect --version            # 确认新版本
+cc-connect daemon restart
+```
+
+**跨模式重装**（从 schtasks 切换到 Windows Service，或反之）：
+
+```bash
+cc-connect daemon uninstall     # 卸载旧模式
+# 以目标权限重新安装：
+cc-connect daemon install       # 普通用户 → schtasks
+# 或以管理员身份运行：
+cc-connect daemon install       # 管理员 → Windows Service
+```
+
+**彻底清理后重装**（配置损坏、二进制丢失等疑难场景）：
+
+```bash
+# Windows: 删除旧 service（需管理员终端）
+sc.exe stop cc-connect
+sc.exe delete cc-connect
+# 然后重装
+npm uninstall -g @game1991/cc-connect
+npm install -g @game1991/cc-connect
+cc-connect daemon install
+```
+
+> **注意**：必须使用 `npm install` 而非 `npm update`。此包发布在 GitHub Packages，`npm update` 对 scoped package 的 registry 路由行为不稳定。同时确保 `~/.npmrc` 中 `@game1991:registry=https://npm.pkg.github.com` 配置有效且 PAT 未过期。
 
 ### 清理与重装
 
@@ -717,17 +773,6 @@ cc-connect reinstall --yes    # 清理 + npm 重装 + 恢复配置 + daemon inst
 - **Phase 2**（补全脚本）：npm uninstall → npm install → 恢复配置 → daemon install（使用备份的 daemon-meta.json 恢复原始 install 参数）
 
 MINGW bash 中一条命令完成；PowerShell/CMD 中因文件锁需两步执行。
-
-### 升级
-
-```bash
-cc-connect daemon stop
-npm install -g @game1991/cc-connect
-cc-connect --version
-cc-connect daemon restart
-```
-
-> **注意**：必须使用 `npm install` 而非 `npm update`。此包发布在 GitHub Packages，`npm update` 对 scoped package 的 registry 路由行为不稳定。同时确保 `~/.npmrc` 中 `@game1991:registry=https://npm.pkg.github.com` 配置有效且 PAT 未过期。
 
 ### 诊断
 
@@ -785,11 +830,8 @@ taskkill /PID <PID> /F              # 强制终止
 如果 `cc-connect --version` 报告的版本与预期不符，可能是 npm 的 `run.js` 自动更新覆盖了本地二进制。这与版本号排序有关 — 详见[开发者指南 §4 版本管理](developer-guide.zh-CN.md#4-版本管理)中的 fork.N 陷阱详解。
 ### Windows 特殊问题
 
-- **管理员安装 → Windows Service**：以管理员权限执行 `cc-connect daemon install` 时，自动注册为 Windows Service，可在 `services.msc` 中管理，无弹窗
-- **普通用户安装 → schtasks**：无管理员权限时，回退到任务计划程序（schtasks），可能出现 PowerShell 弹窗
 - **`.old` 备份**：自更新时当前二进制重命名为 `.old`
 - **无 pty**：iFlow Agent 在 Windows 上跳过
-- **`.cmd` 弹框**：已移除导致弹框的 `ensureCmdFileAssociation` 函数
 
 ---
 
