@@ -230,9 +230,11 @@ func buildWindowsTaskScript(cfg Config) string {
 		}
 	}
 	fmt.Fprintf(&sb, "Set-Location -LiteralPath %s\r\n", powerShellLiteral(cfg.WorkDir))
-	// Resolve cc-connect via PATH so npm updates and cc-connect update
-	// automatically make the new binary available to the daemon.
-	sb.WriteString("$ccConnectExe = (Get-Command -CommandType Application -Name 'cc-connect' -ErrorAction Stop).Path\r\n")
+	fmt.Fprintf(&sb, "$ccConnectExe = %s\r\n", powerShellLiteral(cfg.BinaryPath))
+	sb.WriteString("if (-not (Test-Path -LiteralPath $ccConnectExe)) {\r\n")
+	sb.WriteString("  $found = Get-Command -CommandType Application -Name 'cc-connect' -ErrorAction SilentlyContinue | Where-Object { $_.Source -notmatch '\\.(cmd|bat)$' } | Select-Object -First 1\r\n")
+	sb.WriteString("  if ($found) { $ccConnectExe = $found.Source }\r\n")
+	sb.WriteString("}\r\n")
 	sb.WriteString("while ($true) {\r\n")
 	if cfg.ConfigFile != "" {
 		fmt.Fprintf(&sb, "  & $ccConnectExe --config %s\r\n", powerShellLiteral(cfg.ConfigFile))
