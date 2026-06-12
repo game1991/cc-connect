@@ -83,6 +83,8 @@ type Meta struct {
 	WorkDir       string `json:"work_dir"`
 	BinaryPath    string `json:"binary_path"`  // informational only; daemon resolves cc-connect via PATH at runtime
 	ConfigFile    string `json:"config_file,omitempty"`
+	EnvPATH       string `json:"env_path,omitempty"`     // captured user PATH so service can find agent binaries
+	HomeDir       string `json:"home_dir,omitempty"`      // captured user home directory for SYSTEM service
 	InstalledAt   string `json:"installed_at"`
 }
 

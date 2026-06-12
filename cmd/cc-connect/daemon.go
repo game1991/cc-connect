@@ -97,12 +97,15 @@ func daemonInstall(args []string) {
 		os.Exit(1)
 	}
 
+	homeDir, _ := os.UserHomeDir()
 	if err := daemon.SaveMeta(&daemon.Meta{
 		LogFile:     filepath.ToSlash(cfg.LogFile),
 		LogMaxSize:  cfg.LogMaxSize,
 		WorkDir:     filepath.ToSlash(cfg.WorkDir),
 		BinaryPath:  filepath.ToSlash(cfg.BinaryPath),
 		ConfigFile:  filepath.ToSlash(cfg.ConfigFile),
+		EnvPATH:     cfg.EnvPATH,
+		HomeDir:     filepath.ToSlash(homeDir),
 		InstalledAt: daemon.NowISO(),
 	}); err != nil {
 		fmt.Fprintf(os.Stderr, "Warning: failed to save metadata: %v\n", err)
