@@ -1016,7 +1016,7 @@ func appendProjectClaudeSkillDirs(workDir, configHome string) []string {
 func discoverPluginSkillDirs(cacheDir string) []string {
 	absCache, _ := filepath.Abs(cacheDir)
 	var dirs []string
-	filepath.WalkDir(cacheDir, func(path string, d os.DirEntry, err error) error {
+	_ = filepath.WalkDir(cacheDir, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			if !os.IsNotExist(err) {
 				slog.Debug("claudecode: plugin skill walk error", "path", path, "error", err)
