@@ -149,6 +149,19 @@ func windowsTaskScriptPath() string {
 	return filepath.Join(DefaultDataDir(), windowsScriptName)
 }
 
+// WindowsTaskScriptPath is the exported version of windowsTaskScriptPath.
+func WindowsTaskScriptPath() string {
+	return windowsTaskScriptPath()
+}
+
+// rewriteLauncherScript regenerates the daemon launcher script on Windows.
+func rewriteLauncherScript(cfg Config) error {
+	if err := os.MkdirAll(DefaultDataDir(), 0755); err != nil {
+		return fmt.Errorf("create data dir: %w", err)
+	}
+	return os.WriteFile(windowsTaskScriptPath(), []byte(buildWindowsTaskScript(cfg)), 0644)
+}
+
 func windowsTaskAction(scriptPath string) string {
 	return fmt.Sprintf(`powershell.exe %s`, windowsTaskActionArgs(scriptPath))
 }
@@ -217,17 +230,25 @@ func buildWindowsTaskScript(cfg Config) string {
 		}
 	}
 	fmt.Fprintf(&sb, "Set-Location -LiteralPath %s\r\n", powerShellLiteral(cfg.WorkDir))
+	// Resolve cc-connect via PATH so npm updates and cc-connect update
+	// automatically make the new binary available to the daemon.
+	sb.WriteString("$ccConnectExe = (Get-Command -CommandType Application -Name 'cc-connect' -ErrorAction Stop).Path\r\n")
 	sb.WriteString("while ($true) {\r\n")
 	if cfg.ConfigFile != "" {
-		fmt.Fprintf(&sb, "  & %s --config %s\r\n", powerShellLiteral(cfg.BinaryPath), powerShellLiteral(cfg.ConfigFile))
+		fmt.Fprintf(&sb, "  & $ccConnectExe --config %s\r\n", powerShellLiteral(cfg.ConfigFile))
 	} else {
-		fmt.Fprintf(&sb, "  & %s\r\n", powerShellLiteral(cfg.BinaryPath))
+		sb.WriteString("  & $ccConnectExe\r\n")
 	}
 	sb.WriteString("  $exitCode = $LASTEXITCODE\r\n")
 	sb.WriteString("  if ($exitCode -eq 0) { exit 0 }\r\n")
 	sb.WriteString("  Start-Sleep -Seconds 10\r\n")
 	sb.WriteString("}\r\n")
 	return sb.String()
+}
+
+// BuildWindowsTaskScript is the exported version of buildWindowsTaskScript.
+func BuildWindowsTaskScript(cfg Config) string {
+	return buildWindowsTaskScript(cfg)
 }
 
 func writePowerShellEnv(sb *strings.Builder, key, value string) {

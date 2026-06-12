@@ -358,3 +358,5 @@ func CheckLinger() (enabled bool, user string) {
 	linger := strings.TrimSpace(string(out))
 	return linger == "Linger=yes", user
 }
+
+func rewriteLauncherScript(cfg Config) error { return nil }

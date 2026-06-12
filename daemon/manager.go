@@ -81,7 +81,7 @@ type Meta struct {
 	LogMaxSize    int64  `json:"log_max_size"`
 	LogMaxBackups int    `json:"log_max_backups"`
 	WorkDir       string `json:"work_dir"`
-	BinaryPath    string `json:"binary_path"`
+	BinaryPath    string `json:"binary_path"`  // informational only; daemon resolves cc-connect via PATH at runtime
 	ConfigFile    string `json:"config_file,omitempty"`
 	InstalledAt   string `json:"installed_at"`
 }
@@ -274,3 +274,32 @@ func captureConfigEnvPlaceholdersInString(s string, env map[string]string) {
 	}
 }
 
+// CaptureDaemonEnv is the exported version of captureDaemonEnv.
+func CaptureDaemonEnv() map[string]string {
+	return captureDaemonEnv()
+}
+
+// ConfigFromMeta reconstructs a Config from saved metadata.
+// BinaryPath is resolved from the current executable (not from the saved meta),
+// since the binary may have moved after an npm update.
+func ConfigFromMeta(m *Meta) Config {
+	exe, _ := os.Executable()
+	if real, err := filepath.EvalSymlinks(exe); err == nil {
+		exe = real
+	}
+	return Config{
+		BinaryPath: exe,
+		WorkDir:    filepath.FromSlash(m.WorkDir),
+		ConfigFile: filepath.FromSlash(m.ConfigFile),
+		LogFile:    filepath.FromSlash(m.LogFile),
+		LogMaxSize: m.LogMaxSize,
+		EnvPATH:    os.Getenv("PATH"),
+		EnvExtra:   CaptureDaemonEnv(),
+	}
+}
+
+// RewriteLauncherScript regenerates the daemon launcher script (ps1 on Windows).
+// Used after a binary update to ensure the daemon invokes the correct binary via PATH.
+func RewriteLauncherScript(cfg Config) error {
+	return rewriteLauncherScript(cfg)
+}

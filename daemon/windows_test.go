@@ -37,7 +37,8 @@ func TestBuildWindowsTaskScriptEnvAndWorkdir(t *testing.T) {
 		`$env:FOO = 'bar'`,
 		`$env:BAZ = '"qux"'`,
 		`Set-Location -LiteralPath 'C:\Users\me\.cc-connect'`,
-		`& 'D:\tools\cc-connect.exe' --config`,
+		`$ccConnectExe = (Get-Command -CommandType Application -Name 'cc-connect' -ErrorAction Stop).Path`,
+		`& $ccConnectExe --config`,
 	} {
 		if !strings.Contains(script, want) {
 			t.Fatalf("task script missing %q:\n%s", want, script)
