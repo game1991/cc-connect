@@ -37,7 +37,8 @@ func TestBuildWindowsTaskScriptEnvAndWorkdir(t *testing.T) {
 		`$env:FOO = 'bar'`,
 		`$env:BAZ = '"qux"'`,
 		`Set-Location -LiteralPath 'C:\Users\me\.cc-connect'`,
-		`$ccConnectExe = (Get-Command -CommandType Application -Name 'cc-connect' -ErrorAction Stop).Path`,
+		`$ccConnectExe = 'D:\tools\cc-connect.exe'`,
+		`if (-not (Test-Path -LiteralPath $ccConnectExe))`,
 		`& $ccConnectExe --config`,
 	} {
 		if !strings.Contains(script, want) {
