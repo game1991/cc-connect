@@ -151,6 +151,11 @@ jobs:
 
       - name: Publish to GitHub Packages
         working-directory: npm
-        run: npm publish
+        run: |
+          if echo "$GITHUB_REF_NAME" | grep -q '-'; then
+            npm publish --tag beta
+          else
+            npm publish
+          fi
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
