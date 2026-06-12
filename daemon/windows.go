@@ -3,14 +3,17 @@
 package daemon
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 )
 
 const (
@@ -19,7 +22,9 @@ const (
 )
 
 var runPowerShell = func(script string) (string, error) {
-	cmd := exec.Command("powershell.exe", "-NoProfile", "-NonInteractive", "-Command", strictPowerShell(script))
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "powershell.exe", "-NoProfile", "-NonInteractive", "-Command", strictPowerShell(script))
 	out, err := cmd.CombinedOutput()
 	return strings.TrimSpace(string(out)), err
 }
@@ -34,6 +39,11 @@ func newPlatformManager() (Manager, error) {
 	if _, err := exec.LookPath("powershell.exe"); err != nil {
 		return nil, fmt.Errorf("powershell.exe not found: Windows Task Scheduler management requires PowerShell")
 	}
+	if IsAdmin() {
+		return &svcManager{}, nil
+	}
+	slog.Warn("Not running as administrator; installing as Task Scheduler task instead of Windows Service. " +
+		"Run as administrator to install as a native Windows Service (services.msc).")
 	return &schtasksManager{}, nil
 }
 
@@ -221,7 +231,29 @@ func buildWindowsTaskScript(cfg Config) string {
 }
 
 func writePowerShellEnv(sb *strings.Builder, key, value string) {
+	if !envKeyRe.MatchString(key) {
+		slog.Warn("daemon: skipping invalid EnvExtra key", "key", key)
+		return
+	}
+	if protectedEnvKeys[strings.ToLower(key)] {
+		slog.Warn("daemon: skipping protected EnvExtra key", "key", key)
+		return
+	}
+	if strings.ContainsAny(value, "\r\n") {
+		slog.Warn("daemon: skipping EnvExtra value with newline", "key", key)
+		return
+	}
 	fmt.Fprintf(sb, "$env:%s = %s\r\n", key, powerShellLiteral(value))
+}
+
+var envKeyRe = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
+
+// protectedEnvKeys are PowerShell variables that must not be overridden via EnvExtra.
+// Keys are stored in lowercase for case-insensitive matching (PowerShell $env: is case-insensitive).
+var protectedEnvKeys = map[string]bool{
+	"erroractionpreference": true,
+	"psmodulepath":          true,
+	"pshome":                true,
 }
 
 func powerShellLiteral(value string) string {

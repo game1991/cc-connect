@@ -785,7 +785,8 @@ taskkill /PID <PID> /F              # 强制终止
 如果 `cc-connect --version` 报告的版本与预期不符，可能是 npm 的 `run.js` 自动更新覆盖了本地二进制。这与版本号排序有关 — 详见[开发者指南 §4 版本管理](developer-guide.zh-CN.md#4-版本管理)中的 fork.N 陷阱详解。
 ### Windows 特殊问题
 
-- **schtasks daemon**：Windows 使用任务计划程序而非 systemd
+- **管理员安装 → Windows Service**：以管理员权限执行 `cc-connect daemon install` 时，自动注册为 Windows Service，可在 `services.msc` 中管理，无弹窗
+- **普通用户安装 → schtasks**：无管理员权限时，回退到任务计划程序（schtasks），可能出现 PowerShell 弹窗
 - **`.old` 备份**：自更新时当前二进制重命名为 `.old`
 - **无 pty**：iFlow Agent 在 Windows 上跳过
 - **`.cmd` 弹框**：已移除导致弹框的 `ensureCmdFileAssociation` 函数

@@ -18,6 +18,8 @@ const (
 	DefaultLogMaxSize    = 10 * 1024 * 1024 // 10 MB
 	DefaultLogMaxBackups = 3                // active + .1 + .2 + .3
 	ServiceName          = "cc-connect"
+	ServiceDisplayName  = "cc-connect AI Agent Bridge"
+	ServiceDescription  = "Bridge AI coding agents to instant messaging platforms"
 )
 
 type Config struct {
@@ -42,7 +44,7 @@ type Status struct {
 	Installed bool
 	Running   bool
 	PID       int
-	Platform  string // "systemd", "launchd", "schtasks"
+	Platform  string // "systemd", "launchd", "schtasks", "svc"
 }
 
 type Manager interface {

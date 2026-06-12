@@ -175,6 +175,15 @@ type providerWiringResult struct {
 }
 
 func main() {
+	// Windows Service entry point: when launched by SCM, delegate to svc.Run.
+	if isWindowsService() {
+		runWindowsService()
+		return
+	}
+	runMain()
+}
+
+func runMain() {
 	checkUpdateAsync()
 
 	// Handle subcommands before flag parsing
@@ -1293,6 +1302,7 @@ func main() {
 	var restartReq *core.RestartRequest
 	select {
 	case <-sigCh:
+	case <-svcStopCh:
 	case req := <-core.RestartCh:
 		restartReq = &req
 		slog.Info("restart requested via /restart command", "session", req.SessionKey, "platform", req.Platform)
