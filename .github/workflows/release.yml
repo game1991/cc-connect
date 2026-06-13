@@ -72,6 +72,7 @@ jobs:
         id: package
         run: |
           VERSION=${GITHUB_REF_NAME}
+          # shellcheck disable=SC2034
           EXT=${{ matrix.goos == 'windows' && '.zip' || '.tar.gz' }}
           BASENAME=cc-connect-${VERSION}-${{ matrix.goos }}-${{ matrix.goarch }}
           cd dist
