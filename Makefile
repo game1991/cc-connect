@@ -221,6 +221,7 @@ ifdef DRY_RUN
 	@echo "     (double-slash: MINGW rewrites /path to filesystem path)"
 	@echo "  4. gh api --method DELETE //user/packages/npm/cc-connect/versions/<ID>"
 	@echo "  5. git tag -f $(REBETA_VER) && git push $(REBETA_REMOTE) $(REBETA_VER)"
+	@echo "  6. Wait for CI, then verify npm version"
 	@echo ""
 	@echo "=== Dry Run Complete ==="
 else
@@ -252,12 +253,19 @@ else
 	@git tag -f $(REBETA_VER)
 	@git push $(REBETA_REMOTE) $(REBETA_VER)
 	@echo "[6/6] Waiting for CI and verifying..."
-	@RUN_ID=$$(gh run list --repo $(REBETA_REPO) --branch $(REBETA_VER) --limit 1 --json databaseId --jq '.[0].databaseId' 2>/dev/null || echo ""); \
+	@HEAD_SHA=$$(git rev-parse HEAD); \
+	echo "  Waiting for GitHub to create new run..."; \
+	sleep 5; \
+	for i in 1 2 3 4; do \
+		RUN_ID=$$(gh run list --repo $(REBETA_REPO) --branch $(REBETA_VER) --limit 5 --json databaseId,headSha --jq ".[] | select(.headSha==\"$$HEAD_SHA\") | .databaseId" 2>/dev/null | head -1); \
+		if [ -n "$$RUN_ID" ]; then break; fi; \
+		echo "  Retry ($$i/4)..."; sleep 5; \
+	done; \
 	if [ -z "$$RUN_ID" ]; then \
-		echo "  WARN: could not find CI run. Check manually:"; \
-		echo "    gh run list --repo $(REBETA_REPO) --limit 3"; \
+		echo "  WARN: could not find CI run for $$HEAD_SHA. Check:"; \
+		echo "    gh run list --repo $(REBETA_REPO) --limit 5"; \
 	else \
-		echo "  CI run: $$RUN_ID  (watching...)"; \
+		echo "  CI run:  $$RUN_ID (watching...)"; \
 		gh run watch $$RUN_ID --repo $(REBETA_REPO) --exit-status > /dev/null 2>&1; \
 		STATUS=$$(gh run view $$RUN_ID --repo $(REBETA_REPO) --json conclusion --jq '.conclusion' 2>/dev/null || echo "unknown"); \
 		if [ "$$STATUS" = "success" ]; then \
@@ -269,7 +277,11 @@ else
 	fi
 	@HEAD_SHORT=$$(git rev-parse --short HEAD); \
 	HEAD_FULL=$$(git rev-parse HEAD); \
-	NPM_CREATED=$$(MSYS_NO_PATHCONV=1 gh api /user/packages/npm/cc-connect/versions --jq ".[] | select(.name==\"$(REBETA_NPM_VER)\") | .created_at" 2>/dev/null || echo ""); \
+	for i in 1 2 3 4 5; do \
+		NPM_CREATED=$$(MSYS_NO_PATHCONV=1 gh api /user/packages/npm/cc-connect/versions --jq ".[] | select(.name==\"$(REBETA_NPM_VER)\") | .created_at" 2>/dev/null || echo ""); \
+		if [ -n "$$NPM_CREATED" ]; then break; fi; \
+		echo "  NPM not live yet, retry ($$i/5)..."; sleep 5; \
+	done; \
 	echo ""; \
 	echo "=== Release Verification ==="; \
 	echo "  Local HEAD:  $$HEAD_SHORT ($$HEAD_FULL)"; \
@@ -279,7 +291,7 @@ else
 		echo "  Status:      MATCHED"; \
 	else \
 		echo "  NPM version: $(REBETA_NPM_VER)"; \
-		echo "  Status:      NOT FOUND"; \
+		echo "  Status:      NOT FOUND (may need a moment to propagate)"; \
 	fi; \
 	echo ""
 endif
