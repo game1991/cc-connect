@@ -65,7 +65,7 @@ endif
 _BUILD_TAGS := $(strip $(_EXCLUDE_TAGS) goolm)
 _TAGS_FLAG  := $(if $(_BUILD_TAGS),-tags '$(_BUILD_TAGS)',)
 
-.PHONY: build run clean test test-fast test-full test-smoke test-e2e test-release test-release-local test-performance pre-test lint release release-noweb release-all web
+.PHONY: build run clean test test-fast test-full test-smoke test-e2e test-release test-release-local test-performance pre-test lint release release-noweb release-all web rebeta
 
 web:
 	@if [ ! -d web/node_modules ]; then cd web && npm install; fi
@@ -195,3 +195,62 @@ release-noweb:
 	GOOS=$(GOOS) GOARCH=$(GOARCH) CGO_ENABLED=0 \
 		go build -tags 'no_web' -ldflags "$(LDFLAGS)" -o $(OUT) $(CMD)
 	@echo "Built: $(OUT)"
+
+# Re-release a beta version (delete remote tag + npm, re-push to trigger CI)
+# Usage:
+#   make rebeta                     # re-release v1.3.3-beta (default)
+#   make rebeta REBETA_VERSION=v1.3.3-beta.4
+#   make rebeta REBETA_REMOTE=origin   # override auto-detected remote
+#   make rebeta DRY_RUN=1           # preview only
+REBETA_VER := $(or $(REBETA_VERSION),v1.3.3-beta)
+REBETA_REMOTE ?= $(shell git remote get-url fork &>/dev/null && echo fork || echo origin)
+REBETA_NPM_VER := $(REBETA_VER:v%=%)
+
+rebeta:
+	@echo "=== cc-connect Rebeta ==="
+	@echo "  Tag:     $(REBETA_VER)"
+	@echo "  NPM ver: $(REBETA_NPM_VER)"
+	@echo "  Remote:  $(REBETA_REMOTE)"
+	@echo ""
+ifdef DRY_RUN
+	@echo "[DRY RUN] The following steps would be executed:"
+	@echo "  1. git push $(REBETA_REMOTE) main"
+	@echo "  2. git push $(REBETA_REMOTE) :refs/tags/$(REBETA_VER)"
+	@echo "  3. gh api //user/packages/npm/cc-connect/versions --jq ..."
+t@echo "     (double-slash: MINGW rewrites /path to filesystem path)"
+	@echo "  4. gh api --method DELETE //user/packages/npm/cc-connect/versions/<ID>"
+	@echo "  5. git tag -f $(REBETA_VER) && git push $(REBETA_REMOTE) $(REBETA_VER)"
+	@echo ""
+	@echo "=== Dry Run Complete ==="
+else
+	@echo "[1/5] Checking working tree..."
+	@test -z "$$(git status --porcelain)" || (echo "ERROR: working tree not clean" && exit 1)
+	@echo "  OK"
+	@if git rev-parse $(REBETA_VER) &>/dev/null; then \
+		TAG_COMMIT=$$(git rev-parse $(REBETA_VER)); \
+		HEAD_COMMIT=$$(git rev-parse HEAD); \
+		if [ "$$TAG_COMMIT" != "$$HEAD_COMMIT" ]; then \
+			echo "  WARN: tag $(REBETA_VER) at $$TAG_COMMIT, moving to HEAD $$HEAD_COMMIT"; \
+		fi; \
+	else \
+		echo "  WARN: local tag $(REBETA_VER) does not exist, will be created at HEAD"; \
+	fi
+	@echo "[2/5] Pushing main to $(REBETA_REMOTE)..."
+	@git push $(REBETA_REMOTE) main
+	@echo "[3/5] Deleting remote tag $(REBETA_VER)..."
+	@git push $(REBETA_REMOTE) :refs/tags/$(REBETA_VER) || true
+	@echo "[4/5] Deleting npm version $(REBETA_NPM_VER)..."
+	@NPM_ID=$$(gh api //user/packages/npm/cc-connect/versions --jq ".[] | select(.name==\"$(REBETA_NPM_VER)\") | .id" 2>/dev/null || echo ""); \
+	if [ -n "$$NPM_ID" ]; then \
+		echo "  Found npm version ID: $$NPM_ID"; \
+		gh api --method DELETE "//user/packages/npm/cc-connect/versions/$$NPM_ID"; \
+	else \
+		echo "  No npm version $(REBETA_NPM_VER) found. Skipping."; \
+	fi
+	@echo "[5/5] Re-pushing tag $(REBETA_VER)..."
+	@git tag -f $(REBETA_VER)
+	@git push $(REBETA_REMOTE) $(REBETA_VER)
+	@echo ""
+	@echo "Tag pushed. CI Release workflow should now be triggered."
+	@echo "Next: gh run list --repo game1991/cc-connect --limit 3"
+endif
