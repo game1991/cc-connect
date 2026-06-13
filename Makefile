@@ -240,10 +240,10 @@ else
 	@echo "[3/5] Deleting remote tag $(REBETA_VER)..."
 	@git push $(REBETA_REMOTE) :refs/tags/$(REBETA_VER) || true
 	@echo "[4/5] Deleting npm version $(REBETA_NPM_VER)..."
-	@NPM_ID=$$(gh api //user/packages/npm/cc-connect/versions --jq ".[] | select(.name==\"$(REBETA_NPM_VER)\") | .id" 2>/dev/null || echo ""); \
+	@NPM_ID=$$(MSYS_NO_PATHCONV=1 gh api /user/packages/npm/cc-connect/versions --jq ".[] | select(.name==\"$(REBETA_NPM_VER)\") | .id" 2>/dev/null || echo ""); \
 	if [ -n "$$NPM_ID" ]; then \
 		echo "  Found npm version ID: $$NPM_ID"; \
-		gh api --method DELETE "//user/packages/npm/cc-connect/versions/$$NPM_ID"; \
+		MSYS_NO_PATHCONV=1 gh api --method DELETE "/user/packages/npm/cc-connect/versions/$$NPM_ID"; \
 	else \
 		echo "  No npm version $(REBETA_NPM_VER) found. Skipping."; \
 	fi
