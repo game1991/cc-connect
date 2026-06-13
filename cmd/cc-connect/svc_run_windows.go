@@ -44,15 +44,16 @@ func runWindowsService() {
 type svcHandler struct{}
 
 func (h *svcHandler) Execute(args []string, r <-chan svc.ChangeRequest, status chan<- svc.Status) (bool, uint32) {
-	status <- svc.Status{State: svc.Running, Accepts: svc.AcceptStop | svc.AcceptShutdown}
-
 	// Filter --service from args before main reads them.
 	os.Args = filterArgs(os.Args, "--service")
 
 	// When running as a Windows Service under LocalSystem, the user's home
-	// directory and PATH are not available. Fix the environment so the
-	// process can write logs and find agent binaries correctly.
+	// directory and PATH are not available. Fix the environment BEFORE
+	// reporting Running so that log file and PATH are set up before any
+	// slog.Error calls from runMain().
 	fixSvcEnvironment()
+
+	status <- svc.Status{State: svc.Running, Accepts: svc.AcceptStop | svc.AcceptShutdown}
 
 	done := make(chan struct{})
 	go func() {

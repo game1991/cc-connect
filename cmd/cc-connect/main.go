@@ -342,12 +342,14 @@ func runMain() {
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Use --force to kill the existing instance.\n")
+		slog.Error("failed to acquire instance lock", "error", err)
 		os.Exit(1)
 	}
 	slog.Info("acquired instance lock", "path", instanceLock.Path())
 
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {
 		if err := bootstrapConfig(configPath); err != nil {
+			slog.Error("failed to create default config", "path", configPath, "error", err)
 			fmt.Fprintf(os.Stderr, "Error creating config: %v\n", err)
 			os.Exit(1)
 		}
@@ -358,6 +360,7 @@ func runMain() {
 
 	cfg, err := config.Load(configPath)
 	if err != nil {
+		slog.Error("failed to load config", "path", configPath, "error", err)
 		fmt.Fprintf(os.Stderr, "Error loading config (%s): %v\n", configPath, err)
 		os.Exit(1)
 	}
@@ -366,6 +369,7 @@ func runMain() {
 	slog.Info("config loaded", "path", configPath)
 
 	if len(cfg.Projects) == 0 {
+		slog.Error("no projects configured", "path", configPath)
 		fmt.Fprintf(os.Stderr, "Error: no projects configured in %s\n", configPath)
 		fmt.Fprintln(os.Stderr, "Add at least one [[project]] section to your config.toml, or run:")
 		fmt.Fprintln(os.Stderr, "  cc-connect init")
