@@ -58,14 +58,15 @@ jobs:
           VERSION=${GITHUB_REF_NAME}
           COMMIT=$(git rev-parse --short HEAD)
           BUILD_TIME=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
+          # shellcheck disable=SC2034
           EXT=${{ matrix.goos == 'windows' && '.exe' || '' }}
-          OUT=dist/cc-connect-${VERSION}-${{ matrix.goos }}-${{ matrix.goarch }}${EXT}
+          OUT="dist/cc-connect-${VERSION}-${{ matrix.goos }}-${{ matrix.goarch }}${EXT}"
           mkdir -p dist
           go build -ldflags "-s -w \
             -X main.version=${VERSION} \
             -X main.commit=${COMMIT} \
             -X main.buildTime=${BUILD_TIME}" \
-            -o ${OUT} ./cmd/cc-connect
+            -o "${OUT}" ./cmd/cc-connect
 
       - name: Package archive
         id: package
@@ -75,9 +76,9 @@ jobs:
           BASENAME=cc-connect-${VERSION}-${{ matrix.goos }}-${{ matrix.goarch }}
           cd dist
           if [ "${{ matrix.goos }}" = "windows" ]; then
-            zip ${BASENAME}.zip ${BASENAME}.exe
+            zip "${BASENAME}.zip" "${BASENAME}.exe"
           else
-            tar czf ${BASENAME}.tar.gz ${BASENAME}
+            tar czf "${BASENAME}.tar.gz" "${BASENAME}"
           fi
 
       - uses: actions/upload-artifact@v4
@@ -100,7 +101,7 @@ jobs:
       - name: Generate checksums
         run: |
           cd dist
-          sha256sum *.zip *.tar.gz > checksums.txt
+          sha256sum ./*.zip ./*.tar.gz > checksums.txt
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
