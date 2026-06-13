@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -277,6 +278,9 @@ func daemonUninstall() {
 
 	daemon.RemoveMeta()
 	fmt.Println("cc-connect daemon uninstalled.")
+	if runtime.GOOS == "windows" {
+		fmt.Println("Verify:  tasklist /FI \"IMAGENAME eq cc-connect.exe\"")
+	}
 }
 
 // ── start / stop / restart ──────────────────────────────────
@@ -297,6 +301,9 @@ func daemonStop() {
 		os.Exit(1)
 	}
 	fmt.Println("cc-connect daemon stopped.")
+	if runtime.GOOS == "windows" {
+		fmt.Println("Verify:  tasklist /FI \"IMAGENAME eq cc-connect.exe\"")
+	}
 }
 
 func stopWithFallback(newMgr func() (daemon.Manager, error), loadMeta func() (*daemon.Meta, error), kill func(string) bool, stderr io.Writer) error {
