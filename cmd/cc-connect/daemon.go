@@ -355,6 +355,10 @@ func daemonRestart(args []string) {
 			configPath := metaConfigPath(meta)
 			if KillExistingInstance(configPath) {
 				time.Sleep(500 * time.Millisecond)
+				configDir := filepath.Dir(configPath)
+				configBase := filepath.Base(configPath)
+				lockPath := filepath.Join(configDir, "."+configBase+".lock")
+				os.Remove(lockPath)
 			}
 			cfg := daemon.ConfigFromMeta(meta)
 			if err := daemon.RewriteLauncherScript(cfg); err != nil {
