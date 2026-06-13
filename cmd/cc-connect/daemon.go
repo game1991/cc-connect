@@ -273,6 +273,12 @@ func daemonUninstall() {
 		if KillExistingInstance(configPath) {
 			fmt.Fprintln(os.Stderr, "Warning: orphan process was still running after uninstall, killed via instance lock PID")
 			time.Sleep(500 * time.Millisecond)
+			// The killed process cannot clean up its own lock file;
+			// remove it now so a subsequent install doesn't see a stale PID.
+			configDir := filepath.Dir(configPath)
+			configBase := filepath.Base(configPath)
+			lockPath := filepath.Join(configDir, "."+configBase+".lock")
+			os.Remove(lockPath)
 		}
 	}
 
