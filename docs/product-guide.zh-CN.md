@@ -732,19 +732,25 @@ cc-connect --version            # 确认新版本
 cc-connect daemon restart
 ```
 
+> **重要**：必须先 `daemon stop` 再 `npm install`。`daemon stop` 会在 SCM 停止失败时自动强杀残留进程，确保二进制文件可被替换。直接 `npm install` 可能因旧进程锁定文件而失败，或导致新 daemon 启动时加载旧二进制。
+
 **跨模式重装**（从 schtasks 切换到 Windows Service，或反之）：
 
 ```bash
-cc-connect daemon uninstall     # 卸载旧模式
+cc-connect daemon stop          # 先停止，确保进程退出
+cc-connect daemon uninstall     # 再卸载服务注册
 # 以目标权限重新安装：
 cc-connect daemon install       # 普通用户 → schtasks
 # 或以管理员身份运行：
 cc-connect daemon install       # 管理员 → Windows Service
 ```
 
+> **注意**：`daemon uninstall` 已内置残留进程强杀机制，会自动清理 SCM 停止后的孤儿进程。旧版本需先手动 `daemon stop` 再 `uninstall`。
+
 **彻底清理后重装**（配置损坏、二进制丢失等疑难场景）：
 
 ```bash
+cc-connect daemon stop          # 确保进程完全退出
 # Windows: 删除旧 service（需管理员终端）
 sc.exe stop cc-connect
 sc.exe delete cc-connect
