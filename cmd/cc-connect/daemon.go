@@ -236,6 +236,15 @@ func isTruthyEnv(v string) bool {
 // ── uninstall ───────────────────────────────────────────────
 
 func daemonUninstall() {
+	// Snapshot meta BEFORE uninstall — Uninstall() deletes the service
+	// registration and RemoveMeta() deletes daemon.json, but the process
+	// may still be alive as an orphan. We need meta to locate the config
+	// path for the instance lock PID.
+	var metaSnapshot *daemon.Meta
+	if m, err := daemon.LoadMeta(); err == nil {
+		metaSnapshot = m
+	}
+
 	mgr, err := daemon.NewManager()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
@@ -251,6 +260,19 @@ func daemonUninstall() {
 	if err := mgr.Uninstall(); err != nil {
 		fmt.Fprintf(os.Stderr, "Uninstall failed: %v\n", err)
 		os.Exit(1)
+	}
+
+	// Kill any residual process that survived the SCM stop.
+	// On Windows, SCM may report STOPPED before the process has fully
+	// exited, leaving an orphan that holds file handles and the instance
+	// lock. Without this, a subsequent npm install + daemon install may
+	// fail or run against a stale binary.
+	if metaSnapshot != nil {
+		configPath := metaConfigPath(metaSnapshot)
+		if KillExistingInstance(configPath) {
+			fmt.Fprintln(os.Stderr, "Warning: orphan process was still running after uninstall, killed via instance lock PID")
+			time.Sleep(500 * time.Millisecond)
+		}
 	}
 
 	daemon.RemoveMeta()
