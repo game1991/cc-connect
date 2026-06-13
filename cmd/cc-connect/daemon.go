@@ -335,6 +335,10 @@ func stopWithFallback(newMgr func() (daemon.Manager, error), loadMeta func() (*d
 	configPath := metaConfigPath(meta)
 	if kill(configPath) {
 		fmt.Fprintln(stderr, "Warning: task scheduler reported stopped but process was still running; killed via instance lock PID")
+		configDir := filepath.Dir(configPath)
+		configBase := filepath.Base(configPath)
+		lockPath := filepath.Join(configDir, "."+configBase+".lock")
+		os.Remove(lockPath)
 	}
 	return nil
 }
