@@ -648,7 +648,7 @@
   <div class="hero-badge">@game1991/cc-connect</div>
   <h1>cc-connect 产品指南</h1>
   <p class="subtitle">AI 编码 Agent &times; 即时通讯，一句话写代码</p>
-  <div class="version">v1.3.3 &middot; 最后更新 2026-06-11</div>
+  <div class="version">v1.3.3-beta &middot; 最后更新 2026-06-14</div>
 </div>
 
 <!-- ══════════ TOC ══════════ -->
@@ -664,6 +664,7 @@
     <a href="#sec8" class="toc-item"><span class="toc-num">8</span>运维命令手册</a>
     <a href="#sec9" class="toc-item"><span class="toc-num">9</span>故障排查</a>
     <a href="#sec10" class="toc-item"><span class="toc-num">10</span>安全机制</a>
+    <a href="#sec11" class="toc-item"><span class="toc-num">11</span>Fork 版本说明</a>
   </div>
 </div>
 
@@ -1748,6 +1749,436 @@
       <div class="sc-title">原子写入</div>
       <div class="sc-desc">临时文件 + sync + rename，防止崩溃导致文件损坏。</div>
       <div class="sc-config">自动生效</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ Section 11 ══════════ -->
+<div class="section" id="sec11">
+  <div class="section-header">
+    <div class="section-num">11</div>
+    <div class="section-title">Fork 版本说明</div>
+  </div>
+
+  <!-- 11 intro -->
+  <div class="subsection">
+    <div class="subsection-title">当前版本：v1.3.3-fork <span class="tag tag-sec">FORK</span></div>
+    <p style="font-size:14px;color:var(--text-sec);line-height:1.7;margin-bottom:14px;">
+      本仓库是 <a href="https://github.com/chenhg5/cc-connect" style="color:var(--accent)">cc-connect 官方版</a> 的 fork 版本，基于官方 <code>v1.3.3</code> tag 衍生。fork 的目的是在官方版本基础上解决 Windows 生产环境中的实际痛点，这些修复尚未被上游合并。
+    </p>
+    <p style="font-size:13.5px;color:var(--text-muted);margin-bottom:14px;">
+      发布渠道：<code>@game1991/cc-connect@beta</code>（GitHub Packages）
+    </p>
+  </div>
+
+  <!-- Quick nav -->
+  <div class="info-grid" style="margin-bottom:28px;">
+    <a href="#fork-install" class="info-card" style="text-decoration:none;color:var(--text);"><strong>下载与安装</strong><br><span style="font-size:12px;color:var(--text-muted);">从零开始安装 fork 版本</span></a>
+    <a href="#fork-switch" class="info-card" style="text-decoration:none;color:var(--text);"><strong>从官方版切换</strong><br><span style="font-size:12px;color:var(--text-muted);">卸载旧版 + 安装新版</span></a>
+    <a href="#fork-upgrade" class="info-card" style="text-decoration:none;color:var(--text);"><strong>就地升级</strong><br><span style="font-size:12px;color:var(--text-muted);">fork 版本内升级</span></a>
+    <a href="#fork-downgrade" class="info-card" style="text-decoration:none;color:var(--text);"><strong>降级 / 重装</strong><br><span style="font-size:12px;color:var(--text-muted);">回退官方版或彻底清理</span></a>
+  </div>
+
+  <hr style="border:none;border-top:1px solid var(--border);margin:28px 0;">
+
+  <!-- ═══ Download & Install ═══ -->
+  <div class="subsection" id="fork-install">
+    <div class="subsection-title">下载与安装 <span class="tag tag-feat">SETUP</span></div>
+
+    <div class="table-wrap" style="margin-bottom:18px;">
+      <table>
+        <thead><tr><th>依赖</th><th>要求</th><th>检查命令</th></tr></thead>
+        <tbody>
+          <tr><td>Node.js + npm</td><td>18+</td><td><code>node --version</code></td></tr>
+          <tr><td>Git</td><td>任意</td><td><code>git --version</code></td></tr>
+          <tr><td>GitHub PAT</td><td><code>read:packages</code> 权限</td><td>&mdash;</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-title">配置 npm 作用域</div>
+        <p style="font-size:13.5px;color:var(--text-sec);margin-bottom:8px;">
+          fork 版本发布在 GitHub Packages，需配置 npm 作用域。编辑 <code>~/.npmrc</code>（Windows: <code>C:\Users\&lt;用户名&gt;\.npmrc</code>）：
+        </p>
+        <pre><span class="key">@game1991:registry</span>=https://npm.pkg.github.com
+<span class="key">//npm.pkg.github.com/:_authToken</span>=<span class="str">&lt;YOUR_GITHUB_PAT&gt;</span></pre>
+        <div class="callout callout-info">
+          PAT 获取：GitHub → Settings → Developer settings → Personal access tokens → Fine-grained tokens → 勾选 <code>read:packages</code><br>
+          如果已有官方版的 <code>.npmrc</code> 配置，两行新增内容直接追加即可，不影响其他 scope。
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-title">安装</div>
+        <pre><span class="cmd">npm install -g @game1991/cc-connect@beta</span></pre>
+        <div class="callout callout-info">
+          <code>@beta</code> 是 npm dist-tag，始终指向最新的 fork 预发布版本。无需记忆具体版本号。
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-title">验证</div>
+        <pre><span class="cmd">cc-connect --version</span>
+<span class="comment"># 预期输出: cc-connect v1.3.3-beta  或  v1.3.3-beta.N</span></pre>
+        <p style="font-size:13px;color:var(--text-sec);">
+          如果提示 <code>command not found</code>，检查 npm 全局 bin 目录是否在 PATH 中：<br>
+          <code>npm prefix -g</code> / <code>npm bin -g</code>
+        </p>
+      </div>
+
+      <div class="step">
+        <div class="step-title">初始化配置</div>
+        <pre><span class="cmd">cc-connect</span>                  <span class="comment"># 首次运行自动生成 ~/.cc-connect/config.toml 模板</span></pre>
+        <p style="font-size:13px;color:var(--text-sec);">或手动：<code>mkdir -p ~/.cc-connect && cp config.example.toml ~/.cc-connect/config.toml</code></p>
+      </div>
+
+      <div class="step">
+        <div class="step-title">安装 daemon</div>
+        <pre><span class="comment"># 管理员终端 → Windows Service（推荐，无弹窗、开机自启）</span>
+<span class="cmd">cc-connect daemon install</span>
+
+<span class="comment"># 普通终端 → schtasks（兼容模式，可能有 PowerShell 弹窗）</span>
+<span class="cmd">cc-connect daemon install</span></pre>
+        <p style="font-size:13px;color:var(--text-sec);">
+          安装时自动检测权限：<strong>管理员</strong>→注册为 Windows Service（<code>services.msc</code> 管理）；<strong>普通用户</strong>→注册为任务计划（需登录后启动，会提示建议用管理员重装）。
+        </p>
+      </div>
+
+      <div class="step">
+        <div class="step-title">确认运行</div>
+        <pre><span class="cmd">cc-connect daemon status</span>
+<span class="cmd">cc-connect daemon logs -f</span></pre>
+      </div>
+    </div>
+  </div>
+
+  <hr style="border:none;border-top:1px solid var(--border);margin:28px 0;">
+
+  <!-- ═══ Switch from official ═══ -->
+  <div class="subsection" id="fork-switch">
+    <div class="subsection-title">从官方版切换到 Fork 版本 <span class="tag tag-win">MIGRATE</span></div>
+
+    <div class="faq-item">
+      <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">
+        场景 A：官方版以 daemon 方式运行
+        <span class="faq-chevron">&#9654;</span>
+      </div>
+      <div class="faq-a"><div class="faq-a-inner">
+        <pre><span class="cmd">cc-connect daemon stop</span>
+
+<span class="comment"># 2. 卸载旧版</span>
+<span class="cmd">npm uninstall -g cc-connect</span>
+<span class="comment"># 或（如果通过 scoped 包安装的官方版）：</span>
+<span class="cmd">npm uninstall -g @anthropic-ai/cc-connect</span>
+
+<span class="comment"># 3. 安装 fork 版本（确保 ~/.npmrc 已配置 @game1991 scope）</span>
+<span class="cmd">npm install -g @game1991/cc-connect@beta</span>
+
+<span class="comment"># 4. 验证 + 安装 daemon</span>
+<span class="cmd">cc-connect --version</span>
+<span class="cmd">cc-connect daemon install</span>
+<span class="cmd">cc-connect daemon status</span></pre>
+      </div></div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">
+        场景 B：官方版以前台方式运行
+        <span class="faq-chevron">&#9654;</span>
+      </div>
+      <div class="faq-a"><div class="faq-a-inner">
+        <pre><span class="comment"># 1. 停止运行中的 cc-connect（Ctrl+C）</span>
+
+<span class="comment"># 2. 卸载旧版</span>
+<span class="cmd">npm uninstall -g cc-connect</span>
+
+<span class="comment"># 3. 安装 fork 版本</span>
+<span class="cmd">npm install -g @game1991/cc-connect@beta</span>
+
+<span class="comment"># 4. 验证 + 启动</span>
+<span class="cmd">cc-connect --version</span>
+<span class="cmd">cc-connect</span></pre>
+      </div></div>
+    </div>
+
+    <div class="callout callout-info" style="margin-top:12px;">
+      <strong>配置文件兼容吗？</strong> — <strong>完全兼容</strong>。fork 版本与官方 v1.3.3 使用相同的 <code>config.toml</code> 格式，无需任何修改。现有的 <code>~/.cc-connect/config.toml</code>、<code>crons/jobs.json</code>、会话数据均可直接沿用。
+    </div>
+  </div>
+
+  <hr style="border:none;border-top:1px solid var(--border);margin:28px 0;">
+
+  <!-- ═══ In-place upgrade ═══ -->
+  <div class="subsection" id="fork-upgrade">
+    <div class="subsection-title">就地升级（Fork 版本内升级） <span class="tag tag-feat">UPDATE</span></div>
+
+    <div class="faq-item">
+      <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">
+        方式一：npm 覆盖安装（推荐）
+        <span class="faq-chevron">&#9654;</span>
+      </div>
+      <div class="faq-a"><div class="faq-a-inner">
+        <pre><span class="comment"># 1. 停止 daemon</span>
+<span class="cmd">cc-connect daemon stop</span>
+
+<span class="comment"># 2. 覆盖安装到最新 beta</span>
+<span class="cmd">npm install -g @game1991/cc-connect@beta</span>
+
+<span class="comment"># 3. 确认版本已更新</span>
+<span class="cmd">cc-connect --version</span>
+
+<span class="comment"># 4. 重启 daemon</span>
+<span class="cmd">cc-connect daemon restart</span></pre>
+        <div class="callout callout-warn">
+          <strong>为什么要先 stop？</strong> daemon 进程会持有二进制文件的文件句柄。Windows 上文件被打开时无法被覆盖。<code>daemon stop</code> 会在 SCM 停止失败时自动强杀残留进程，确保旧文件可被替换。Linux/macOS 同理。
+        </div>
+      </div></div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">
+        方式二：自更新命令
+        <span class="faq-chevron">&#9654;</span>
+      </div>
+      <div class="faq-a"><div class="faq-a-inner">
+        <pre><span class="cmd">/upgrade --pre</span></pre>
+        <p style="font-size:13.5px;color:var(--text-sec);">
+          <code>--pre</code>：获取预发布版本（即 fork beta）。不加 <code>--pre</code>：获取最新稳定版（会跳过 fork 版本）。更新后 fork 版本会自动重新生成 daemon 启动脚本并重启 daemon。
+        </p>
+        <p style="font-size:13px;color:var(--text-muted);margin-top:6px;">
+          双源策略：默认从 GitHub Releases 下载，中国大陆用户可在 config.toml 中设置 <code>prefer_gitee = true</code> 切换到 Gitee 镜像源。
+        </p>
+      </div></div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">
+        方式三：一条命令重装（疑难场景）
+        <span class="faq-chevron">&#9654;</span>
+      </div>
+      <div class="faq-a"><div class="faq-a-inner">
+        <pre><span class="cmd">cc-connect reinstall --yes</span></pre>
+        <p style="font-size:13.5px;color:var(--text-sec);">
+          自动执行：备份配置 → 停止 daemon → 清理运行时 → 卸载 npm → 重新安装 npm → 恢复配置 → 重装 daemon。详见<a href="#fork-clean" style="color:var(--accent)">彻底清理后重装</a>。
+        </p>
+      </div></div>
+    </div>
+  </div>
+
+  <hr style="border:none;border-top:1px solid var(--border);margin:28px 0;">
+
+  <!-- ═══ Downgrade ═══ -->
+  <div class="subsection" id="fork-downgrade">
+    <div class="subsection-title">降级回官方版本 <span class="tag tag-sec">ROLLBACK</span></div>
+    <pre><span class="cmd">cc-connect daemon stop</span>
+<span class="cmd">cc-connect daemon uninstall</span>
+<span class="cmd">npm uninstall -g @game1991/cc-connect</span>
+<span class="cmd">npm install -g cc-connect@latest</span>
+<span class="cmd">cc-connect --version</span>          <span class="comment"># 应无 fork / beta 标识</span>
+<span class="cmd">cc-connect daemon install</span></pre>
+    <div class="callout callout-info">
+      配置文件无需任何改动，官方版可直接读取 <code>~/.cc-connect/config.toml</code>。
+    </div>
+  </div>
+
+  <hr style="border:none;border-top:1px solid var(--border);margin:28px 0;">
+
+  <!-- ═══ Clean reinstall ═══ -->
+  <div class="subsection" id="fork-clean">
+    <div class="subsection-title">彻底清理后重装 <span class="tag tag-sec">CLEAN</span></div>
+
+    <p style="font-size:14px;color:var(--text-sec);margin-bottom:12px;">适用于以下场景：</p>
+    <div class="info-grid">
+      <div class="info-card">daemon 重复安装导致 Service 注册混乱</div>
+      <div class="info-card">进程残留杀不掉，二进制文件被锁定</div>
+      <div class="info-card">运行时状态损坏（实例锁残留、日志异常膨胀）</div>
+      <div class="info-card">npm 安装反复失败，需要从头来</div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">
+        方式一：reinstall 命令（推荐）
+        <span class="faq-chevron">&#9654;</span>
+      </div>
+      <div class="faq-a"><div class="faq-a-inner">
+        <pre><span class="cmd">cc-connect reinstall --yes</span></pre>
+        <p style="font-size:13.5px;color:var(--text-sec);margin-bottom:8px;">自动两阶段流程：</p>
+        <p style="font-size:13px;color:var(--text-sec);">
+          <strong>Phase 1</strong>（Go）：备份 config.toml + crons + dir_history + daemon.json → 停止 daemon → 卸载 daemon → 清理运行时 → 生成补全脚本<br>
+          <strong>Phase 2</strong>（补全脚本）：npm uninstall → npm install → 恢复配置 → daemon install（使用备份的 daemon.json 恢复原始安装参数）
+        </p>
+        <p style="font-size:12.5px;color:var(--text-muted);margin-top:6px;">
+          备份保存到 <code>~/.cc-connect-backup/&lt;时间戳&gt;/</code>。MINGW bash 一条命令完成；PowerShell/CMD 因文件锁需两步执行。
+        </p>
+      </div></div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">
+        方式二：手动逐步清理
+        <span class="faq-chevron">&#9654;</span>
+      </div>
+      <div class="faq-a"><div class="faq-a-inner">
+        <pre><span class="comment"># 1. 停止 daemon</span>
+<span class="cmd">cc-connect daemon stop</span>
+
+<span class="comment"># 2. Windows: 手动删除残留 Service（需管理员终端）</span>
+<span class="comment">#    仅当 daemon uninstall 报错或 services.msc 中仍存在 cc-connect 时执行</span>
+<span class="cmd">sc.exe stop cc-connect</span>
+<span class="cmd">sc.exe delete cc-connect</span>
+
+<span class="comment"># 3. 卸载 npm 包</span>
+<span class="cmd">npm uninstall -g @game1991/cc-connect</span>
+
+<span class="comment"># 4. 清理运行时数据（保留 config.toml 和 crons/）</span>
+<span class="cmd">cc-connect clean</span>
+<span class="comment">#    或完全重置（自动备份后删除全部，包括 config.toml 和 crons/）</span>
+<span class="cmd">cc-connect clean reset</span>
+
+<span class="comment"># 5. 重新安装</span>
+<span class="cmd">npm install -g @game1991/cc-connect@beta</span>
+<span class="cmd">cc-connect --version</span>
+<span class="cmd">cc-connect doctor</span>
+<span class="cmd">cc-connect daemon install</span></pre>
+        <div class="callout callout-info">
+          <code>cc-connect clean</code> 实际删除项：实例锁（<code>.config.toml.lock</code>）、运行时目录（<code>run/sock</code>）、日志（<code>logs/</code>）、daemon 元数据（<code>daemon.json</code>）、Windows 启动脚本（<code>cc-connect-daemon.ps1</code>）、目录历史（<code>dir_history.json</code>）。<strong>保留</strong> <code>config.toml</code> 和 <code>crons/</code>。
+        </div>
+      </div></div>
+    </div>
+  </div>
+
+  <hr style="border:none;border-top:1px solid var(--border);margin:28px 0;">
+
+  <!-- ═══ Compatibility ═══ -->
+  <div class="subsection">
+    <div class="subsection-title">兼容性说明 <span class="tag tag-feat">COMPAT</span></div>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>项目</th><th>官方 v1.3.3</th><th>Fork 版本</th><th>说明</th></tr></thead>
+        <tbody>
+          <tr><td>config.toml 格式</td><td>&#10003;</td><td>&#10003;</td><td>完全兼容，无需修改</td></tr>
+          <tr><td>crons/jobs.json</td><td>&#10003;</td><td>&#10003;</td><td>完全兼容</td></tr>
+          <tr><td>会话数据</td><td>&#10003;</td><td>&#10003;</td><td>共享 <code>~/.cc-connect/</code>，可双向切换</td></tr>
+          <tr><td>npm scope</td><td><code>cc-connect</code></td><td><code>@game1991/cc-connect</code></td><td><strong>不同 scope</strong>，需手动切换</td></tr>
+          <tr><td>daemon 平台</td><td>schtasks</td><td>schtasks / <strong>svc</strong></td><td>fork 新增 Windows Service 模式</td></tr>
+          <tr><td>CLI 命令</td><td>&#10003;</td><td>&#10003;</td><td>完全一致，<code>cc-connect</code> 入口不变</td></tr>
+          <tr><td>--version 输出</td><td><code>v1.3.3</code></td><td><code>v1.3.3-beta</code></td><td>含 beta 标识可区分</td></tr>
+          <tr><td>Web UI</td><td>&#10003;</td><td>&#10003;</td><td>内嵌二进制，无需额外部署</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="info-grid" style="margin-top:16px;">
+      <div class="info-card" style="border-color:var(--green-dim);">
+        <strong style="color:var(--green);">配置 100% 兼容</strong><br>
+        <span style="font-size:12.5px;color:var(--text-sec);">两个版本可无缝切换，无需改任何一行配置</span>
+      </div>
+      <div class="info-card" style="border-color:rgba(210,153,34,.3);">
+        <strong style="color:var(--yellow);">数据目录共享</strong><br>
+        <span style="font-size:12.5px;color:var(--text-sec);"><code>~/.cc-connect/</code> 会话、定时任务全部保留</span>
+      </div>
+      <div class="info-card" style="border-color:rgba(88,166,255,.25);">
+        <strong style="color:var(--blue);">唯一区别是 npm scope</strong><br>
+        <span style="font-size:12.5px;color:var(--text-sec);">安装/卸载时注意包名不同</span>
+      </div>
+      <div class="info-card" style="border-color:rgba(88,166,255,.25);">
+        <strong style="color:var(--blue);">就地升级安全</strong><br>
+        <span style="font-size:12.5px;color:var(--text-sec);">覆盖安装即可，无需卸载再装</span>
+      </div>
+    </div>
+  </div>
+
+  <hr style="border:none;border-top:1px solid var(--border);margin:28px 0;">
+
+  <!-- ═══ Fork changes ═══ -->
+  <div class="subsection">
+    <div class="subsection-title">Fork 相对于官方 v1.3.3 的变更 <span class="tag tag-feat">CHANGES</span></div>
+
+    <p style="font-size:14px;color:var(--text-sec);margin-bottom:14px;">共 20 个 commits，按功能分组：</p>
+
+    <!-- Windows Service -->
+    <div class="subsection-title" style="font-size:15px;margin-top:24px;">核心新增：Windows Service 原生支持</div>
+    <p style="font-size:13.5px;color:var(--text-sec);margin-bottom:12px;">
+      官方版 Windows daemon 仅支持 schtasks（任务计划），存在 PowerShell 弹窗、登录才启动等问题。本 fork 新增 Windows Service 模式：
+    </p>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>特性</th><th>官方版</th><th>Fork 版</th></tr></thead>
+        <tbody>
+          <tr><td>安装模式</td><td>仅 schtasks</td><td><strong>管理员→Windows Service / 普通用户→schtasks</strong></td></tr>
+          <tr><td>开机自启</td><td>需用户登录</td><td><strong>Service 模式无需登录</strong></td></tr>
+          <tr><td>弹窗问题</td><td>可能出现 PowerShell 窗口</td><td><strong>Service 模式无弹窗</strong></td></tr>
+          <tr><td>管理方式</td><td><code>schtasks.exe</code></td><td><strong><code>services.msc</code> / <code>sc.exe</code></strong></td></tr>
+          <tr><td>环境变量</td><td>SYSTEM 账户无用户 PATH</td><td><strong>安装时捕获用户 PATH 和 HOME，Service 启动时恢复</strong></td></tr>
+          <tr><td>SCM 生命周期</td><td>不支持</td><td><strong>支持 Stop/Shutdown 信号，25s 优雅关停</strong></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="info-grid" style="margin-top:12px;">
+      <div class="info-card"><code>daemon/svcmanager_windows.go</code><br><span style="font-size:12px;color:var(--text-muted);">sc.exe 管理 Service + IsAdmin 权限检测</span></div>
+      <div class="info-card"><code>cmd/cc-connect/svc_run_windows.go</code><br><span style="font-size:12px;color:var(--text-muted);">Service 入口，对接 SCM，恢复环境变量，优雅关停</span></div>
+      <div class="info-card"><code>cmd/cc-connect/update_daemon.go</code><br><span style="font-size:12px;color:var(--text-muted);">自更新后自动重启 daemon + 重写启动脚本</span></div>
+    </div>
+
+    <!-- Plugin skill -->
+    <div class="subsection-title" style="font-size:15px;margin-top:24px;">核心新增：插件技能发现</div>
+    <div class="scenario">
+      <div class="label">自动扫描</div>
+      <code>~/.cc-connect/plugins/cache/&lt;plugin&gt;/skills/</code> 和 <code>&lt;plugin&gt;/.claude/skills/</code><br>
+      符号链接安全检查：跳过指向缓存目录外部的符号链接<br>
+      <code>filepath.WalkDir</code> 返回值检查修复
+    </div>
+
+    <!-- Daemon robustness -->
+    <div class="subsection-title" style="font-size:15px;margin-top:24px;">Daemon 稳健性增强（6 项修复）</div>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>问题</th><th>修复</th></tr></thead>
+        <tbody>
+          <tr><td><code>daemon stop</code> 后残留实例锁</td><td>stop / uninstall / restart --force 后自动清理 <code>.config.toml.lock</code></td></tr>
+          <tr><td>npm 更新后 daemon 加载旧二进制</td><td>启动脚本改为 PATH 解析：先检查 BinaryPath，找不到则 Get-Command fallback</td></tr>
+          <tr><td>daemon 更新后启动脚本过期</td><td><code>cc-connect update</code> 和 <code>daemon restart --force</code> 自动调用 <code>RewriteLauncherScript()</code></td></tr>
+          <tr><td>uninstall 后孤儿进程占文件</td><td>uninstall 在 SCM 停止后自动强杀残留进程（通过实例锁 PID）</td></tr>
+          <tr><td><code>cc-connect clean</code> 顺序不当</td><td>clean 先快照 daemon.json → 用快照杀进程 → 最后才 uninstall</td></tr>
+          <tr><td>Windows Service 启动错误不可见</td><td>Service 模式下启动错误写入 <code>slog.Error</code> 日志，不再静默退出</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- make rebeta -->
+    <div class="subsection-title" style="font-size:15px;margin-top:24px;">发布流程：<code>make rebeta</code></div>
+    <pre><span">make rebeta</span>                                  <span class="comment"># 默认重推 v1.3.3-beta</span>
+<span class="cmd">make rebeta REBETA_VERSION=v1.3.3-beta.5</span>     <span class="comment"># 指定版本</span>
+<span class="cmd">make rebeta DRY_RUN=1</span>                       <span class="comment"># 仅预览，不执行</span></pre>
+    <p style="font-size:13px;color:var(--text-sec);margin-top:6px;">
+      流程：推送 main → 删除远端 tag → 删除 npm 旧版本 → 重新打 tag → 推送 tag → 等 CI → 验证 npm 版本号。
+    </p>
+  </div>
+
+  <hr style="border:none;border-top:1px solid var(--border);margin:28px 0;">
+
+  <!-- ═══ Version selection ═══ -->
+  <div class="subsection">
+    <div class="subsection-title">版本选择建议 <span class="tag tag-feat">GUIDE</span></div>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>场景</th><th>推荐版本</th></tr></thead>
+        <tbody>
+          <tr><td>Linux/macOS 生产环境</td><td><strong style="color:var(--green);">官方稳定版</strong> — fork 改动主要针对 Windows</td></tr>
+          <tr><td>Windows 服务器/虚拟机</td><td><strong style="color:var(--accent);">Fork 版本</strong> — Windows Service 无弹窗、开机自启</td></tr>
+          <tr><td>Windows 开发机（每天手动启动）</td><td>官方稳定版 — schtasks 够用</td></tr>
+          <tr><td>使用 Claude Code 插件技能</td><td><strong style="color:var(--accent);">Fork 版本</strong> — 自动发现插件技能目录</td></tr>
+          <tr><td>daemon 经常卡死/残留进程</td><td><strong style="color:var(--accent);">Fork 版本</strong> — 实例锁/孤儿进程清理机制</td></tr>
+          <tr><td>仅基础功能、运行正常</td><td>官方稳定版 — 无需切换</td></tr>
+        </tbody>
+      </table>
     </div>
   </div>
 </div>
