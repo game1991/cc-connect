@@ -1,6 +1,6 @@
 # cc-connect 产品指南
 
-> AI 编码 Agent × 即时通讯，一句话写代码 | v1.3.3 | 最后更新 2026-06-11
+> AI 编码 Agent × 即时通讯，一句话写代码 | v1.3.3-beta | 最后更新 2026-06-14
 
 ---
 
@@ -853,3 +853,373 @@ taskkill /PID <PID> /F              # 强制终止
 | 敏感信息脱敏 | 环境变量值、API Key 参数在日志中自动遮蔽 | 自动 |
 | 路径穿越保护 | `SaveFilesToDisk` 清理 `..` 和绝对路径前缀 | 自动 |
 | 原子写入 | 临时文件 + sync + rename，防止崩溃导致文件损坏 | 自动 |
+
+---
+
+## 11. Fork 版本说明
+
+### 当前版本：v1.3.3-fork
+
+本仓库是 [cc-connect 官方版](https://github.com/chenhg5/cc-connect) 的 fork 版本，基于官方 `v1.3.3` tag 衍生。fork 的目的是在官方版本基础上解决 Windows 生产环境中的实际痛点，这些修复尚未被上游合并。
+
+**发布渠道**：`@game1991/cc-connect@beta`（GitHub Packages）
+
+### 快速导航
+
+- [下载与安装](#下载与安装) — 从零开始安装 fork 版本
+- [从官方版切换](#从官方版切换到-fork-版本) — 卸载旧版 + 安装新版
+- [就地升级](#就地升级fork-版本内升级) — fork 版本之间的升级
+- [降级回官方版](#降级回官方版本)
+- [彻底清理重装](#彻底清理后重装)
+- [兼容性说明](#兼容性说明)
+- [Fork 变更内容](#fork-相对于官方-v133-的变更)
+- [版本选择建议](#版本选择建议)
+
+---
+
+### 下载与安装
+
+#### 前置条件
+
+| 依赖 | 要求 | 检查命令 |
+|------|------|----------|
+| Node.js + npm | 18+ | `node --version` |
+| Git | 任意 | `git --version` |
+| GitHub PAT | `read:packages` 权限 | — |
+
+#### 第一步：配置 npm 作用域
+
+fork 版本发布在 GitHub Packages，需要配置 npm 作用域才能下载。编辑 `~/.npmrc`（Windows: `C:\Users\<用户名>\.npmrc`）：
+
+```ini
+@game1991:registry=https://npm.pkg.github.com
+//npm.pkg.github.com/:_authToken=<YOUR_GITHUB_PAT>
+```
+
+PAT 获取方式：GitHub → Settings → Developer settings → Personal access tokens → Fine-grained tokens → 勾选 `read:packages`
+
+> 如果已有官方版的 `.npmrc` 配置，两行新增内容直接追加即可，不影响其他 scope。
+
+#### 第二步：安装
+
+```bash
+npm install -g @game1991/cc-connect@beta
+```
+
+> `@beta` 是 npm dist-tag，始终指向最新的 fork 预发布版本。无需记忆具体版本号。
+
+#### 第三步：验证
+
+```bash
+cc-connect --version
+# 预期输出: cc-connect v1.3.3-beta  或  v1.3.3-beta.N
+```
+
+如果提示 `command not found`，检查 npm 全局 bin 目录是否在 PATH 中：
+
+```bash
+npm prefix -g          # 查看 npm 全局目录
+npm bin -g             # 查看 bin 目录（npm < 9）
+ls "$(npm prefix -g)/bin/cc-connect"   # 确认二进制存在
+```
+
+#### 第四步：初始化配置
+
+```bash
+cc-connect                  # 首次运行自动生成 ~/.cc-connect/config.toml 模板
+```
+
+或手动创建：
+
+```bash
+mkdir -p ~/.cc-connect
+cp config.example.toml ~/.cc-connect/config.toml
+```
+
+#### 第五步：安装 daemon
+
+```bash
+# 管理员终端 → Windows Service（推荐，无弹窗、开机自启）
+cc-connect daemon install
+
+# 普通终端 → schtasks（兼容模式，可能有 PowerShell 弹窗）
+cc-connect daemon install
+```
+
+安装时自动检测权限：
+- **管理员**：注册为 Windows Service，通过 `services.msc` 管理，无需登录即可运行
+- **普通用户**：注册为任务计划，需用户登录后才会启动，会提示建议用管理员重装
+
+#### 第六步：确认运行
+
+```bash
+cc-connect daemon status
+cc-connect daemon logs -f
+```
+
+---
+
+### 从官方版切换到 Fork 版本
+
+如果你当前运行的是官方版（`@anthropic-ai/cc-connect` 或 npm 上的 `cc-connect`），切换步骤如下：
+
+#### 场景 A：官方版以 daemon 方式运行
+
+```bash
+# 1. 停止旧 daemon
+cc-connect daemon stop
+
+# 2. 卸载旧版
+npm uninstall -g cc-connect
+# 或（如果通过 scoped 包安装的官方版）：
+npm uninstall -g @anthropic-ai/cc-connect
+
+# 3. 安装 fork 版本（确保 ~/.npmrc 已配置 @game1991 scope）
+npm install -g @game1991/cc-connect@beta
+
+# 4. 验证
+cc-connect --version
+
+# 5. 安装 daemon（管理员终端推荐）
+cc-connect daemon install
+
+# 6. 确认
+cc-connect daemon status
+```
+
+#### 场景 B：官方版以前台方式运行
+
+```bash
+# 1. 停止运行中的 cc-connect（Ctrl+C）
+
+# 2. 卸载旧版
+npm uninstall -g cc-connect
+
+# 3. 安装 fork 版本
+npm install -g @game1991/cc-connect@beta
+
+# 4. 验证 + 启动
+cc-connect --version
+cc-connect
+```
+
+#### 配置文件兼容吗？
+
+**完全兼容**。fork 版本与官方 v1.3.3 使用相同的 `config.toml` 格式，无需任何修改。现有的 `~/.cc-connect/config.toml`、`crons/jobs.json`、会话数据均可直接沿用。
+
+---
+
+### 就地升级（Fork 版本内升级）
+
+如果你已经在使用 fork 版本，获取最新修复和新功能：
+
+#### 方式一：npm 覆盖安装（推荐）
+
+```bash
+# 1. 停止 daemon
+cc-connect daemon stop
+
+# 2. 覆盖安装到最新 beta
+npm install -g @game1991/cc-connect@beta
+
+# 3. 确认版本已更新
+cc-connect --version
+
+# 4. 重启 daemon
+cc-connect daemon restart
+```
+
+> **为什么要先 stop？** daemon 进程会持有二进制文件的文件句柄。Windows 上文件被打开时无法被覆盖。`daemon stop` 会在 SCM 停止失败时自动强杀残留进程，确保旧文件可被替换。Linux/macOS 同理（虽无文件锁问题，但旧进程继续运行会使用旧二进制）。
+
+#### 方式二：自更新命令
+
+cc-connect 内置了自更新能力，支持从聊天窗口直接升级：
+
+```
+/upgrade --pre
+```
+
+- `--pre`：获取预发布版本（即 fork beta）
+- 不加 `--pre`：获取最新稳定版（会跳过 fork 版本）
+
+更新后 fork 版本会自动重新生成 daemon 启动脚本并重启 daemon（`postUpdateDaemonRestart`）。
+
+双源策略：默认从 GitHub Releases 下载，中国大陆用户可在 config.toml 中设置 `prefer_gitee = true` 切换到 Gitee 镜像源。
+
+#### 方式三：一条命令重装（适用于疑难场景）
+
+```bash
+cc-connect reinstall --yes
+```
+
+此命令自动执行：备份配置 → 停止 daemon → 清理运行时 → 卸载 npm → 重新安装 npm → 恢复配置 → 重装 daemon。详见[彻底清理后重装](#彻底清理后重装)。
+
+---
+
+### 降级回官方版本
+
+如果试用后决定回退：
+
+```bash
+# 1. 停止 fork daemon
+cc-connect daemon stop
+
+# 2. 卸载 daemon 注册
+cc-connect daemon uninstall
+
+# 3. 卸载 fork 版本
+npm uninstall -g @game1991/cc-connect
+
+# 4. 安装官方稳定版
+npm install -g cc-connect@latest
+
+# 5. 验证
+cc-connect --version          # 应无 fork / beta 标识
+
+# 6. 重装 daemon
+cc-connect daemon install
+```
+
+> 配置文件无需任何改动，官方版可直接读取 `~/.cc-connect/config.toml`。
+
+---
+
+### 彻底清理后重装
+
+适用于以下场景：
+- daemon 重复安装导致 Service 注册混乱
+- 进程残留杀不掉，二进制文件被锁定
+- 运行时状态损坏（实例锁残留、日志异常膨胀）
+- npm 安装反复失败，需要从头来
+
+#### 方式一：`reinstall` 命令（推荐）
+
+```bash
+cc-connect reinstall --yes
+```
+
+自动两阶段流程：
+1. **Go 阶段**（当前进程）：备份 config.toml + crons + dir_history + daemon.json → 停止 daemon → 卸载 daemon → 清理运行时 → 生成补全脚本
+2. **补全脚本**（bash/PowerShell）：`npm uninstall` → `npm install` → 恢复配置 → `daemon install`（使用备份的 daemon.json 恢复原始安装参数）
+
+MINGW bash 中一条命令完成；PowerShell/CMD 因文件锁需分两步执行（脚本会打印提示）。
+
+备份文件自动保存到 `~/.cc-connect-backup/<时间戳>/`，包含 `config.toml`、`crons-jobs.json`、`dir_history.json`、`daemon-meta.json`。
+
+#### 方式二：手动逐步清理
+
+```bash
+# 1. 停止 daemon
+cc-connect daemon stop
+
+# 2. Windows: 手动删除残留 Service（需管理员终端）
+#    仅当 daemon uninstall 报错或 services.msc 中仍存在 cc-connect 时执行
+sc.exe stop cc-connect
+sc.exe delete cc-connect
+
+# 3. 卸载 npm 包
+npm uninstall -g @game1991/cc-connect
+
+# 4. 清理运行时数据
+#    保留 config.toml 和 crons/，删除其他所有运行时文件
+cc-connect clean
+#    或完全重置（自动备份后删除全部，包括 config.toml 和 crons/）
+cc-connect clean reset
+
+# 5. 重新安装
+npm install -g @game1991/cc-connect@beta
+
+# 6. 验证
+cc-connect --version
+cc-connect doctor
+
+# 7. 重装 daemon
+cc-connect daemon install
+```
+
+> `cc-connect clean` 实际删除项：实例锁（`.config.toml.lock`）、运行时目录（`run/sock`）、日志（`logs/`）、daemon 元数据（`daemon.json`）、Windows 启动脚本（`cc-connect-daemon.ps1`）、目录历史（`dir_history.json`）。**保留** `config.toml` 和 `crons/`。
+
+---
+
+### 兼容性说明
+
+| 项目 | 官方 v1.3.3 | Fork 版本 | 说明 |
+|------|-------------|-----------|------|
+| config.toml 格式 | ✅ | ✅ | 完全兼容，无需修改 |
+| crons/jobs.json | ✅ | ✅ | 完全兼容 |
+| 会话数据 | ✅ | ✅ | 共享 `~/.cc-connect/`，可双向切换 |
+| npm scope | `cc-connect` 或 `@anthropic-ai/cc-connect` | `@game1991/cc-connect` | **不同 scope**，需手动切换 |
+| daemon 平台 | systemd / launchd / schtasks | systemd / launchd / schtasks / **svc** | fork 新增 Windows Service 模式 |
+| CLI 命令 | ✅ | ✅ | 完全一致，`cc-connect` 入口不变 |
+| `--version` 输出 | `v1.3.3` | `v1.3.3-beta` 或 `v1.3.3-beta.N` | 含 beta 标识可区分 |
+| Web UI | ✅ | ✅ | 内嵌二进制，无需额外部署 |
+
+**关键结论**：
+- **配置文件 100% 兼容**，两个版本可无缝切换，无需改任何一行配置
+- **数据目录共享**（`~/.cc-connect/`），会话、定时任务等全部保留
+- **唯一的区别是 npm scope**：安装/卸载时注意包名不同
+- **就地升级安全**：覆盖安装即可，无需卸载再装
+
+---
+
+### Fork 相对于官方 v1.3.3 的变更
+
+共 20 个 commits，按功能分组：
+
+#### 核心新增：Windows Service 原生支持
+
+官方版 Windows daemon 仅支持 schtasks（任务计划），存在 PowerShell 弹窗、登录才启动等问题。本 fork 新增 Windows Service 模式：
+
+| 特性 | 官方版 | Fork 版 |
+|------|--------|---------|
+| 安装模式 | 仅 schtasks | **管理员→Windows Service / 普通用户→schtasks** |
+| 开机自启 | 需用户登录 | **Service 模式无需登录** |
+| 弹窗问题 | 可能出现 PowerShell 窗口 | **Service 模式无弹窗** |
+| 管理 | `schtasks.exe` | **`services.msc` / `sc.exe`** |
+| 环境变量 | SYSTEM 账户无用户 PATH | **安装时捕获用户 PATH 和 HOME，Service 启动时恢复** |
+| SCM 生命周期 | 不支持 | **支持 Stop/Shutdown 信号，25s 优雅关停** |
+
+实现文件：
+- `daemon/svcmanager_windows.go`：sc.exe 管理 Service（安装/启动/停止/卸载/状态查询），含 `IsAdmin()` 权限检测
+- `cmd/cc-connect/svc_run_windows.go`：Service 入口，对接 SCM，恢复用户环境变量，优雅关停
+- `cmd/cc-connect/update_daemon.go`：自更新后自动重启 daemon + 重写启动脚本
+
+#### 核心新增：插件技能发现
+
+- 自动扫描 `~/.cc-connect/plugins/cache/<plugin>/skills/` 和 `<plugin>/.claude/skills/`
+- 符号链接安全检查：跳过指向缓存目录外部的符号链接
+- `filepath.WalkDir` 返回值检查修复
+
+#### Daemon 稳健性增强（6 项修复）
+
+| 问题 | 修复 |
+|------|------|
+| `daemon stop` 后残留实例锁 | stop / uninstall / restart --force 后自动清理 `.config.toml.lock`，新实例不再被误挡 |
+| npm 更新后 daemon 加载旧二进制 | 启动脚本改为 PATH 解析：先检查 `BinaryPath`，找不到则 `Get-Command cc-connect` fallback |
+| daemon 更新后启动脚本过期 | `cc-connect update` 和 `daemon restart --force` 自动调用 `RewriteLauncherScript()` |
+| uninstall 后孤儿进程占文件 | uninstall 在 SCM 停止后自动强杀残留进程（通过实例锁 PID） |
+| `cc-connect clean` 顺序不当 | clean 先快照 `daemon.json` → 用快照杀进程 → 最后才 uninstall（避免 meta 过早丢失） |
+| Windows Service 启动错误不可见 | Service 模式下启动错误写入 `slog.Error` 日志，不再静默退出 |
+
+#### 发布流程：`make rebeta`
+
+```bash
+make rebeta                                  # 默认重推 v1.3.3-beta
+make rebeta REBETA_VERSION=v1.3.3-beta.5     # 指定版本
+make rebeta DRY_RUN=1                       # 仅预览，不执行
+```
+
+流程：推送 main → 删除远端 tag → 删除 npm 旧版本 → 重新打 tag → 推送 tag → 等 CI → 验证 npm 版本号。
+
+---
+
+### 版本选择建议
+
+| 场景 | 推荐版本 |
+|------|----------|
+| Linux/macOS 生产环境 | **官方稳定版** — fork 改动主要针对 Windows |
+| Windows 服务器/虚拟机 | **Fork 版本** — Windows Service 无弹窗、开机自启 |
+| Windows 开发机（每天手动启动） | **官方稳定版** — schtasks 够用 |
+| 使用 Claude Code 插件技能 | **Fork 版本** — 自动发现插件技能目录 |
+| daemon 经常卡死/残留进程 | **Fork 版本** — 实例锁/孤儿进程清理机制 |
+| 仅基础功能、运行正常 | **官方稳定版** — 无需切换 |
