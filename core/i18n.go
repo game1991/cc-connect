@@ -219,6 +219,8 @@ const (
 	MsgListPageHint              MsgKey = "list_page_hint"
 	MsgListSwitchHint            MsgKey = "list_switch_hint"
 	MsgListError                 MsgKey = "list_error"
+	MsgListTableHeader           MsgKey = "list_table_header"
+	MsgListTableRow              MsgKey = "list_table_row"
 	MsgHistoryEmpty              MsgKey = "history_empty"
 	MsgNameUsage                 MsgKey = "name_usage"
 	MsgNameSet                   MsgKey = "name_set"
@@ -1450,6 +1452,20 @@ var messages = map[MsgKey]map[Language]string{
 		LangTraditionalChinese: "❌ 取得會話列表失敗: %v",
 		LangJapanese:           "❌ セッション一覧の取得に失敗しました: %v",
 		LangSpanish:            "❌ Error al listar sesiones: %v",
+	},
+	MsgListTableHeader: {
+		LangEnglish:            "| # | Time | Session | Msgs |\n|:---|:---|:---|:---|\n",
+		LangChinese:            "| # | 时间 | 会话 | 消息数 |\n|:---|:---|:---|:---|\n",
+		LangTraditionalChinese: "| # | 時間 | 會話 | 訊息數 |\n|:---|:---|:---|:---|\n",
+		LangJapanese:           "| # | 時間 | セッション | 件 |\n|:---|:---|:---|:---|\n",
+		LangSpanish:            "| # | Hora | Sesión | Msgs |\n|:---|:---|:---|:---|\n",
+	},
+	MsgListTableRow: {
+		LangEnglish:            "| %s %d | %s | %s | %d |",
+		LangChinese:            "| %s %d | %s | %s | %d |",
+		LangTraditionalChinese: "| %s %d | %s | %s | %d |",
+		LangJapanese:           "| %s %d | %s | %s | %d |",
+		LangSpanish:            "| %s %d | %s | %s | %d |",
 	},
 	MsgHistoryEmpty: {
 		LangEnglish:            "No history in current session.",
