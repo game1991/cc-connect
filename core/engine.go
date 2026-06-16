@@ -6721,6 +6721,7 @@ func (e *Engine) cmdList(p Platform, msg *Message, args []string) {
 		} else {
 			sb.WriteString(fmt.Sprintf(e.i18n.T(MsgListTitle), agentName, total))
 		}
+		sb.WriteString(e.i18n.T(MsgListTableHeader))
 		for i := start; i < end; i++ {
 			s := agentSessions[i]
 			marker := "◻"
@@ -6734,14 +6735,15 @@ func (e *Engine) cmdList(p Platform, msg *Message, args []string) {
 				displayName = strings.ReplaceAll(s.Summary, "\n", " ")
 				displayName = strings.Join(strings.Fields(displayName), " ")
 				if displayName == "" {
-					displayName = "(empty)"
+					displayName = e.i18n.T(MsgListEmptySummary)
 				}
 				if len([]rune(displayName)) > 40 {
 					displayName = string([]rune(displayName)[:40]) + "…"
 				}
 			}
-			sb.WriteString(fmt.Sprintf("%s **%d.** %s · **%d** msgs · %s\n",
-				marker, i+1, displayName, s.MessageCount, s.ModifiedAt.Format("01-02 15:04")))
+			displayName = strings.ReplaceAll(displayName, "|", "│")
+			sb.WriteString(fmt.Sprintf(e.i18n.T(MsgListTableRow)+"\n",
+				marker, i+1, s.ModifiedAt.Format("01-02 15:04"), displayName, s.MessageCount))
 		}
 		if totalPages > 1 {
 			sb.WriteString(fmt.Sprintf(e.i18n.T(MsgListPageHint), page, totalPages))
@@ -12812,6 +12814,7 @@ func (e *Engine) renderListCard(sessionKey string, page int) (*Card, error) {
 				displayName = string([]rune(displayName)[:40]) + "…"
 			}
 		}
+		displayName = strings.ReplaceAll(displayName, "|", "│")
 		btnType := "default"
 		if s.ID == activeAgentID {
 			btnType = "primary"
