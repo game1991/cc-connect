@@ -142,3 +142,26 @@ func TestCmdList_PlainText_ActiveSessionMarker(t *testing.T) {
 		t.Errorf("plain text output = %q, want ◻ marker for inactive session s2", got)
 	}
 }
+
+func TestRenderListCard_PipeInDisplayNameEscaped(t *testing.T) {
+	sessions := []AgentSessionInfo{
+		{ID: "s1", Summary: "pipe | test | name", MessageCount: 1, ModifiedAt: time.Date(2026, 6, 12, 0, 20, 0, 0, time.UTC)},
+	}
+	e := NewEngine("test", &stubListAgent{sessions: sessions}, nil, "", LangEnglish)
+	sessionKey := "test:user1"
+	session := e.sessions.GetOrCreateActive(sessionKey)
+	session.SetAgentSessionID("s1", "test")
+
+	card, err := e.renderListCard(sessionKey, 1)
+	if err != nil {
+		t.Fatalf("renderListCard error: %v", err)
+	}
+
+	for _, elem := range card.Elements {
+		if item, ok := elem.(CardListItem); ok {
+			if strings.Contains(item.Text, "pipe | test | name") && !strings.Contains(item.Text, "│") {
+				t.Fatalf("list item text = %q, half-width pipe should be escaped to │", item.Text)
+			}
+		}
+	}
+}
