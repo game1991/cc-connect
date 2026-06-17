@@ -278,7 +278,7 @@ func captureConfigEnvPlaceholdersInString(s string, env map[string]string) {
 
 // CaptureDaemonEnv is the exported version of captureDaemonEnv.
 func CaptureDaemonEnv() map[string]string {
-	return captureDaemonEnv()
+	return captureDaemonEnv(false)
 }
 
 // ConfigFromMeta reconstructs a Config from saved metadata.
