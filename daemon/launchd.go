@@ -359,4 +359,4 @@ func launchdConfigArg(cfg Config) string {
 }
 }
 
-nfunc rewriteLauncherScript(cfg Config) error { return nil }
+func rewriteLauncherScript(cfg Config) error { return nil }
