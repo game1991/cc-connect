@@ -204,6 +204,14 @@ type providerWiringResult struct {
 // logExit logs a startup error to both slog (for file/daemon consumers)
 // and stderr (for interactive users), then exits. msg is the human-readable
 // prefix; err provides the detail in both channels.
+//
+// Scope: use logExit for errors that occur before the daemon detaches from
+// the terminal — specifically during config resolution, lock acquisition, and
+// config loading. After daemonize, stderr is no longer connected to the user's
+// terminal, so later startup errors (agent/platform creation, engine start,
+// scheduler start) write to slog only — the daemon's log file is the
+// authoritative channel for those.
+//
 // os.Stderr is unbuffered in the standard library, so no explicit flush
 // is needed before os.Exit. If stderr is ever wrapped in a bufio.Writer,
 // add Sync here to prevent silent log loss.
@@ -298,6 +306,7 @@ func runMain() {
 		fmt.Fprintf(os.Stderr, "log: redirecting to %s with max_size=%d bytes (source: %s), max_backups=%d (source: %s)\n", logFile, maxSize, maxSizeSrc, maxBackups, maxBackupsSrc)
 		w, err := daemon.NewRotatingWriter(logFile, maxSize, maxBackups)
 		if err != nil {
+			slog.Error("failed to open log file", "path", logFile, "error", err)
 			fmt.Fprintf(os.Stderr, "failed to open log file %s: %v\n", logFile, err)
 			os.Exit(1)
 		}
@@ -387,6 +396,7 @@ func runMain() {
 	// entirely — never half-spawn. See core/runas_check.go and
 	// core/runas_audit.go for the checks themselves.
 	if err := runRunAsUserStartupChecks(context.Background(), cfg); err != nil {
+		// Post-daemonize: stderr not connected to user terminal, slog only.
 		slog.Error("run_as_user: startup checks failed, refusing to start", "error", err)
 		os.Exit(1)
 	}
@@ -409,6 +419,7 @@ func runMain() {
 		}
 		agent, err := core.CreateAgent(proj.Agent.Type, buildAgentOptions(cfg.DataDir, proj))
 		if err != nil {
+			// Post-daemonize: stderr not connected to user terminal, slog only.
 			slog.Error("failed to create agent", "project", proj.Name, "error", err)
 			os.Exit(1)
 		}
@@ -425,6 +436,7 @@ func runMain() {
 			opts["cc_project"] = proj.Name
 			p, err := core.CreatePlatform(pc.Type, opts)
 			if err != nil {
+				// Post-daemonize: stderr not connected to user terminal, slog only.
 				slog.Error("failed to create platform", "project", proj.Name, "type", pc.Type, "error", err)
 				os.Exit(1)
 			}
@@ -520,6 +532,7 @@ func runMain() {
 		}
 		if observeEnabled {
 			if obsChan == "" {
+								// Post-daemonize: stderr not connected to user terminal, slog only.
 				slog.Error("observe: channel is required (use --observe-channel or set channel in [projects.observe])")
 				os.Exit(1)
 			}
@@ -1051,6 +1064,7 @@ func runMain() {
 	}
 	// Only exit if ALL engines failed to start
 	if len(startErrors) > 0 && len(startErrors) == len(engines) {
+		// Post-daemonize: stderr not connected to user terminal, slog only.
 		slog.Error("all engines failed to start, exiting")
 		os.Exit(1)
 	}
@@ -1088,6 +1102,7 @@ func runMain() {
 			bridgeSrv = core.NewBridgeServer(port, cfg.Bridge.Token, path, cfg.Bridge.CORSOrigins)
 		}
 		if bridgeSrv == nil {
+			// Post-daemonize: stderr not connected to user terminal, slog only.
 			slog.Error("bridge: failed to create server - token is required (or set insecure=true for local dev)")
 			os.Exit(1)
 		}

@@ -27,10 +27,7 @@ type InstanceLock struct {
 // containing the PID of the existing instance.
 func AcquireInstanceLock(configPath string) (*InstanceLock, error) {
 	configDir := filepath.Dir(configPath)
-	configBase := filepath.Base(configPath)
-
-	lockName := fmt.Sprintf(".%s.lock", configBase)
-	lockPath := filepath.Join(configDir, lockName)
+	lockPath := instanceLockPath(configPath)
 
 	if err := os.MkdirAll(configDir, 0755); err != nil {
 		return nil, fmt.Errorf("cannot create config directory: %w", err)
@@ -104,10 +101,7 @@ func readPIDFromLockFile(path string) int {
 // KillExistingInstance attempts to kill the process holding the lock for the given config.
 // Returns true if a process was killed, false otherwise.
 func KillExistingInstance(configPath string) bool {
-	configDir := filepath.Dir(configPath)
-	configBase := filepath.Base(configPath)
-	lockName := fmt.Sprintf(".%s.lock", configBase)
-	lockPath := filepath.Join(configDir, lockName)
+	lockPath := instanceLockPath(configPath)
 
 	pid := readPIDFromLockFile(lockPath)
 	if pid <= 0 {

@@ -112,6 +112,30 @@ func TestCmdList_PlainText_EmptySummaryUsesI18n(t *testing.T) {
 	}
 }
 
+func TestCmdList_PlainText_TableHeaderNonEnglish(t *testing.T) {
+	pZh := &stubPlatformEngine{n: "plain-zh"}
+	sessions := []AgentSessionInfo{
+		{ID: "s1", Summary: "test", MessageCount: 1, ModifiedAt: time.Date(2026, 6, 1, 10, 0, 0, 0, time.UTC)},
+	}
+	eZh := NewEngine("test", &stubListAgent{sessions: sessions}, []Platform{pZh}, "", LangChinese)
+	msgZh := &Message{SessionKey: "test:user1", ReplyCtx: "ctx"}
+
+	eZh.cmdList(pZh, msgZh, nil)
+
+	if len(pZh.sent) != 1 {
+		t.Fatalf("sent messages = %d, want 1", len(pZh.sent))
+	}
+	gotZh := pZh.sent[0]
+
+	headerZh := "| # | 时间 | 会话 | 消息数 |"
+	if !strings.Contains(gotZh, headerZh) {
+		t.Errorf("Chinese output missing header %q, got %q", headerZh, gotZh)
+	}
+	if !strings.Contains(gotZh, "|:---|:---|:---|:---|") {
+		t.Errorf("Chinese output missing separator row, got %q", gotZh)
+	}
+}
+
 func TestCmdList_PlainText_ActiveSessionMarker(t *testing.T) {
 	p := &stubPlatformEngine{n: "plain"}
 	sessions := []AgentSessionInfo{
