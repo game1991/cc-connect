@@ -201,6 +201,15 @@ type providerWiringResult struct {
 	canStartInitialRefresh    bool
 }
 
+// logExit logs a startup error to both slog (for file/daemon consumers)
+// and stderr (for interactive users), then exits. msg is the human-readable
+// prefix; err provides the detail in both channels.
+func logExit(msg string, err error, code int) {
+	slog.Error(msg, "error", err)
+	fmt.Fprintf(os.Stderr, "%s: %v\n", msg, err)
+	os.Exit(code)
+}
+
 func main() {
 	// Windows Service entry point: when launched by SCM, delegate to svc.Run.
 	if isWindowsService() {
@@ -340,18 +349,15 @@ func runMain() {
 	// Acquire instance lock to prevent duplicate processes
 	instanceLock, err := AcquireInstanceLock(configPath)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-		fmt.Fprintf(os.Stderr, "Use --force to kill the existing instance.\n")
 		slog.Error("failed to acquire instance lock", "error", err)
+		fmt.Fprintf(os.Stderr, "Error: %v\nUse --force to kill the existing instance.\n", err)
 		os.Exit(1)
 	}
 	slog.Info("acquired instance lock", "path", instanceLock.Path())
 
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {
 		if err := bootstrapConfig(configPath); err != nil {
-			slog.Error("failed to create default config", "path", configPath, "error", err)
-			fmt.Fprintf(os.Stderr, "Error creating config: %v\n", err)
-			os.Exit(1)
+			logExit("failed to create default config", err, 1)
 		}
 		fmt.Printf("Created default config at %s\n", configPath)
 		fmt.Println("Please edit this file to add your agent and platform credentials, then run cc-connect again.")
@@ -360,9 +366,7 @@ func runMain() {
 
 	cfg, err := config.Load(configPath)
 	if err != nil {
-		slog.Error("failed to load config", "path", configPath, "error", err)
-		fmt.Fprintf(os.Stderr, "Error loading config (%s): %v\n", configPath, err)
-		os.Exit(1)
+		logExit("failed to load config", err, 1)
 	}
 
 	config.ConfigPath = configPath
@@ -370,9 +374,7 @@ func runMain() {
 
 	if len(cfg.Projects) == 0 {
 		slog.Error("no projects configured", "path", configPath)
-		fmt.Fprintf(os.Stderr, "Error: no projects configured in %s\n", configPath)
-		fmt.Fprintln(os.Stderr, "Add at least one [[project]] section to your config.toml, or run:")
-		fmt.Fprintln(os.Stderr, "  cc-connect init")
+		fmt.Fprintf(os.Stderr, "Error: no projects configured in %s\nAdd at least one [[project]] section to your config.toml, or run:\n  cc-connect init\n", configPath)
 		os.Exit(1)
 	}
 
