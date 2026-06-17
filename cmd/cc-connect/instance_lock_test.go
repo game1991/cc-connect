@@ -42,6 +42,16 @@ func TestAcquireInstanceLock_AlreadyLocked(t *testing.T) {
 	}
 }
 
+func TestRemoveInstanceLock_NoFile(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "config.toml")
+
+	// No lock file created — RemoveInstanceLock should tolerate os.ErrNotExist
+	if err := RemoveInstanceLock(configPath); err != nil {
+		t.Fatalf("RemoveInstanceLock on nonexistent lock should succeed: %v", err)
+	}
+}
+
 func TestRemoveInstanceLock(t *testing.T) {
 	dir := t.TempDir()
 	configPath := filepath.Join(dir, "config.toml")
