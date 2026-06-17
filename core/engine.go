@@ -85,6 +85,15 @@ const (
 	recalledStopLockWait       = 2 * time.Second
 )
 
+// Markdown table structural format strings for the /list command.
+// The pipe/separator layout is identical across all languages; only the
+// column names are locale-dependent, so those stay in i18n while the
+// structural parts are Go constants.
+const (
+	listTableSep = "|:---|:---|:---|:---|\n"
+	listTableRow = "| %s %d | %s | %s | %d |"
+)
+
 // VersionInfo is set by main at startup so that /version works.
 var VersionInfo string
 
@@ -6673,6 +6682,13 @@ const listPageSize = 20
 // dirCardPageSize is the max directory history rows per card page (Feishu / other card UIs).
 const dirCardPageSize = 20
 
+// listTableHeader returns the locale-aware Markdown table header for the /list
+// plain-text path. Column names come from i18n; the pipe/separator structure is
+// a Go constant because it is identical across all languages.
+func (e *Engine) listTableHeader() string {
+	return "| # | " + e.i18n.T(MsgListColTime) + " | " + e.i18n.T(MsgListColSession) + " | " + e.i18n.T(MsgListColMsgs) + " |\n" + listTableSep
+}
+
 func (e *Engine) cmdList(p Platform, msg *Message, args []string) {
 	agent, sessions, _, err := e.commandContext(p, msg)
 	if err != nil {
@@ -6721,7 +6737,7 @@ func (e *Engine) cmdList(p Platform, msg *Message, args []string) {
 		} else {
 			sb.WriteString(fmt.Sprintf(e.i18n.T(MsgListTitle), agentName, total))
 		}
-		sb.WriteString(e.i18n.T(MsgListTableHeader))
+		sb.WriteString(e.listTableHeader())
 		for i := start; i < end; i++ {
 			s := agentSessions[i]
 			marker := "◻"
@@ -6742,7 +6758,7 @@ func (e *Engine) cmdList(p Platform, msg *Message, args []string) {
 				}
 			}
 			displayName = strings.ReplaceAll(displayName, "|", "│")
-			sb.WriteString(fmt.Sprintf(e.i18n.T(MsgListTableRow)+"\n",
+			sb.WriteString(fmt.Sprintf(listTableRow+"\n",
 				marker, i+1, s.ModifiedAt.Format("01-02 15:04"), displayName, s.MessageCount))
 		}
 		if totalPages > 1 {
