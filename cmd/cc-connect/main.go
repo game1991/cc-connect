@@ -177,6 +177,9 @@ type providerWiringResult struct {
 // logExit logs a startup error to both slog (for file/daemon consumers)
 // and stderr (for interactive users), then exits. msg is the human-readable
 // prefix; err provides the detail in both channels.
+// os.Stderr is unbuffered in the standard library, so no explicit flush
+// is needed before os.Exit. If stderr is ever wrapped in a bufio.Writer,
+// add Sync here to prevent silent log loss.
 func logExit(msg string, err error, code int) {
 	slog.Error(msg, "error", err)
 	fmt.Fprintf(os.Stderr, "%s: %v\n", msg, err)
@@ -322,9 +325,7 @@ func runMain() {
 	// Acquire instance lock to prevent duplicate processes
 	instanceLock, err := AcquireInstanceLock(configPath)
 	if err != nil {
-		slog.Error("failed to acquire instance lock", "error", err)
-		fmt.Fprintf(os.Stderr, "Error: %v\nUse --force to kill the existing instance.\n", err)
-		os.Exit(1)
+		logExit("failed to acquire instance lock (use --force to kill)", err, 1)
 	}
 	slog.Info("acquired instance lock", "path", instanceLock.Path())
 
