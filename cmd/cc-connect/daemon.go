@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -275,10 +276,9 @@ func daemonUninstall() {
 			time.Sleep(500 * time.Millisecond)
 			// The killed process cannot clean up its own lock file;
 			// remove it now so a subsequent install doesn't see a stale PID.
-			configDir := filepath.Dir(configPath)
-			configBase := filepath.Base(configPath)
-			lockPath := filepath.Join(configDir, "."+configBase+".lock")
-			os.Remove(lockPath)
+			if err := RemoveInstanceLock(configPath); err != nil {
+				slog.Warn("failed to remove stale lock file", "error", err)
+			}
 		}
 	}
 
@@ -335,10 +335,9 @@ func stopWithFallback(newMgr func() (daemon.Manager, error), loadMeta func() (*d
 	configPath := metaConfigPath(meta)
 	if kill(configPath) {
 		fmt.Fprintln(stderr, "Warning: task scheduler reported stopped but process was still running; killed via instance lock PID")
-		configDir := filepath.Dir(configPath)
-		configBase := filepath.Base(configPath)
-		lockPath := filepath.Join(configDir, "."+configBase+".lock")
-		os.Remove(lockPath)
+		if err := RemoveInstanceLock(configPath); err != nil {
+			slog.Warn("failed to remove stale lock file", "error", err)
+		}
 	}
 	return nil
 }
@@ -359,10 +358,9 @@ func daemonRestart(args []string) {
 			configPath := metaConfigPath(meta)
 			if KillExistingInstance(configPath) {
 				time.Sleep(500 * time.Millisecond)
-				configDir := filepath.Dir(configPath)
-				configBase := filepath.Base(configPath)
-				lockPath := filepath.Join(configDir, "."+configBase+".lock")
-				os.Remove(lockPath)
+				if err := RemoveInstanceLock(configPath); err != nil {
+					slog.Warn("failed to remove stale lock file", "error", err)
+				}
 			}
 			cfg := daemon.ConfigFromMeta(meta)
 			if err := daemon.RewriteLauncherScript(cfg); err != nil {

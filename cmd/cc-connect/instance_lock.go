@@ -101,6 +101,22 @@ func readPIDFromLockFile(path string) int {
 	return pid
 }
 
+// RemoveInstanceLock removes the instance lock file for the given config path.
+// This is used after force-killing an orphan that cannot clean up its own lock.
+// Returns an error for unexpected failures; os.ErrNotExist is ignored.
+func RemoveInstanceLock(configPath string) error {
+	configDir := filepath.Dir(configPath)
+	configBase := filepath.Base(configPath)
+	lockName := fmt.Sprintf(".%s.lock", configBase)
+	lockPath := filepath.Join(configDir, lockName)
+
+	err := os.Remove(lockPath)
+	if err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("remove instance lock %s: %w", lockPath, err)
+	}
+	return nil
+}
+
 // KillExistingInstance attempts to kill the process holding the lock for the given config.
 // Returns true if a process was killed, false otherwise.
 func KillExistingInstance(configPath string) bool {
