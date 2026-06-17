@@ -331,7 +331,7 @@ func runMain() {
 
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {
 		if err := bootstrapConfig(configPath); err != nil {
-			logExit("failed to create default config", err, 1)
+			logExit(fmt.Sprintf("failed to create default config (%s)", configPath), err, 1)
 		}
 		fmt.Printf("Created default config at %s\n", configPath)
 		fmt.Println("Please edit this file to add your agent and platform credentials, then run cc-connect again.")
@@ -340,15 +340,16 @@ func runMain() {
 
 	cfg, err := config.Load(configPath)
 	if err != nil {
-		logExit("failed to load config", err, 1)
+		logExit(fmt.Sprintf("failed to load config (%s)", configPath), err, 1)
 	}
 
 	config.ConfigPath = configPath
 	slog.Info("config loaded", "path", configPath)
 
 	if len(cfg.Projects) == 0 {
-		slog.Error("no projects configured", "path", configPath)
-		fmt.Fprintf(os.Stderr, "Error: no projects configured in %s\nAdd at least one [[project]] section to your config.toml, or run:\n  cc-connect init\n", configPath)
+		msg := fmt.Sprintf("no projects configured in %s", configPath)
+		slog.Error(msg)
+		fmt.Fprintf(os.Stderr, "Error: %s\nAdd at least one [[project]] section to your config.toml, or run:\n  cc-connect init\n", msg)
 		os.Exit(1)
 	}
 
