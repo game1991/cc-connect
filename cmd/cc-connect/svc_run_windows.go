@@ -104,6 +104,8 @@ func filterArgs(args []string, remove string) []string {
 // fixSvcEnvironment restores the user's home directory, PATH, and log
 // location when the service runs under LocalSystem. It reads daemon.json
 // (written by "daemon install") for the captured user environment.
+// All key steps are recorded to a diagnostic file (svc-env-fix.log) in the
+// data directory so they are visible even when stderr is redirected by SCM.
 func fixSvcEnvironment() {
 	// Only fix when running as SYSTEM (USERPROFILE points to systemprofile).
 	up := os.Getenv("USERPROFILE")
@@ -129,20 +131,44 @@ func fixSvcEnvironment() {
 	if configFile != "" {
 		dataDir = filepath.Dir(filepath.FromSlash(configFile))
 	} else {
-		// Fallback: assume default data dir relative to SystemDrive.
-		// The ps1 launcher passes --config, so this path is unlikely.
 		dataDir = filepath.Join(os.Getenv("SystemDrive"), "Users", ".cc-connect")
+	}
+
+	// Diagnostic file — visible even when stderr is redirected by SCM.
+	diagPath := filepath.Join(dataDir, "svc-env-fix.log")
+	diagFile, diagErr := os.OpenFile(diagPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+	writeDiag := func(format string, args ...any) {
+		if diagFile != nil {
+			fmt.Fprintf(diagFile, "[%s] "+format+"\n",
+				append([]any{time.Now().Format(time.RFC3339)}, args...)...)
+		}
+	}
+	defer func() {
+		if diagFile != nil {
+			diagFile.Close()
+		}
+	}()
+
+	writeDiag("fixSvcEnvironment started")
+	writeDiag("USERPROFILE=%s", up)
+	writeDiag("configFile=%s dataDir=%s", configFile, dataDir)
+
+	if diagErr != nil {
+		slog.Warn("svc: could not open diagnostic file", "path", diagPath, "error", diagErr)
 	}
 
 	metaPath := filepath.Join(dataDir, "daemon.json")
 	data, err := os.ReadFile(metaPath)
 	if err != nil {
+		writeDiag("FAILED to read daemon.json: %v", err)
 		slog.Warn("svc: could not read daemon.json, environment not restored", "path", metaPath, "error", err)
 		return
 	}
+	writeDiag("read daemon.json OK, %d bytes", len(data))
 
 	var meta daemon.Meta
 	if err := json.Unmarshal(data, &meta); err != nil {
+		writeDiag("FAILED to parse daemon.json: %v", err)
 		slog.Warn("svc: could not parse daemon.json", "error", err)
 		return
 	}
@@ -155,34 +181,47 @@ func fixSvcEnvironment() {
 		drive := filepath.VolumeName(hd)
 		os.Setenv("HOMEDRIVE", drive)
 		os.Setenv("HOMEPATH", strings.TrimPrefix(hd, drive))
-		slog.Info("svc: restored home dir from daemon.json", "path", hd)
+		writeDiag("restored home dir: USERPROFILE=%s", hd)
 	} else if configFile != "" {
-		// Derive from --config as fallback.
 		homeDir := filepath.Dir(dataDir)
 		os.Setenv("USERPROFILE", homeDir)
 		os.Setenv("HOME", homeDir)
 		drive := filepath.VolumeName(homeDir)
 		os.Setenv("HOMEDRIVE", drive)
 		os.Setenv("HOMEPATH", strings.TrimPrefix(homeDir, drive))
+		writeDiag("derived home dir from config: %s", homeDir)
 	}
 
 	// Restore log file location from daemon.json.
 	logFile := meta.LogFile
 	if logFile == "" {
-		// Fallback to derived path if log_file was not captured.
 		logFile = filepath.ToSlash(filepath.Join(dataDir, "logs", "cc-connect.log"))
 	}
 	logFile = filepath.FromSlash(logFile)
 	os.Setenv("CC_LOG_FILE", logFile)
+	writeDiag("CC_LOG_FILE=%s", logFile)
 
 	// Ensure the log directory exists (SYSTEM has full filesystem access).
 	if err := os.MkdirAll(filepath.Dir(logFile), 0755); err != nil {
+		writeDiag("FAILED to create log dir %s: %v", filepath.Dir(logFile), err)
 		fmt.Fprintf(os.Stderr, "svc: failed to create log dir %s: %v\n", filepath.Dir(logFile), err)
 	}
 
 	// Restore PATH so agent binaries (claude, codex, etc.) are findable.
 	if meta.EnvPATH != "" {
 		os.Setenv("PATH", meta.EnvPATH)
-		slog.Info("svc: restored PATH from daemon.json", "len", len(meta.EnvPATH))
+		writeDiag("restored PATH, len=%d", len(meta.EnvPATH))
 	}
+
+	// Restore captured env vars from install time (API keys, proxy settings, etc.).
+	if len(meta.EnvExtra) > 0 {
+		for k, v := range meta.EnvExtra {
+			os.Setenv(k, v)
+		}
+		writeDiag("restored EnvExtra, count=%d", len(meta.EnvExtra))
+	} else {
+		writeDiag("no EnvExtra in daemon.json")
+	}
+
+	writeDiag("fixSvcEnvironment completed")
 }
