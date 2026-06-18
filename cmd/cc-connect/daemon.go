@@ -108,6 +108,7 @@ func daemonInstall(args []string) {
 		ConfigFile:  filepath.ToSlash(cfg.ConfigFile),
 		EnvPATH:     cfg.EnvPATH,
 		HomeDir:     filepath.ToSlash(homeDir),
+		EnvExtra:    cfg.EnvExtra,
 		InstalledAt: daemon.NowISO(),
 	}); err != nil {
 		fmt.Fprintf(os.Stderr, "Warning: failed to save metadata: %v\n", err)
