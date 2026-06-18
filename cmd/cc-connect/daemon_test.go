@@ -256,6 +256,27 @@ func TestStopWithFallback_NotInstalled(t *testing.T) {
 	}
 }
 
+func TestStopWithFallback_PropagatesPlatformStopError(t *testing.T) {
+	stopErr := fmt.Errorf("access denied")
+	var stderr bytes.Buffer
+	err := stopWithFallback(
+		func() (daemon.Manager, error) {
+			return &stubManager{stopErr: stopErr, status: &daemon.Status{Installed: true}}, nil
+		},
+		func() (*daemon.Meta, error) {
+			return &daemon.Meta{WorkDir: "/tmp/work", ConfigFile: "/tmp/work/config.toml"}, nil
+		},
+		func(string) bool { return false },
+		&stderr,
+	)
+	if err != nil {
+		t.Errorf("stopWithFallback returned error: %v", err)
+	}
+	if !bytes.Contains(stderr.Bytes(), []byte("Platform stop reported")) {
+		t.Errorf("stderr should contain 'Platform stop reported', got: %q", stderr.String())
+	}
+}
+
 func TestStopWithFallback_NewManagerFails(t *testing.T) {
 	err := stopWithFallback(
 		func() (daemon.Manager, error) { return nil, fmt.Errorf("unsupported platform") },
