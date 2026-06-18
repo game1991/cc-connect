@@ -77,15 +77,16 @@ func DefaultDataDir() string {
 // etc. can locate the log file without parsing service definitions.
 
 type Meta struct {
-	LogFile       string `json:"log_file"`
-	LogMaxSize    int64  `json:"log_max_size"`
-	LogMaxBackups int    `json:"log_max_backups"`
-	WorkDir       string `json:"work_dir"`
-	BinaryPath    string `json:"binary_path"`  // informational only; daemon resolves cc-connect via PATH at runtime
-	ConfigFile    string `json:"config_file,omitempty"`
-	EnvPATH       string `json:"env_path,omitempty"`     // captured user PATH so service can find agent binaries
-	HomeDir       string `json:"home_dir,omitempty"`      // captured user home directory for SYSTEM service
-	InstalledAt   string `json:"installed_at"`
+	LogFile       string            `json:"log_file"`
+	LogMaxSize    int64             `json:"log_max_size"`
+	LogMaxBackups int               `json:"log_max_backups"`
+	WorkDir       string            `json:"work_dir"`
+	BinaryPath    string            `json:"binary_path"`  // informational only; daemon resolves cc-connect via PATH at runtime
+	ConfigFile    string            `json:"config_file,omitempty"`
+	EnvPATH       string            `json:"env_path,omitempty"`     // captured user PATH so service can find agent binaries
+	HomeDir       string            `json:"home_dir,omitempty"`      // captured user home directory for SYSTEM service
+	EnvExtra      map[string]string `json:"env_extra,omitempty"`
+	InstalledAt   string            `json:"installed_at"`
 }
 
 func metaPath() string {
