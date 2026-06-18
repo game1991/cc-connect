@@ -2,6 +2,7 @@ package daemon
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"os"
@@ -256,5 +257,63 @@ access_token = "${UNSET_PLACEHOLDER_THAT_DOES_NOT_EXIST}"
 	}
 	if _, ok := cfg.EnvExtra["UNSET_PLACEHOLDER_THAT_DOES_NOT_EXIST"]; ok {
 		t.Errorf("unset placeholder must not appear in EnvExtra; EnvExtra=%+v", cfg.EnvExtra)
+	}
+}
+
+func TestMetaEnvExtraRoundTrip(t *testing.T) {
+	original := &Meta{
+		LogFile:  "C:/Users/test/.cc-connect/logs/cc-connect.log",
+		WorkDir:  "C:/Users/test/.cc-connect",
+		EnvPATH:  "/usr/bin",
+		HomeDir:  "C:/Users/test",
+		EnvExtra: map[string]string{
+			"ANTHROPIC_API_KEY": "sk-test-123",
+			"HTTPS_PROXY":       "http://proxy:8080",
+		},
+		InstalledAt: "2026-06-19T12:00:00Z",
+	}
+
+	data, err := json.MarshalIndent(original, "", "  ")
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+
+	var restored Meta
+	if err := json.Unmarshal(data, &restored); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+
+	if len(restored.EnvExtra) != 2 {
+		t.Errorf("EnvExtra len = %d, want 2", len(restored.EnvExtra))
+	}
+	if restored.EnvExtra["ANTHROPIC_API_KEY"] != "sk-test-123" {
+		t.Errorf("ANTHROPIC_API_KEY = %q, want %q", restored.EnvExtra["ANTHROPIC_API_KEY"], "sk-test-123")
+	}
+	if restored.EnvExtra["HTTPS_PROXY"] != "http://proxy:8080" {
+		t.Errorf("HTTPS_PROXY = %q, want %q", restored.EnvExtra["HTTPS_PROXY"], "http://proxy:8080")
+	}
+}
+
+func TestMetaEnvExtraOmitEmpty(t *testing.T) {
+	m := &Meta{
+		LogFile:     "test.log",
+		InstalledAt: "2026-01-01T00:00:00Z",
+	}
+
+	data, err := json.MarshalIndent(m, "", "  ")
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+
+	if strings.Contains(string(data), "env_extra") {
+		t.Errorf("env_extra should be omitted when nil, got:\n%s", data)
+	}
+
+	var restored Meta
+	if err := json.Unmarshal(data, &restored); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if restored.EnvExtra != nil {
+		t.Errorf("EnvExtra = %v, want nil when omitted", restored.EnvExtra)
 	}
 }
