@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -289,5 +290,98 @@ func TestStopWithFallback_NewManagerFails(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "unsupported platform") {
 		t.Errorf("error should propagate original message, got %q", err.Error())
+	}
+}
+
+// ── daemonStop Windows svc privilege tests ──────────────────
+
+func TestDaemonStop_SvcRequiresAdmin(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("windows-only")
+	}
+
+	origNewManager := daemonNewManager
+	daemonNewManager = func() (daemon.Manager, error) {
+		return &stubManager{status: &daemon.Status{Installed: true, Running: true, Platform: "svc"}}, nil
+	}
+	defer func() { daemonNewManager = origNewManager }()
+
+	origIsAdmin := daemonIsAdmin
+	daemonIsAdmin = func() bool { return false }
+	defer func() { daemonIsAdmin = origIsAdmin }()
+
+	exitCode := 0
+	origExit := osExit
+	osExit = func(code int) { exitCode = code }
+	defer func() { osExit = origExit }()
+
+	// 捕获 stderr
+	oldStderr := os.Stderr
+	r, w, _ := os.Pipe()
+	os.Stderr = w
+	defer func() {
+		os.Stderr = oldStderr
+		w.Close()
+	}()
+
+	daemonStop()
+
+	w.Close()
+	var buf bytes.Buffer
+	buf.ReadFrom(r)
+
+	if exitCode != 1 {
+		t.Errorf("exit code = %d, want 1", exitCode)
+	}
+	if !bytes.Contains(buf.Bytes(), []byte("administrator privileges")) {
+		t.Errorf("stderr should mention admin, got: %q", buf.String())
+	}
+}
+
+func TestDaemonStop_SchtasksNoAdminCheck(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("windows-only")
+	}
+
+	origNewManager := daemonNewManager
+	daemonNewManager = func() (daemon.Manager, error) {
+		return &stubManager{status: &daemon.Status{Installed: true, Running: true, Platform: "schtasks"}}, nil
+	}
+	defer func() { daemonNewManager = origNewManager }()
+
+	origIsAdmin := daemonIsAdmin
+	isAdminCalled := false
+	daemonIsAdmin = func() bool {
+		isAdminCalled = true
+		return false
+	}
+	defer func() { daemonIsAdmin = origIsAdmin }()
+
+	exitCode := -1 // 使用 -1 表示未调用
+	origExit := osExit
+	osExit = func(code int) { exitCode = code }
+	defer func() { osExit = origExit }()
+
+	// 捕获 stderr
+	oldStderr := os.Stderr
+	r, w, _ := os.Pipe()
+	os.Stderr = w
+	defer func() {
+		os.Stderr = oldStderr
+		w.Close()
+	}()
+
+	daemonStop()
+
+	w.Close()
+	var buf bytes.Buffer
+	buf.ReadFrom(r)
+
+	// schtasks 模式不应触发权限检查
+	if isAdminCalled {
+		t.Error("IsAdmin should not be called for schtasks mode")
+	}
+	if exitCode == 1 {
+		t.Error("schtasks mode should not exit with 1 for non-admin")
 	}
 }
