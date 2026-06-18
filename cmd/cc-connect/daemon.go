@@ -15,6 +15,13 @@ import (
 	"github.com/chenhg5/cc-connect/daemon"
 )
 
+// Injectable for testing daemonStop and stopWithFallback.
+var (
+	daemonNewManager = daemon.NewManager
+	daemonIsAdmin    = daemon.IsAdmin
+	osExit           = os.Exit
+)
+
 func runDaemon(args []string) {
 	if len(args) == 0 {
 		printDaemonUsage()
@@ -303,9 +310,21 @@ func daemonStart() {
 }
 
 func daemonStop() {
-	if err := stopWithFallback(daemon.NewManager, daemon.LoadMeta, KillExistingInstance, os.Stderr); err != nil {
+	if runtime.GOOS == "windows" {
+		mgr, err := daemonNewManager()
+		if err == nil {
+			st, _ := mgr.Status()
+			if st != nil && st.Installed && st.Platform == "svc" && !daemonIsAdmin() {
+				fmt.Fprintln(os.Stderr, "Error: stopping a Windows Service (svc mode) requires administrator privileges.")
+				fmt.Fprintln(os.Stderr, "Run from an elevated terminal (Run as Administrator).")
+				osExit(1)
+				return
+			}
+		}
+	}
+	if err := stopWithFallback(daemonNewManager, daemon.LoadMeta, KillExistingInstance, os.Stderr); err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
-		os.Exit(1)
+		osExit(1)
 	}
 	fmt.Println("cc-connect daemon stopped.")
 	if runtime.GOOS == "windows" {
