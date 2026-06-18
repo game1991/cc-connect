@@ -322,8 +322,11 @@ func stopWithFallback(newMgr func() (daemon.Manager, error), loadMeta func() (*d
 	if st == nil || !st.Installed {
 		return fmt.Errorf("service is not installed. Run first:\n  cc-connect daemon install --work-dir /path/to/config-dir")
 	}
-	// Always attempt the platform stop first; ignore error — we'll verify below.
-	_ = mgr.Stop()
+	// Report platform stop errors instead of silently discarding them.
+	if stopErr := mgr.Stop(); stopErr != nil {
+		slog.Warn("daemon stop: platform stop reported error", "platform", st.Platform, "error", stopErr)
+		fmt.Fprintf(stderr, "Platform stop reported: %v\n", stopErr)
+	}
 
 	// Verify the process actually exited by probing the instance lock PID.
 	// KillExistingInstance returns true only when it found and terminated a
