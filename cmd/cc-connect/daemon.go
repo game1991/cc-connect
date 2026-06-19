@@ -341,23 +341,29 @@ func stopWithFallback(newMgr func() (daemon.Manager, error), loadMeta func() (*d
 	if st == nil || !st.Installed {
 		return fmt.Errorf("service is not installed. Run first:\n  cc-connect daemon install --work-dir /path/to/config-dir")
 	}
-	// Report platform stop errors instead of silently discarding them.
-	if stopErr := mgr.Stop(); stopErr != nil {
-		slog.Warn("daemon stop: platform stop reported error", "platform", st.Platform, "error", stopErr)
+
+	// Attempt graceful platform stop first.
+	stopErr := mgr.Stop()
+	if stopErr != nil {
+		slog.Warn("daemon stop: platform stop reported error, will attempt kill", "platform", st.Platform, "error", stopErr)
 		fmt.Fprintf(stderr, "Platform stop reported: %v\n", stopErr)
 	}
 
-	// Verify the process actually exited by probing the instance lock PID.
-	// KillExistingInstance returns true only when it found and terminated a
-	// live cc-connect process, so a true result means the platform stop
-	// reported success prematurely.
+	// Always verify the process exited via the instance lock PID.
+	// On svc mode when platform stop failed, this is the primary stop mechanism.
+	// On schtasks mode (or when platform stop succeeded), this is a safety verify.
 	meta, merr := loadMeta()
 	if merr != nil {
+		slog.Warn("daemon stop: could not load metadata, skipping kill verification", "error", merr)
 		return nil
 	}
 	configPath := metaConfigPath(meta)
 	if kill(configPath) {
-		fmt.Fprintln(stderr, "Warning: task scheduler reported stopped but process was still running; killed via instance lock PID")
+		if stopErr != nil {
+			fmt.Fprintln(stderr, "Process killed via instance lock PID (platform stop had failed)")
+		} else {
+			fmt.Fprintln(stderr, "Warning: platform reported stopped but process was still running; killed via instance lock PID")
+		}
 		if err := RemoveInstanceLock(configPath); err != nil {
 			slog.Warn("failed to remove stale lock file", "error", err)
 		}
