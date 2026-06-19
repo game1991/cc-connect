@@ -101,11 +101,8 @@ func daemonInstall(args []string) {
 		os.Exit(1)
 	}
 
-	if err := mgr.Install(cfg); err != nil {
-		fmt.Fprintf(os.Stderr, "Install failed: %v\n", err)
-		os.Exit(1)
-	}
-
+	// Write daemon.json BEFORE installing/starting the service so that
+	// fixSvcEnvironment() can find it when the service process starts.
 	homeDir, _ := os.UserHomeDir()
 	if err := daemon.SaveMeta(&daemon.Meta{
 		LogFile:     filepath.ToSlash(cfg.LogFile),
@@ -119,6 +116,11 @@ func daemonInstall(args []string) {
 		InstalledAt: daemon.NowISO(),
 	}); err != nil {
 		fmt.Fprintf(os.Stderr, "Warning: failed to save metadata: %v\n", err)
+	}
+
+	if err := mgr.Install(cfg); err != nil {
+		fmt.Fprintf(os.Stderr, "Install failed: %v\n", err)
+		os.Exit(1)
 	}
 
 	fmt.Println("cc-connect daemon installed and started.")
