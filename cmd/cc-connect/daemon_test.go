@@ -216,8 +216,8 @@ func TestStopWithFallback_StopSucceeds_ProcessStillAlive(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if !strings.Contains(stderr.String(), "Warning:") {
-		t.Errorf("expected warning about process still running, got %q", stderr.String())
+	if !strings.Contains(stderr.String(), "Warning: platform reported stopped") {
+		t.Errorf("expected warning about platform stop succeeded but process still running, got %q", stderr.String())
 	}
 }
 
@@ -259,22 +259,32 @@ func TestStopWithFallback_NotInstalled(t *testing.T) {
 
 func TestStopWithFallback_PropagatesPlatformStopError(t *testing.T) {
 	stopErr := fmt.Errorf("access denied")
+	killCalled := false
 	var stderr bytes.Buffer
 	err := stopWithFallback(
 		func() (daemon.Manager, error) {
-			return &stubManager{stopErr: stopErr, status: &daemon.Status{Installed: true}}, nil
+			return &stubManager{stopErr: stopErr, status: &daemon.Status{Installed: true, Platform: "svc"}}, nil
 		},
 		func() (*daemon.Meta, error) {
 			return &daemon.Meta{WorkDir: "/tmp/work", ConfigFile: "/tmp/work/config.toml"}, nil
 		},
-		func(string) bool { return false },
+		func(string) bool {
+			killCalled = true
+			return true
+		},
 		&stderr,
 	)
 	if err != nil {
 		t.Errorf("stopWithFallback returned error: %v", err)
 	}
+	if !killCalled {
+		t.Error("KillExistingInstance should be called when platform stop fails")
+	}
 	if !bytes.Contains(stderr.Bytes(), []byte("Platform stop reported")) {
 		t.Errorf("stderr should contain 'Platform stop reported', got: %q", stderr.String())
+	}
+	if !bytes.Contains(stderr.Bytes(), []byte("killed via instance lock PID")) {
+		t.Errorf("stderr should mention kill via PID, got: %q", stderr.String())
 	}
 }
 
