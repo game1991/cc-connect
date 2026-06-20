@@ -447,7 +447,7 @@ func (p *Platform) signHTTPRequest(req *http.Request) error {
 	var bodyHex string
 	if req.Body != nil {
 		bodyBytes, _ := io.ReadAll(req.Body)
-		req.Body.Close()
+		_ = req.Body.Close()
 		req.Body = io.NopCloser(bytes.NewReader(bodyBytes))
 		if len(bodyBytes) > 0 {
 			h := sha256.Sum256(bodyBytes)
@@ -987,7 +987,7 @@ func (p *Platform) sendWPSMessage(ctx context.Context, rctx any, content string)
 	if err != nil {
 		return fmt.Errorf("wps-xiezuo: send request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		respBody, _ := io.ReadAll(resp.Body)
@@ -1031,7 +1031,7 @@ func (p *Platform) getToken(ctx context.Context) (string, error) {
 			lastErr = err
 			continue
 		}
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 
 		respBody, err := io.ReadAll(resp.Body)
 		if err != nil {
@@ -1091,7 +1091,7 @@ func (p *Platform) addReaction(ctx context.Context, rctx replyContext, reactionT
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		respBody, _ := io.ReadAll(resp.Body)
@@ -1120,7 +1120,7 @@ func (p *Platform) deleteReaction(ctx context.Context, rctx replyContext, reacti
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		respBody, _ := io.ReadAll(resp.Body)
@@ -1147,7 +1147,7 @@ func (p *Platform) fetchMessageDetail(ctx context.Context, chatID, messageID str
 	if err != nil {
 		return nil, fmt.Errorf("send request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -1183,7 +1183,7 @@ func (p *Platform) downloadImage(ctx context.Context, storageKey string) ([]byte
 	if err != nil {
 		return nil, fmt.Errorf("send request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode == http.StatusOK {
 		ct := resp.Header.Get("Content-Type")
@@ -1223,7 +1223,7 @@ func (p *Platform) downloadFromURL(ctx context.Context, downloadURL string) ([]b
 	if err != nil {
 		return nil, fmt.Errorf("download from URL: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("download returned status %d", resp.StatusCode)
