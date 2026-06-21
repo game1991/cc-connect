@@ -291,13 +291,14 @@ func ConfigFromMeta(m *Meta) Config {
 		exe = real
 	}
 	return Config{
-		BinaryPath: exe,
-		WorkDir:    filepath.FromSlash(m.WorkDir),
-		ConfigFile: filepath.FromSlash(m.ConfigFile),
-		LogFile:    filepath.FromSlash(m.LogFile),
-		LogMaxSize: m.LogMaxSize,
-		EnvPATH:    os.Getenv("PATH"),
-		EnvExtra:   CaptureDaemonEnv(),
+		BinaryPath:    exe,
+		WorkDir:       filepath.FromSlash(m.WorkDir),
+		ConfigFile:    filepath.FromSlash(m.ConfigFile),
+		LogFile:       filepath.FromSlash(m.LogFile),
+		LogMaxSize:    m.LogMaxSize,
+		LogMaxBackups: m.LogMaxBackups,
+		EnvPATH:       os.Getenv("PATH"),
+		EnvExtra:      CaptureDaemonEnv(),
 	}
 }
 
