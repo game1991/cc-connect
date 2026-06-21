@@ -768,6 +768,16 @@ func shouldSkipResume(tokens, contextWindow int) (skip, compact bool) {
 	return false, false
 }
 
+// formatContextPercentage returns a human-readable context usage percentage
+// like "75%" or "200%". Returns empty string if tokens or window is zero.
+func formatContextPercentage(tokens, contextWindow int) string {
+	if tokens <= 0 || contextWindow <= 0 {
+		return ""
+	}
+	pct := tokens * 100 / contextWindow
+	return fmt.Sprintf("%d%%", pct)
+}
+
 // SetAutoCompressConfig configures automatic context compression.
 func (e *Engine) SetAutoCompressConfig(enabled bool, maxTokens int, minGap time.Duration) {
 	e.autoCompressEnabled = enabled
@@ -6601,6 +6611,22 @@ func (e *Engine) cmdList(p Platform, msg *Message, args []string) {
 				}
 			}
 			displayName = strings.ReplaceAll(displayName, "|", "│")
+			// Estimate context usage for display.
+			var ctxPct string
+			if estimator, ok := agent.(SessionContextEstimator); ok {
+				tokens := estimator.EstimateSessionTokens(e.ctx, s.ID)
+				if reporter, ok := agent.(ContextWindowReporter); ok {
+					if v := reporter.MaxContextTokens(); v > 0 {
+						ctxPct = formatContextPercentage(tokens, v)
+					}
+				}
+				if ctxPct == "" && tokens > 0 {
+					ctxPct = formatContextPercentage(tokens, defaultContextWindowTokens)
+				}
+			}
+			if ctxPct != "" {
+				displayName = fmt.Sprintf("%s [%s]", displayName, ctxPct)
+			}
 			sb.WriteString(fmt.Sprintf(listTableRow+"\n",
 				marker, i+1, s.ModifiedAt.Format("01-02 15:04"), displayName, s.MessageCount))
 		}
@@ -6663,6 +6689,22 @@ func (e *Engine) cmdSwitch(p Platform, msg *Message, args []string) {
 	// /switch round-trip. When SwitchToAgentSession creates a fresh Session
 	// (no prior match), History is already nil, so preserving is a no-op.
 	_ = sessions.SwitchToAgentSession(msg.SessionKey, matched.ID, agent.Name(), matched.Summary)
+
+	// Warn user if the target session's context is near or over the limit.
+	if estimator, ok := agent.(SessionContextEstimator); ok {
+		tokens := estimator.EstimateSessionTokens(e.ctx, matched.ID)
+		contextWindow := defaultContextWindowTokens
+		if reporter, ok := agent.(ContextWindowReporter); ok {
+			if v := reporter.MaxContextTokens(); v > 0 {
+				contextWindow = v
+			}
+		}
+		pct := tokens * 100 / contextWindow
+		if pct >= 75 {
+			warning := fmt.Sprintf("⚠️ Session context is at ~%d%% (%dK/%dK tokens). Consider /compact to free up space.", pct, tokens/1000, contextWindow/1000)
+			e.reply(p, msg.ReplyCtx, warning)
+		}
+	}
 
 	shortID := matched.ID
 	if len(shortID) > 12 {

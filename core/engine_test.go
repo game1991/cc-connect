@@ -15275,3 +15275,28 @@ func TestShouldSkipResume(t *testing.T) {
 		})
 	}
 }
+
+func TestFormatContextPercentage(t *testing.T) {
+	tests := []struct {
+		name   string
+		tokens int
+		window int
+		want   string
+	}{
+		{name: "zero tokens", tokens: 0, window: 200_000, want: ""},
+		{name: "zero window", tokens: 100, window: 0, want: ""},
+		{name: "25%", tokens: 50_000, window: 200_000, want: "25%"},
+		{name: "75%", tokens: 150_000, window: 200_000, want: "75%"},
+		{name: "over 100%", tokens: 400_000, window: 200_000, want: "200%"},
+		{name: "1M window", tokens: 600_000, window: 1_000_000, want: "60%"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := formatContextPercentage(tt.tokens, tt.window)
+			if got != tt.want {
+				t.Errorf("formatContextPercentage(%d, %d) = %q, want %q", tt.tokens, tt.window, got, tt.want)
+			}
+		})
+	}
+}
