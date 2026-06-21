@@ -379,7 +379,6 @@ type interactiveState struct {
 	// cleared to false only after a clean EventResult.
 	eventsNeedResync bool
 
-	// postResumeCompact is set by the resume pre-check when a session's
 	// postResumeCompact is set when the pre-check estimates that tokens
 	// are at or above 75% but below 2x of the context window. The
 	// flag is consumed in processInteractiveEvents after the first
@@ -11623,8 +11622,9 @@ func (e *Engine) executeCardAction(cmd, args, sessionKey string) {
 			return
 		}
 		e.cleanupInteractiveState(interactiveKey)
-		session := sessions.SwitchToAgentSession(sessionKey, matched.ID, agent.Name(), matched.Summary)
-		session.ClearHistory()
+	// NOTE: Do NOT call session.ClearHistory() on the returned Session.
+		// See cmdSwitch for the full explanation.
+		_ = sessions.SwitchToAgentSession(sessionKey, matched.ID, agent.Name(), matched.Summary)
 
 	case "/dir":
 		fields := strings.Fields(args)
