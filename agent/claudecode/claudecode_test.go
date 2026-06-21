@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/chenhg5/cc-connect/core"
@@ -873,6 +874,49 @@ func TestValidateSessionIDInProject_CrossProjectLeak(t *testing.T) {
 	if !validateSessionIDInProject(homeDir, projectA, sessionID) {
 		t.Error("validateSessionIDInProject rejected project A's own session")
 	}
+}
+
+// TestAgent_ImplementsSessionIDValidator is a compile-time check that the
+// production *Agent satisfies core.SessionIDValidator. If the interface
+// or its method signature drifts, this test stops compiling before the
+// regression can ship.
+func TestEstimateSessionTokensFromFile(t *testing.T) {
+	t.Run("valid file", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		// 4000 bytes → expect 1000 tokens
+		content := strings.Repeat("x", 4000)
+		path := filepath.Join(tmpDir, "test-session.jsonl")
+		if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		got := estimateSessionTokensFromFile(path)
+		if got != 1000 {
+			t.Errorf("estimateSessionTokensFromFile(%q) = %d, want 1000", path, got)
+		}
+	})
+
+	t.Run("missing file", func(t *testing.T) {
+		got := estimateSessionTokensFromFile("/nonexistent/path/session.jsonl")
+		if got != 0 {
+			t.Errorf("estimateSessionTokensFromFile(nonexistent) = %d, want 0", got)
+		}
+	})
+
+	t.Run("empty file", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		path := filepath.Join(tmpDir, "empty.jsonl")
+		if err := os.WriteFile(path, []byte{}, 0o644); err != nil {
+			t.Fatal(err)
+		}
+		got := estimateSessionTokensFromFile(path)
+		if got != 0 {
+			t.Errorf("estimateSessionTokensFromFile(empty) = %d, want 0", got)
+		}
+	})
+}
+
+func TestAgent_ImplementsSessionContextEstimator(t *testing.T) {
+	var _ core.SessionContextEstimator = (*Agent)(nil)
 }
 
 // TestAgent_ImplementsSessionIDValidator is a compile-time check that the

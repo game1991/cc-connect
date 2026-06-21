@@ -490,6 +490,43 @@ func validateSessionIDInProject(homeDir, workDir, sessionID string) bool {
 	return err == nil
 }
 
+// estimateSessionTokensFromFile returns a rough token count for a JSONL
+// session file. Uses the heuristic 1 token ≈ 4 bytes of raw file content.
+// Returns 0 if the file cannot be stat'd or is empty.
+func estimateSessionTokensFromFile(path string) int {
+	info, err := os.Stat(path)
+	if err != nil || info.Size() == 0 {
+		return 0
+	}
+	return int(info.Size() / 4)
+}
+
+// EstimateSessionTokens implements core.SessionContextEstimator.
+// It locates the session's .jsonl file and applies a file-size heuristic
+// to estimate the token count. Returns 0 when the session cannot be found.
+func (a *Agent) EstimateSessionTokens(_ context.Context, sessionID string) int {
+	if sessionID == "" {
+		return 0
+	}
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return 0
+	}
+	a.mu.RLock()
+	workDir := a.workDir
+	a.mu.RUnlock()
+	absWorkDir, err := filepath.Abs(workDir)
+	if err != nil {
+		return 0
+	}
+	projectDir := findProjectDir(homeDir, absWorkDir)
+	if projectDir == "" {
+		return 0
+	}
+	path := filepath.Join(projectDir, sessionID+".jsonl")
+	return estimateSessionTokensFromFile(path)
+}
+
 // StartSession creates a persistent interactive Claude Code session.
 func (a *Agent) StartSession(ctx context.Context, sessionID string) (core.AgentSession, error) {
 	a.mu.Lock()
