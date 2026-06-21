@@ -357,6 +357,5 @@ func launchdConfigArg(cfg Config) string {
 	}
 	return "\t\t<string>--config</string>\n\t\t<string>" + xmlEscape(cfg.ConfigFile) + "</string>\n"
 }
-}
 
 func rewriteLauncherScript(cfg Config) error { return nil }
