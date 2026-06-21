@@ -379,6 +379,12 @@ type interactiveState struct {
 	// cleared to false only after a clean EventResult.
 	eventsNeedResync bool
 
+	// postResumeCompact is set by the resume pre-check when a session's
+	// estimated tokens are between 75% and 2x of the context window. The
+	// flag is consumed in processInteractiveEvents after the first
+	// EventResult to trigger an automatic /compact.
+	postResumeCompact bool
+
 	// lastCompletedUserMessageTimeMs is the max platform user-message create time
 	// (ms) for which an agent turn has finished with EventResult.
 	lastCompletedUserMessageTimeMs int64
@@ -734,6 +740,26 @@ func estimateTokensWithPendingAssistant(entries []HistoryEntry, pendingAssistant
 		return 0
 	}
 	return (count + 3) / 4
+}
+
+// shouldSkipResume decides whether a session's estimated token count
+// exceeds safe thresholds for resuming. Returns:
+//   - skip=true when tokens >= 2x the context window (resume will fail
+//     with "Prompt is too long"; must start fresh).
+//   - compact=true when tokens >= 75% of the context window (session
+//     is usable but should be compacted after resume to prevent overflow
+//     during the next few turns).
+func shouldSkipResume(tokens, contextWindow int) (skip, compact bool) {
+	if tokens <= 0 || contextWindow <= 0 {
+		return false, false
+	}
+	if tokens >= contextWindow*2 {
+		return true, false
+	}
+	if tokens >= contextWindow*3/4 {
+		return false, true
+	}
+	return false, false
 }
 
 // SetAutoCompressConfig configures automatic context compression.
@@ -3791,6 +3817,52 @@ func (e *Engine) getOrCreateInteractiveStateWith(sessionKey string, p Platform, 
 		}
 	}
 	isResume := startSessionID != ""
+
+	// Pre-check: estimate token count before resuming to avoid
+	// "Prompt is too long" hang. Only applies when we have a real
+	// session ID to resume.
+	var postResumeCompact bool
+	if isResume {
+		if estimator, ok := agent.(SessionContextEstimator); ok {
+			estimatedTokens := estimator.EstimateSessionTokens(e.ctx, startSessionID)
+			contextWindow := 200_000
+			if reporter, ok := agent.(ContextWindowReporter); ok {
+				if v := reporter.MaxContextTokens(); v > 0 {
+					contextWindow = v
+				}
+			}
+			skip, needCompact := shouldSkipResume(estimatedTokens, contextWindow)
+
+			slog.Info("session resume pre-check",
+				"session_key", sessionKey,
+				"agent_session_id", startSessionID,
+				"estimated_tokens", estimatedTokens,
+				"context_window", contextWindow,
+				"skip_resume", skip,
+				"need_compact", needCompact,
+			)
+
+			if skip {
+				slog.Warn("session context too large to resume, starting fresh",
+					"session_key", sessionKey,
+					"agent_session_id", startSessionID,
+					"estimated_tokens", estimatedTokens,
+					"context_window", contextWindow,
+				)
+				session.SetAgentSessionID("", agent.Name())
+				sessions.Save()
+				startSessionID = ""
+				isResume = false
+
+				pct := estimatedTokens * 100 / contextWindow
+				msg := fmt.Sprintf("⚠️ Session context too large to resume (~%d tokens, %d%% of %dK window). Starting a fresh session — previous context preserved in CLAUDE.md.", estimatedTokens, pct, contextWindow/1000)
+				e.reply(p, replyCtx, msg)
+			} else if needCompact {
+				postResumeCompact = true
+			}
+		}
+	}
+
 	startAt := time.Now()
 	agentSession, err := agent.StartSession(e.ctx, startSessionID)
 	startElapsed := time.Since(startAt)
@@ -3858,12 +3930,13 @@ func (e *Engine) getOrCreateInteractiveStateWith(sessionKey string, p Platform, 
 	}
 
 	newState := &interactiveState{
-		agentSession:     agentSession,
-		platform:         p,
-		replyCtx:         replyCtx,
-		agent:            agent,
-		ownerUserID:     ownerUserID,
-		eventsNeedResync: true,
+		agentSession:       agentSession,
+		platform:           p,
+		replyCtx:           replyCtx,
+		agent:              agent,
+		ownerUserID:       ownerUserID,
+		eventsNeedResync:   true,
+		postResumeCompact:  postResumeCompact,
 	}
 
 	// Apply role-based agent mode and allowed_tools if configured for this user.
@@ -5122,6 +5195,17 @@ func (e *Engine) processInteractiveEvents(state *interactiveState, session *Sess
 			baseResponse := cleanResponse
 
 			contextEstimate := estimateTokensWithPendingAssistant(session.GetHistory(0), baseResponse)
+
+			// Post-resume compact: if the pre-check detected a large (but
+			// not oversized) session, compact immediately after the first
+			// successful resume to free up context for upcoming turns.
+			if state.postResumeCompact {
+				triggerAutoCompress = true
+				state.postResumeCompact = false
+				slog.Info("triggering post-resume compact",
+					"session_key", sessionKey,
+				)
+			}
 
 			// Evaluate auto-compress trigger (token estimate on user+assistant text,
 			// including this turn's assistant reply before it is appended to history).
