@@ -15381,3 +15381,36 @@ func TestAgentSystemPrompt_DocumentsAudioVideoFlags(t *testing.T) {
 		t.Error("AgentSystemPrompt missing the 'Do NOT downgrade' anti-regression line")
 	}
 }
+
+func TestShouldSkipResume(t *testing.T) {
+	const ctxWindow = 200_000
+
+	tests := []struct {
+		name        string
+		tokens      int
+		ctxWindow   int
+		wantSkip    bool
+		wantCompact bool
+	}{
+		{name: "small session - no action", tokens: 50_000, ctxWindow: ctxWindow, wantSkip: false, wantCompact: false},
+		{name: "75% threshold - compact only", tokens: 150_000, ctxWindow: ctxWindow, wantSkip: false, wantCompact: true},
+		{name: "2x overflow - skip resume", tokens: 400_000, ctxWindow: ctxWindow, wantSkip: true, wantCompact: false},
+		{name: "1M window moderate", tokens: 600_000, ctxWindow: 1_000_000, wantSkip: false, wantCompact: false},
+		{name: "1M window 80%", tokens: 800_000, ctxWindow: 1_000_000, wantSkip: false, wantCompact: true},
+		{name: "1M window overflow", tokens: 2_100_000, ctxWindow: 1_000_000, wantSkip: true, wantCompact: false},
+		{name: "zero tokens", tokens: 0, ctxWindow: ctxWindow, wantSkip: false, wantCompact: false},
+		{name: "zero window", tokens: 100, ctxWindow: 0, wantSkip: false, wantCompact: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			skip, compact := shouldSkipResume(tt.tokens, tt.ctxWindow)
+			if skip != tt.wantSkip {
+				t.Errorf("shouldSkipResume(%d, %d) skip = %v, want %v", tt.tokens, tt.ctxWindow, skip, tt.wantSkip)
+			}
+			if compact != tt.wantCompact {
+				t.Errorf("shouldSkipResume(%d, %d) compact = %v, want %v", tt.tokens, tt.ctxWindow, compact, tt.wantCompact)
+			}
+		})
+	}
+}
