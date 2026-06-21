@@ -290,6 +290,19 @@ func ConfigFromMeta(m *Meta) Config {
 	if real, err := filepath.EvalSymlinks(exe); err == nil {
 		exe = real
 	}
+	// Merge strategy: preserve saved values as base, overlay with current env
+	// so that tokens captured at install time survive across shell changes.
+	envExtra := make(map[string]string)
+	for k, v := range m.EnvExtra {
+		envExtra[k] = v
+	}
+	for k, v := range CaptureDaemonEnv() {
+		envExtra[k] = v
+	}
+	envPath := m.EnvPATH
+	if envPath == "" {
+		envPath = os.Getenv("PATH")
+	}
 	return Config{
 		BinaryPath:    exe,
 		WorkDir:       filepath.FromSlash(m.WorkDir),
@@ -297,8 +310,8 @@ func ConfigFromMeta(m *Meta) Config {
 		LogFile:       filepath.FromSlash(m.LogFile),
 		LogMaxSize:    m.LogMaxSize,
 		LogMaxBackups: m.LogMaxBackups,
-		EnvPATH:       os.Getenv("PATH"),
-		EnvExtra:      CaptureDaemonEnv(),
+		EnvPATH:       envPath,
+		EnvExtra:      envExtra,
 	}
 }
 

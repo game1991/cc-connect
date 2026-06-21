@@ -159,7 +159,10 @@ func rewriteLauncherScript(cfg Config) error {
 	if err := os.MkdirAll(DefaultDataDir(), 0755); err != nil {
 		return fmt.Errorf("create data dir: %w", err)
 	}
-	return os.WriteFile(windowsTaskScriptPath(), []byte(buildWindowsTaskScript(cfg)), 0644)
+	if err := os.WriteFile(windowsTaskScriptPath(), []byte(buildWindowsTaskScript(cfg)), 0600); err != nil {
+		return err
+	}
+	return os.Chmod(windowsTaskScriptPath(), 0600)
 }
 
 func windowsTaskAction(scriptPath string) string {

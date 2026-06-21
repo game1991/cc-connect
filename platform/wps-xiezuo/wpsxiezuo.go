@@ -1031,9 +1031,9 @@ func (p *Platform) getToken(ctx context.Context) (string, error) {
 			lastErr = err
 			continue
 		}
-		defer func() { _ = resp.Body.Close() }()
 
 		respBody, err := io.ReadAll(resp.Body)
+		resp.Body.Close()
 		if err != nil {
 			lastErr = err
 			continue
