@@ -239,6 +239,27 @@ type SessionIDValidator interface {
 	ValidateSessionID(ctx context.Context, sessionID string) bool
 }
 
+// SessionContextEstimator is an optional interface for agents that can
+// estimate the token count of a session's JSONL transcript file. The
+// engine uses this before resuming a session to detect context overflow
+// and proactively downgrade to a fresh session, avoiding the "Prompt is
+// too long" hang that kills the kscc subprocess.
+type SessionContextEstimator interface {
+	// EstimateSessionTokens returns a rough token count for the session
+	// identified by sessionID. Implementations typically stat the .jsonl
+	// file and apply a heuristic (e.g. 1 token per 4 bytes). Returns 0
+	// if the session file cannot be found or estimated.
+	EstimateSessionTokens(ctx context.Context, sessionID string) int
+}
+
+// ContextWindowReporter is an optional interface for agents that can report
+// their maximum context window size in tokens. The engine uses this to compute
+// context percentages and resume pre-check thresholds. Agents that don't
+// implement this default to 200K tokens.
+type ContextWindowReporter interface {
+	MaxContextTokens() int
+}
+
 // TypingIndicator is an optional interface for platforms that can show a
 // "processing" indicator (typing bubble, emoji reaction, etc.) while the
 // agent is working. StartTyping is called when processing begins and returns
