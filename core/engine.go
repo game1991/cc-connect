@@ -3834,6 +3834,13 @@ func (e *Engine) getOrCreateInteractiveStateWith(sessionKey string, p Platform, 
 	}
 	isResume := startSessionID != ""
 
+	if isResume {
+		slog.Info("resuming session",
+			"session_key", sessionKey,
+			"agent_session_id", startSessionID,
+		)
+	}
+
 	// Pre-check: estimate token count before resuming to avoid
 	// "Prompt is too long" hang. Only applies when we have a real
 	// session ID to resume.
@@ -3953,6 +3960,19 @@ func (e *Engine) getOrCreateInteractiveStateWith(sessionKey string, p Platform, 
 		ownerUserID:       ownerUserID,
 		eventsNeedResync:   true,
 		postResumeCompact:  postResumeCompact,
+	}
+
+	if isResume {
+		slog.Info("session resumed",
+			"session_key", sessionKey,
+			"agent_session_id", startSessionID,
+			"elapsed", startElapsed,
+		)
+	} else {
+		slog.Info("fresh session started",
+			"session_key", sessionKey,
+			"elapsed", startElapsed,
+		)
 	}
 
 	// Apply role-based agent mode and allowed_tools if configured for this user.
