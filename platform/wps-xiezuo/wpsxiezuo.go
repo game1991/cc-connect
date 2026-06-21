@@ -1135,13 +1135,16 @@ func (p *Platform) deleteReaction(ctx context.Context, rctx replyContext, reacti
 func (p *Platform) fetchMessageDetail(ctx context.Context, chatID, messageID string) (*wpsMessageDetail, error) {
 	url := fmt.Sprintf("%s/v7/chats/%s/messages/%s", p.baseURL, chatID, messageID)
 
+	token, err := p.getToken(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("get token: %w", err)
+	}
+
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
 	}
-	if err := p.signHTTPRequest(req); err != nil {
-		return nil, fmt.Errorf("sign request: %w", err)
-	}
+	req.Header.Set("Authorization", "Bearer "+token)
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
