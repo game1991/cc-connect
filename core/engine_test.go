@@ -15415,6 +15415,49 @@ func TestShouldSkipResume(t *testing.T) {
 	}
 }
 
+func TestSessionResumePrecheckIntegration(t *testing.T) {
+	ctxWindow := 200_000
+
+	// 1.5x → compact but don't skip
+	skip, compact := shouldSkipResume(300_000, ctxWindow)
+	if skip {
+		t.Error("shouldSkipResume(300K, 200K) skip=true, want false (compact only)")
+	}
+	if !compact {
+		t.Error("shouldSkipResume(300K, 200K) compact=false, want true")
+	}
+
+	// 2x → skip resume
+	skip, compact = shouldSkipResume(400_000, ctxWindow)
+	if !skip {
+		t.Error("shouldSkipResume(400K, 200K) skip=false, want true")
+	}
+
+	// 1M context window with moderate usage (60%)
+	skip, compact = shouldSkipResume(600_000, 1_000_000)
+	if skip {
+		t.Error("shouldSkipResume(600K, 1M) skip=true, want false")
+	}
+	if compact {
+		t.Error("shouldSkipResume(600K, 1M) compact=true, want false (60% < 75%)")
+	}
+
+	// 1M context window at 80%
+	skip, compact = shouldSkipResume(800_000, 1_000_000)
+	if skip {
+		t.Error("shouldSkipResume(800K, 1M) skip=true, want false")
+	}
+	if !compact {
+		t.Error("shouldSkipResume(800K, 1M) compact=false, want true (80% > 75%)")
+	}
+
+	// 1M context window well over 2x
+	skip, compact = shouldSkipResume(2_100_000, 1_000_000)
+	if !skip {
+		t.Error("shouldSkipResume(2.1M, 1M) skip=false, want true")
+	}
+}
+
 func TestFormatContextPercentage(t *testing.T) {
 	tests := []struct {
 		name   string

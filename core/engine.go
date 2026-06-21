@@ -4064,6 +4064,15 @@ func (e *Engine) getOrCreateInteractiveStateWith(sessionKey string, p Platform, 
 			startSessionID = ""
 		}
 	}
+	// Layered defense against context overflow on session resume:
+	//   Layer 1: Pre-check (shouldSkipResume) — estimate tokens from JSONL
+	//            file size before resume. Skip resume when tokens >= 2x
+	//            context window (guaranteed "Prompt is too long" failure).
+	//   Layer 2: Post-resume compact — if tokens >= 75% but < 2x,
+	//            compact immediately after resume to free context.
+	//   Layer 3: Existing fallback below — if resume still fails despite
+	//            pre-check (estimation error), catch the error and start
+	//            a fresh session with user notification.
 	isResume := startSessionID != ""
 
 	if isResume {
