@@ -926,3 +926,7 @@ func TestAgent_ImplementsSessionContextEstimator(t *testing.T) {
 func TestAgent_ImplementsSessionIDValidator(t *testing.T) {
 	var _ core.SessionIDValidator = (*Agent)(nil)
 }
+
+func TestAgent_ImplementsContextWindowReporter(t *testing.T) {
+	var _ core.ContextWindowReporter = (*Agent)(nil)
+}

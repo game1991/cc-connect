@@ -526,6 +526,15 @@ func (a *Agent) EstimateSessionTokens(_ context.Context, sessionID string) int {
 	return estimateSessionTokensFromFile(path)
 }
 
+// MaxContextTokens implements core.ContextWindowReporter.
+// Returns the configured maximum context tokens, or 0 if not set (caller
+// should fall back to defaultContextWindowTokens).
+func (a *Agent) MaxContextTokens() int {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return a.maxContextTokens
+}
+
 // StartSession creates a persistent interactive Claude Code session.
 func (a *Agent) StartSession(ctx context.Context, sessionID string) (core.AgentSession, error) {
 	a.mu.Lock()
