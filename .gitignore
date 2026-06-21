@@ -153,3 +153,9 @@ credentials/
 
 .codex
 cc-connect-new
+
+# Claude Code worktrees & local 
+docs
+.claude/worktrees/
+docs/branch-compare.html
+docs/superpowers/
