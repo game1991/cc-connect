@@ -541,9 +541,11 @@ type interactiveState struct {
 	eventsNeedResync bool
 
 	// postResumeCompact is set by the resume pre-check when a session's
-	// estimated tokens are between 75% and 2x of the context window. The
+	// postResumeCompact is set when the pre-check estimates that tokens
+	// are at or above 75% but below 2x of the context window. The
 	// flag is consumed in processInteractiveEvents after the first
-	// EventResult to trigger an automatic /compact.
+	// EventResult to trigger an automatic /compact. Accessed only by
+	// the owning event loop goroutine — no lock needed.
 	postResumeCompact bool
 
 	// lastCompletedUserMessageTimeMs is the max platform user-message create time
@@ -904,6 +906,10 @@ func estimateTokensWithPendingAssistant(entries []HistoryEntry, pendingAssistant
 	}
 	return (count + 3) / 4
 }
+
+// defaultContextWindowTokens is the assumed context window when the agent
+// does not implement ContextWindowReporter. Matches the standard 200K window.
+const defaultContextWindowTokens = 200_000
 
 // shouldSkipResume decides whether a session's estimated token count
 // exceeds safe thresholds for resuming. Returns:
@@ -4057,7 +4063,7 @@ func (e *Engine) getOrCreateInteractiveStateWith(sessionKey string, p Platform, 
 	if isResume {
 		if estimator, ok := agent.(SessionContextEstimator); ok {
 			estimatedTokens := estimator.EstimateSessionTokens(e.ctx, startSessionID)
-			contextWindow := 200_000
+			contextWindow := defaultContextWindowTokens
 			if reporter, ok := agent.(ContextWindowReporter); ok {
 				if v := reporter.MaxContextTokens(); v > 0 {
 					contextWindow = v
