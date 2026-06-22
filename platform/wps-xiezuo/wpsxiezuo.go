@@ -748,8 +748,8 @@ func (p *Platform) handleImageMessage(msgData wpsMessageData) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	// Download image bytes via storage_key, with message detail fallback
-	imgBytes, err := p.downloadImageWithFallback(ctx, imgContent.Image.StorageKey, msgData.Chat.ID, msgData.Message.ID)
+	// Download image bytes via storage_key
+	imgBytes, err := p.downloadImage(ctx, imgContent.Image.StorageKey)
 	if err != nil {
 		slog.Error("wps-xiezuo: failed to download image", "error", err, "storage_key", imgContent.Image.StorageKey)
 		return
@@ -1210,46 +1210,8 @@ func (p *Platform) downloadImage(ctx context.Context, storageKey string) ([]byte
 		}
 	}
 
-	// Non-OK response — caller will handle fallback via downloadImageWithFallback
 	respBody, _ := io.ReadAll(resp.Body)
 	return nil, fmt.Errorf("image download failed: status=%d body=%s", resp.StatusCode, string(respBody))
-}
-
-func (p *Platform) downloadImageWithFallback(ctx context.Context, storageKey, chatID, messageID string) ([]byte, error) {
-	// Try direct download first
-	imgBytes, err := p.downloadImage(ctx, storageKey)
-	if err == nil {
-		return imgBytes, nil
-	}
-
-	// Fallback: fetch message detail to extract download_url
-	slog.Info("wps-xiezuo: fetching message detail for download_url", "chat_id", chatID, "msg_id", messageID)
-	detail, dErr := p.fetchMessageDetail(ctx, chatID, messageID)
-	if dErr != nil {
-		return nil, fmt.Errorf("direct download failed (%w) and message detail fallback failed (%v)", err, dErr)
-	}
-
-	var imgContent struct {
-		Image struct {
-			StorageKey   string `json:"storage_key"`
-			DownloadURL  string `json:"download_url"`
-			URL          string `json:"url"`
-		} `json:"image"`
-	}
-	if jErr := json.Unmarshal(detail.Content, &imgContent); jErr != nil {
-		return nil, fmt.Errorf("direct download failed (%w) and parse message detail failed (%v)", err, jErr)
-	}
-
-	dlURL := imgContent.Image.DownloadURL
-	if dlURL == "" {
-		dlURL = imgContent.Image.URL
-	}
-	if dlURL == "" {
-		return nil, fmt.Errorf("direct download failed (%w) and message detail has no download_url", err)
-	}
-
-	slog.Info("wps-xiezuo: using download_url from message detail", "url", dlURL)
-	return p.downloadFromURL(ctx, dlURL)
 }
 
 func (p *Platform) downloadFromURL(ctx context.Context, downloadURL string) ([]byte, error) {
