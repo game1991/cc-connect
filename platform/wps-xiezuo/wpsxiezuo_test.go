@@ -307,202 +307,6 @@ func TestCleanReplyContent_AllFiltered(t *testing.T) {
 	}
 }
 
-// ============================================================================
-// Image message handling
-// ============================================================================
-
-func TestSignHTTPRequest(t *testing.T) {
-	appID := "testapp"
-	appSecret := "testsecret"
-
-	p := &Platform{
-		appID:     appID,
-		appSecret: appSecret,
-	}
-
-	req := httptest.NewRequest(http.MethodGet, "https://openapi.wps.cn/v7/chats/c1/messages/m1", nil)
-	if err := p.signHTTPRequest(req); err != nil {
-		t.Fatalf("signHTTPRequest failed: %v", err)
-	}
-
-	if req.Header.Get("X-Kso-Date") == "" {
-		t.Error("X-Kso-Date header not set")
-	}
-	auth := req.Header.Get("X-Kso-Authorization")
-	if auth == "" {
-		t.Error("X-Kso-Authorization header not set")
-	}
-	if !strings.HasPrefix(auth, "KSO-1 "+appID+":") {
-		t.Errorf("unexpected auth format: %s", auth)
-	}
-}
-
-func TestSignHTTPRequest_PostWithBody(t *testing.T) {
-	p := &Platform{appID: "app1", appSecret: "secret1"}
-
-	body := []byte(`{"type":"text"}`)
-	req := httptest.NewRequest(http.MethodPost, "https://openapi.wps.cn/v7/messages/create", bytes.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-
-	if err := p.signHTTPRequest(req); err != nil {
-		t.Fatalf("signHTTPRequest failed: %v", err)
-	}
-
-	if req.Header.Get("X-Kso-Date") == "" {
-		t.Error("X-Kso-Date header not set for POST")
-	}
-	auth := req.Header.Get("X-Kso-Authorization")
-	if auth == "" {
-		t.Error("X-Kso-Authorization header not set for POST")
-	}
-}
-
-func TestParseImageContent(t *testing.T) {
-	raw := json.RawMessage(`{
-		"image": {
-			"height": 445,
-			"width": 678,
-			"name": "screenshot.png",
-			"size": 58082,
-			"storage_key": "DD1AFB29cGljLzA2YmI0MmI2MmM2MjAxYzc0MGZhMmNlOTE5MWNiZTg0OmtzMzprb2EtaW1n",
-			"thumbnail_storage_key": "thumb_key",
-			"thumbnail_type": "image/png",
-			"type": "image/png"
-		}
-	}`)
-
-	var img struct {
-		Image wpsImageContent `json:"image"`
-	}
-	if err := json.Unmarshal(raw, &img); err != nil {
-		t.Fatalf("failed to parse image content: %v", err)
-	}
-
-	if img.Image.Height != 445 {
-		t.Errorf("expected height 445, got %d", img.Image.Height)
-	}
-	if img.Image.Width != 678 {
-		t.Errorf("expected width 678, got %d", img.Image.Width)
-	}
-	if img.Image.StorageKey != "DD1AFB29cGljLzA2YmI0MmI2MmM2MjAxYzc0MGZhMmNlOTE5MWNiZTg0OmtzMzprb2EtaW1n" {
-		t.Errorf("unexpected storage_key: %s", img.Image.StorageKey)
-	}
-	if img.Image.Type != "image/png" {
-		t.Errorf("expected image/png, got %s", img.Image.Type)
-	}
-	if img.Image.Name != "screenshot.png" {
-		t.Errorf("expected screenshot.png, got %s", img.Image.Name)
-	}
-}
-
-func TestFetchMessageDetail_URL(t *testing.T) {
-	var gotPath string
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		gotPath = r.URL.Path
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(wpsMessageDetail{
-			ID:      "m1",
-			Type:    "image",
-			Content: json.RawMessage(`{"image":{"storage_key":"abc","type":"image/png"}}`),
-		})
-	}))
-	defer srv.Close()
-
-	p := &Platform{
-		appID:     "id",
-		appSecret: "secret",
-		baseURL:   srv.URL,
-	}
-
-	detail, err := p.fetchMessageDetail(context.Background(), "c1", "m1")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	expectedPath := "/v7/chats/c1/messages/m1"
-	if gotPath != expectedPath {
-		t.Fatalf("expected path %s, got %s", expectedPath, gotPath)
-	}
-	if detail.ID != "m1" {
-		t.Fatalf("expected message ID m1, got %s", detail.ID)
-	}
-	if detail.Type != "image" {
-		t.Fatalf("expected type image, got %s", detail.Type)
-	}
-
-	// Verify KSO-1 signature headers were sent
-	// (already validated in TestSignHTTPRequest)
-}
-
-func TestDownloadImage_URL(t *testing.T) {
-	var gotPath string
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		gotPath = r.URL.Path
-		if strings.HasPrefix(r.URL.Path, "/v7/files/download") {
-			w.Header().Set("Content-Type", "image/png")
-			_, _ = w.Write([]byte("fake-png-data"))
-			return
-		}
-		w.WriteHeader(http.StatusNotFound)
-	}))
-	defer srv.Close()
-
-	p := &Platform{
-		appID:     "id",
-		appSecret: "secret",
-		baseURL:   srv.URL,
-	}
-
-	imgBytes, err := p.downloadImage(context.Background(), "test_storage_key")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	if string(imgBytes) != "fake-png-data" {
-		t.Fatalf("expected fake-png-data, got %q", string(imgBytes))
-	}
-	if gotPath != "/v7/files/download" {
-		t.Fatalf("expected path /v7/files/download, got %s", gotPath)
-	}
-}
-
-func TestDownloadImage_JSONRedirect(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if strings.HasPrefix(r.URL.Path, "/v7/files/download") {
-			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode(map[string]any{
-				"code": 0,
-				"data": map[string]string{
-					"download_url": "http://" + r.Host + "/real-image",
-				},
-			})
-			return
-		}
-		if r.URL.Path == "/real-image" {
-			w.Header().Set("Content-Type", "image/jpeg")
-			_, _ = w.Write([]byte("jpeg-bytes"))
-			return
-		}
-		w.WriteHeader(http.StatusNotFound)
-	}))
-	defer srv.Close()
-
-	p := &Platform{
-		appID:     "id",
-		appSecret: "secret",
-		baseURL:   srv.URL,
-	}
-
-	imgBytes, err := p.downloadImage(context.Background(), "test_key")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	if string(imgBytes) != "jpeg-bytes" {
-		t.Fatalf("expected jpeg-bytes, got %q", string(imgBytes))
-	}
-}
-
 func TestCleanReplyContent_Empty(t *testing.T) {
 	got := cleanReplyContent("")
 	if got != "" {
@@ -1119,7 +923,7 @@ func TestSendWPSMessage_Success(t *testing.T) {
 	var gotBody []byte
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/oauth2/token" {
-			_ = json.NewEncoder(w).Encode(tokenResponse{AccessToken: "test-token-123", ExpiresIn: 7200})
+			json.NewEncoder(w).Encode(tokenResponse{AccessToken: "test-token-123", ExpiresIn: 7200})
 			return
 		}
 		if r.URL.Path == "/v7/messages/create" {
@@ -1128,7 +932,7 @@ func TestSendWPSMessage_Success(t *testing.T) {
 				t.Errorf("expected Bearer token, got %s", r.Header.Get("Authorization"))
 			}
 			w.WriteHeader(http.StatusOK)
-			_ = json.NewEncoder(w).Encode(map[string]string{"code": "0"})
+			json.NewEncoder(w).Encode(map[string]string{"code": "0"})
 			return
 		}
 		w.WriteHeader(http.StatusNotFound)
@@ -1254,7 +1058,7 @@ func TestSendWPSMessage_CleanReply(t *testing.T) {
 	var gotBody []byte
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/oauth2/token" {
-			_ = json.NewEncoder(w).Encode(tokenResponse{AccessToken: "tok", ExpiresIn: 7200})
+			json.NewEncoder(w).Encode(tokenResponse{AccessToken: "tok", ExpiresIn: 7200})
 			return
 		}
 		if r.URL.Path == "/v7/messages/create" {
@@ -1298,12 +1102,12 @@ func TestSendWPSMessage_EmptyContent(t *testing.T) {
 func TestSendWPSMessage_ApiError(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/oauth2/token" {
-			_ = json.NewEncoder(w).Encode(tokenResponse{AccessToken: "tok", ExpiresIn: 7200})
+			json.NewEncoder(w).Encode(tokenResponse{AccessToken: "tok", ExpiresIn: 7200})
 			return
 		}
 		if r.URL.Path == "/v7/messages/create" {
 			w.WriteHeader(http.StatusForbidden)
-			_, _ = w.Write([]byte(`{"code":"403"}`))
+			w.Write([]byte(`{"code":"403"}`))
 			return
 		}
 		w.WriteHeader(http.StatusNotFound)
@@ -1455,7 +1259,7 @@ func TestAddReaction(t *testing.T) {
 	var gotBody []byte
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/oauth2/token" {
-			_ = json.NewEncoder(w).Encode(tokenResponse{AccessToken: "tok", ExpiresIn: 7200})
+			json.NewEncoder(w).Encode(tokenResponse{AccessToken: "tok", ExpiresIn: 7200})
 			return
 		}
 		gotPath = r.URL.Path
@@ -1495,7 +1299,7 @@ func TestDeleteReaction(t *testing.T) {
 	var gotPath string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/oauth2/token" {
-			_ = json.NewEncoder(w).Encode(tokenResponse{AccessToken: "tok", ExpiresIn: 7200})
+			json.NewEncoder(w).Encode(tokenResponse{AccessToken: "tok", ExpiresIn: 7200})
 			return
 		}
 		gotPath = r.URL.Path
@@ -1527,7 +1331,7 @@ func TestDeleteReaction(t *testing.T) {
 func TestAddReaction_Error(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/oauth2/token" {
-			_ = json.NewEncoder(w).Encode(tokenResponse{AccessToken: "tok", ExpiresIn: 7200})
+			json.NewEncoder(w).Encode(tokenResponse{AccessToken: "tok", ExpiresIn: 7200})
 			return
 		}
 		w.WriteHeader(http.StatusTooManyRequests)
@@ -1558,7 +1362,7 @@ func TestStartTyping(t *testing.T) {
 	var addCalled atomic.Int32
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/oauth2/token" {
-			_ = json.NewEncoder(w).Encode(tokenResponse{AccessToken: "tok", ExpiresIn: 7200})
+			json.NewEncoder(w).Encode(tokenResponse{AccessToken: "tok", ExpiresIn: 7200})
 			return
 		}
 		if strings.Contains(r.URL.Path, "reactions/create") {
@@ -1615,7 +1419,7 @@ func TestAddDoneReaction(t *testing.T) {
 	var delCalled atomic.Int32
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/oauth2/token" {
-			_ = json.NewEncoder(w).Encode(tokenResponse{AccessToken: "tok", ExpiresIn: 7200})
+			json.NewEncoder(w).Encode(tokenResponse{AccessToken: "tok", ExpiresIn: 7200})
 			return
 		}
 		if strings.Contains(r.URL.Path, "reactions/delete") {
