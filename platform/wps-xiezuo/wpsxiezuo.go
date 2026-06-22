@@ -859,7 +859,10 @@ func (p *Platform) sendWPSMessage(ctx context.Context, rctx any, content string)
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		respBody, _ := io.ReadAll(resp.Body)
+		respBody, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return fmt.Errorf("wps-xiezuo: send failed: status=%d (read body: %w)", resp.StatusCode, err)
+		}
 		return fmt.Errorf("wps-xiezuo: send failed: status=%d body=%s", resp.StatusCode, string(respBody))
 	}
 
@@ -963,7 +966,10 @@ func (p *Platform) addReaction(ctx context.Context, rctx replyContext, reactionT
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		respBody, _ := io.ReadAll(resp.Body)
+		respBody, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return fmt.Errorf("add reaction failed: status=%d (read body: %w)", resp.StatusCode, err)
+		}
 		return fmt.Errorf("add reaction failed: status=%d body=%s", resp.StatusCode, string(respBody))
 	}
 	return nil
