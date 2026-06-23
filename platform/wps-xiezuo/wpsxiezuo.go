@@ -860,7 +860,7 @@ func (p *Platform) sendWPSMessage(ctx context.Context, rctx any, content string)
 	if err != nil {
 		return fmt.Errorf("wps-xiezuo: send request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		respBody, rerr := io.ReadAll(io.LimitReader(resp.Body, int64(maxErrBodyBytes)+1))
@@ -967,7 +967,7 @@ func (p *Platform) addReaction(ctx context.Context, rctx replyContext, reactionT
 	if err != nil {
 		return fmt.Errorf("wps-xiezuo: add reaction: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		respBody, rerr := io.ReadAll(io.LimitReader(resp.Body, int64(maxErrBodyBytes)+1))
@@ -999,7 +999,7 @@ func (p *Platform) deleteReaction(ctx context.Context, rctx replyContext, reacti
 	if err != nil {
 		return fmt.Errorf("wps-xiezuo: delete reaction: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		respBody, rerr := io.ReadAll(io.LimitReader(resp.Body, int64(maxErrBodyBytes)+1))

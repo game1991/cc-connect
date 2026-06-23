@@ -265,7 +265,7 @@ func (bs *BridgeServer) setCORS(w http.ResponseWriter, r *http.Request) {
 func (bs *BridgeServer) Stop() {
 	bs.mu.Lock()
 	for _, a := range bs.adapters {
-		a.conn.Close()
+		_ = a.conn.Close()
 	}
 	bs.adapters = make(map[string]*bridgeAdapter)
 	bs.mu.Unlock()
@@ -756,7 +756,7 @@ func (bs *BridgeServer) handleWS(w http.ResponseWriter, r *http.Request) {
 }
 
 func (bs *BridgeServer) handleConnection(conn *websocket.Conn) {
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	if err := conn.SetReadDeadline(time.Now().Add(90 * time.Second)); err != nil {
 		slog.Debug("bridge: set read deadline failed", "error", err)
@@ -805,7 +805,7 @@ func (bs *BridgeServer) handleConnection(conn *websocket.Conn) {
 
 	bs.mu.Lock()
 	if old, exists := bs.adapters[reg.Platform]; exists {
-		old.conn.Close()
+		_ = old.conn.Close()
 		slog.Info("bridge: replaced existing adapter", "platform", reg.Platform)
 	}
 	bs.adapters[reg.Platform] = adapter

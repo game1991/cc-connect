@@ -923,7 +923,7 @@ func TestSendWPSMessage_Success(t *testing.T) {
 	var gotBody []byte
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/oauth2/token" {
-			json.NewEncoder(w).Encode(tokenResponse{AccessToken: "test-token-123", ExpiresIn: 7200})
+			_ = json.NewEncoder(w).Encode(tokenResponse{AccessToken: "test-token-123", ExpiresIn: 7200})
 			return
 		}
 		if r.URL.Path == "/v7/messages/create" {
@@ -932,7 +932,7 @@ func TestSendWPSMessage_Success(t *testing.T) {
 				t.Errorf("expected Bearer token, got %s", r.Header.Get("Authorization"))
 			}
 			w.WriteHeader(http.StatusOK)
-			json.NewEncoder(w).Encode(map[string]string{"code": "0"})
+			_ = json.NewEncoder(w).Encode(map[string]string{"code": "0"})
 			return
 		}
 		w.WriteHeader(http.StatusNotFound)
@@ -987,9 +987,7 @@ func TestSendWPSMessage_NewlinesConvertedToHardBreaks(t *testing.T) {
 	var gotBody []byte
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/oauth2/token" {
-			if err := json.NewEncoder(w).Encode(tokenResponse{AccessToken: "tok", ExpiresIn: 7200}); err != nil {
-				t.Errorf("encode token response: %v", err)
-			}
+			_ = json.NewEncoder(w).Encode(tokenResponse{AccessToken: "tok", ExpiresIn: 7200})
 			return
 		}
 		if r.URL.Path == "/v7/messages/create" {
@@ -1058,7 +1056,7 @@ func TestSendWPSMessage_CleanReply(t *testing.T) {
 	var gotBody []byte
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/oauth2/token" {
-			json.NewEncoder(w).Encode(tokenResponse{AccessToken: "tok", ExpiresIn: 7200})
+			_ = json.NewEncoder(w).Encode(tokenResponse{AccessToken: "tok", ExpiresIn: 7200})
 			return
 		}
 		if r.URL.Path == "/v7/messages/create" {
@@ -1102,12 +1100,12 @@ func TestSendWPSMessage_EmptyContent(t *testing.T) {
 func TestSendWPSMessage_ApiError(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/oauth2/token" {
-			json.NewEncoder(w).Encode(tokenResponse{AccessToken: "tok", ExpiresIn: 7200})
+			_ = json.NewEncoder(w).Encode(tokenResponse{AccessToken: "tok", ExpiresIn: 7200})
 			return
 		}
 		if r.URL.Path == "/v7/messages/create" {
 			w.WriteHeader(http.StatusForbidden)
-			w.Write([]byte(`{"code":"403"}`))
+			_, _ = w.Write([]byte(`{"code":"403"}`))
 			return
 		}
 		w.WriteHeader(http.StatusNotFound)
@@ -1259,7 +1257,7 @@ func TestAddReaction(t *testing.T) {
 	var gotBody []byte
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/oauth2/token" {
-			json.NewEncoder(w).Encode(tokenResponse{AccessToken: "tok", ExpiresIn: 7200})
+			_ = json.NewEncoder(w).Encode(tokenResponse{AccessToken: "tok", ExpiresIn: 7200})
 			return
 		}
 		gotPath = r.URL.Path
@@ -1299,7 +1297,7 @@ func TestDeleteReaction(t *testing.T) {
 	var gotPath string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/oauth2/token" {
-			json.NewEncoder(w).Encode(tokenResponse{AccessToken: "tok", ExpiresIn: 7200})
+			_ = json.NewEncoder(w).Encode(tokenResponse{AccessToken: "tok", ExpiresIn: 7200})
 			return
 		}
 		gotPath = r.URL.Path
@@ -1331,7 +1329,7 @@ func TestDeleteReaction(t *testing.T) {
 func TestAddReaction_Error(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/oauth2/token" {
-			json.NewEncoder(w).Encode(tokenResponse{AccessToken: "tok", ExpiresIn: 7200})
+			_ = json.NewEncoder(w).Encode(tokenResponse{AccessToken: "tok", ExpiresIn: 7200})
 			return
 		}
 		w.WriteHeader(http.StatusTooManyRequests)
@@ -1362,7 +1360,7 @@ func TestStartTyping(t *testing.T) {
 	var addCalled atomic.Int32
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/oauth2/token" {
-			json.NewEncoder(w).Encode(tokenResponse{AccessToken: "tok", ExpiresIn: 7200})
+			_ = json.NewEncoder(w).Encode(tokenResponse{AccessToken: "tok", ExpiresIn: 7200})
 			return
 		}
 		if strings.Contains(r.URL.Path, "reactions/create") {
@@ -1419,7 +1417,7 @@ func TestAddDoneReaction(t *testing.T) {
 	var delCalled atomic.Int32
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/oauth2/token" {
-			json.NewEncoder(w).Encode(tokenResponse{AccessToken: "tok", ExpiresIn: 7200})
+			_ = json.NewEncoder(w).Encode(tokenResponse{AccessToken: "tok", ExpiresIn: 7200})
 			return
 		}
 		if strings.Contains(r.URL.Path, "reactions/delete") {
