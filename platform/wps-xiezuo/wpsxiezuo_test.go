@@ -152,6 +152,11 @@ func TestPlatformImplementsInterfaces(t *testing.T) {
 	var _ core.ReplyContextReconstructor = (*Platform)(nil)
 	var _ core.TypingIndicator = (*Platform)(nil)
 	var _ core.TypingIndicatorDone = (*Platform)(nil)
+	var _ core.PreviewStarter = (*Platform)(nil)
+	var _ core.MessageUpdater = (*Platform)(nil)
+	var _ core.PreviewStatusUpdater = (*Platform)(nil)
+	var _ core.PreviewFinishPreference = (*Platform)(nil)
+	var _ core.PreviewCleaner = (*Platform)(nil)
 }
 
 // ============================================================================
@@ -1770,6 +1775,127 @@ func TestTruncateMarkdown_HardCutoff(t *testing.T) {
 	}
 }
 
+// ============================================================================
+// SendPreviewStart via httptest server
+// ============================================================================
+
+func TestSendPreviewStart_Success(t *testing.T) {
+	var gotPath string
+	var gotBody []byte
+	var gotAuth string
+	var gotContentType string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/oauth2/token" {
+			_ = json.NewEncoder(w).Encode(tokenResponse{AccessToken: "preview-tok", ExpiresIn: 7200})
+			return
+		}
+		if r.URL.Path == "/v7/messages/create" {
+			gotPath = r.URL.Path
+			gotAuth = r.Header.Get("Authorization")
+			gotContentType = r.Header.Get("Content-Type")
+			gotBody, _ = io.ReadAll(r.Body)
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"code": 0,
+				"msg":  "success",
+				"data": map[string]string{"message_id": "msg-preview-1"},
+			})
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer srv.Close()
+
+	plat, _ := New(map[string]any{
+		"app_id":     "id",
+		"app_secret": "secret",
+		"base_url":   srv.URL,
+	})
+	p := plat.(*Platform)
+
+	handle, err := p.SendPreviewStart(context.Background(), replyContext{ChatID: "chat-preview"}, "thinking...")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Verify request metadata
+	if gotPath != "/v7/messages/create" {
+		t.Fatalf("expected path /v7/messages/create, got %s", gotPath)
+	}
+	if gotAuth != "Bearer preview-tok" {
+		t.Fatalf("expected Bearer preview-tok, got %s", gotAuth)
+	}
+	if gotContentType != "application/json" {
+		t.Fatalf("expected application/json, got %s", gotContentType)
+	}
+
+	// Verify request body
+	var req sendMessageRequest
+	if err := json.Unmarshal(gotBody, &req); err != nil {
+		t.Fatalf("parse request: %v", err)
+	}
+	if req.Type != "card" {
+		t.Fatalf("expected type=card, got %q", req.Type)
+	}
+	if req.Receiver.Type != "chat" {
+		t.Fatalf("expected receiver type=chat, got %q", req.Receiver.Type)
+	}
+	if req.Receiver.ReceiverID != "chat-preview" {
+		t.Fatalf("expected receiver_id=chat-preview, got %q", req.Receiver.ReceiverID)
+	}
+	if len(req.Content.Card) == 0 {
+		t.Fatal("expected non-empty card content")
+	}
+
+	// Verify returned handle
+	h, ok := handle.(*wpsPreviewHandle)
+	if !ok {
+		t.Fatalf("expected *wpsPreviewHandle, got %T", handle)
+	}
+	if h.MessageID != "msg-preview-1" {
+		t.Fatalf("expected MessageID=msg-preview-1, got %q", h.MessageID)
+	}
+	if h.Status != core.CardStatusThinking {
+		t.Fatalf("expected Status=thinking, got %q", h.Status)
+	}
+	if h.ChatID != "chat-preview" {
+		t.Fatalf("expected ChatID=chat-preview, got %q", h.ChatID)
+	}
+}
+
+func TestSendPreviewStart_ApiError(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/oauth2/token" {
+			_ = json.NewEncoder(w).Encode(tokenResponse{AccessToken: "tok", ExpiresIn: 7200})
+			return
+		}
+		if r.URL.Path == "/v7/messages/create" {
+			w.WriteHeader(http.StatusOK)
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"code": 400000002,
+				"msg":  "bad request",
+			})
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer srv.Close()
+
+	plat, _ := New(map[string]any{
+		"app_id":     "id",
+		"app_secret": "secret",
+		"base_url":   srv.URL,
+	})
+	p := plat.(*Platform)
+
+	_, err := p.SendPreviewStart(context.Background(), replyContext{ChatID: "c1"}, "content")
+	if err == nil {
+		t.Fatal("expected error for API error code")
+	}
+	if !strings.Contains(err.Error(), "400000002") {
+		t.Fatalf("expected error code 400000002 in message, got %v", err)
+	}
+}
+
 func TestWebSocketIntegration_ReceiveEvent(t *testing.T) {
 	appID := "AK_WS"
 	appSecret := "ws-secret"
@@ -1834,5 +1960,183 @@ func TestWebSocketIntegration_ReceiveEvent(t *testing.T) {
 			t.Skip("WebSocket server was not reached (env may not support ws dial)")
 		}
 		t.Fatal("timed out waiting for message from mock ws server")
+	}
+}
+
+// ============================================================================
+// UpdateMessage tests
+// ============================================================================
+
+func TestUpdateMessage_Success(t *testing.T) {
+	var updateReq *http.Request
+	var updateBody []byte
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/oauth2/token":
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprintf(w, `{"access_token":"test-token","expires_in":7200}`)
+		case "/v7/messages/msg-1/update":
+			updateReq = r
+			updateBody, _ = io.ReadAll(r.Body)
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprintf(w, `{"code":0,"msg":"ok"}`)
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer srv.Close()
+
+	p := &Platform{
+		appID:      "test-app",
+		appSecret:  "test-secret",
+		baseURL:    srv.URL,
+		httpClient: srv.Client(),
+	}
+
+	rc := replyContext{MessageID: "msg-1"}
+	err := p.UpdateMessage(context.Background(), rc, "hello world")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if updateReq == nil {
+		t.Fatal("update request was never made")
+	}
+	if updateReq.Method != http.MethodPost {
+		t.Errorf("expected POST, got %s", updateReq.Method)
+	}
+	if updateReq.URL.Path != "/v7/messages/msg-1/update" {
+		t.Errorf("expected path /v7/messages/msg-1/update, got %s", updateReq.URL.Path)
+	}
+	if updateReq.Header.Get("X-Kso-Authorization") == "" {
+		t.Error("expected X-Kso-Authorization header to be set")
+	}
+	if updateReq.Header.Get("X-Kso-Date") == "" {
+		t.Error("expected X-Kso-Date header to be set")
+	}
+
+	var parsed updateMessageRequest
+	if err := json.Unmarshal(updateBody, &parsed); err != nil {
+		t.Fatalf("failed to parse request body: %v", err)
+	}
+	if parsed.Type != "card" {
+		t.Errorf("expected type=card, got %s", parsed.Type)
+	}
+	if len(parsed.Content.Card) == 0 {
+		t.Error("expected non-empty card content")
+	}
+}
+
+func TestUpdateMessage_DegradedOn401(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/oauth2/token":
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprintf(w, `{"access_token":"test-token","expires_in":7200}`)
+		case "/v7/messages/msg-1/update":
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusUnauthorized)
+			fmt.Fprintf(w, `{"code":401,"msg":"unauthorized"}`)
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer srv.Close()
+
+	p := &Platform{
+		appID:      "test-app",
+		appSecret:  "test-secret",
+		baseURL:    srv.URL,
+		httpClient: srv.Client(),
+	}
+
+	rc := replyContext{MessageID: "msg-1"}
+	err := p.UpdateMessage(context.Background(), rc, "hello")
+	if err == nil {
+		t.Fatal("expected error for 401 response")
+	}
+	if !strings.Contains(err.Error(), "401") {
+		t.Errorf("expected error to contain '401', got %v", err)
+	}
+}
+
+func TestUpdateMessage_EmptyMessageID(t *testing.T) {
+	p := &Platform{
+		appID:      "test-app",
+		appSecret:  "test-secret",
+		baseURL:    "http://unused",
+		httpClient: &http.Client{},
+	}
+
+	rc := replyContext{MessageID: ""}
+	err := p.UpdateMessage(context.Background(), rc, "hello")
+	if err == nil {
+		t.Fatal("expected error for empty message ID")
+	}
+	if !strings.Contains(err.Error(), "empty message_id") {
+		t.Errorf("expected error to contain 'empty message_id', got %v", err)
+	}
+}
+
+// ============================================================================
+// PreviewStatusUpdater
+// ============================================================================
+
+func TestSetPreviewStatus(t *testing.T) {
+	p := &Platform{}
+	handle := &wpsPreviewHandle{
+		MessageID: "msg-status-1",
+		Status:    core.CardStatusThinking,
+		ChatID:    "chat-1",
+	}
+
+	p.SetPreviewStatus(handle, core.CardStatusWorking)
+
+	if handle.Status != core.CardStatusWorking {
+		t.Fatalf("expected status=working, got %q", handle.Status)
+	}
+}
+
+func TestSetPreviewStatus_InvalidHandle(t *testing.T) {
+	p := &Platform{}
+	// Should not panic with invalid handle types
+	p.SetPreviewStatus("not-a-handle", core.CardStatusDone)
+	p.SetPreviewStatus(42, core.CardStatusError)
+	p.SetPreviewStatus(nil, core.CardStatusWorking)
+}
+
+// ============================================================================
+// PreviewFinishPreference
+// ============================================================================
+
+func TestKeepPreviewOnFinish(t *testing.T) {
+	p := &Platform{}
+	if !p.KeepPreviewOnFinish() {
+		t.Fatal("expected KeepPreviewOnFinish() = true")
+	}
+}
+
+// ============================================================================
+// PreviewCleaner
+// ============================================================================
+
+func TestDeletePreviewMessage_ValidHandle(t *testing.T) {
+	p := &Platform{}
+	handle := &wpsPreviewHandle{
+		MessageID: "msg-del-1",
+		Status:    core.CardStatusDone,
+		ChatID:    "chat-1",
+	}
+	err := p.DeletePreviewMessage(context.Background(), handle)
+	if err != nil {
+		t.Fatalf("expected nil, got %v", err)
+	}
+}
+
+func TestDeletePreviewMessage_InvalidHandle(t *testing.T) {
+	p := &Platform{}
+	err := p.DeletePreviewMessage(context.Background(), "not-a-handle")
+	if err != nil {
+		t.Fatalf("expected nil for invalid handle, got %v", err)
 	}
 }

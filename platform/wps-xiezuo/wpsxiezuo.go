@@ -180,6 +180,28 @@ type textContent struct {
 	Type    string `json:"type"`
 }
 
+// --- WPS API response ---
+
+// wpsAPIResponse is the standard envelope for all WPS Open Platform v7 APIs.
+type wpsAPIResponse struct {
+	Code int             `json:"code"`
+	Msg  string          `json:"msg"`
+	Data json.RawMessage `json:"data"`
+}
+
+// wpsMessageCreateData holds the response from POST /v7/messages/create.
+type wpsMessageCreateData struct {
+	MessageID string `json:"message_id"`
+}
+
+// --- Message update API ---
+
+// updateMessageRequest is the request body for POST /v7/messages/{message_id}/update.
+type updateMessageRequest struct {
+	Type    string         `json:"type"`
+	Content messageContent `json:"content"`
+}
+
 // --- Token API ---
 
 type tokenResponse struct {
@@ -1307,6 +1329,196 @@ func wpsPlainElement(content string) map[string]any {
 	}
 }
 
+// --- Optional interface: PreviewStarter ---
+
+// SendPreviewStart sends the initial card preview message and returns a handle
+// for subsequent in-place updates. The Bearer token is used (no KSO-1 signing);
+// KSO-1 signing is only required for the update message API.
+func (p *Platform) SendPreviewStart(ctx context.Context, rctx any, content string) (any, error) {
+	rc, ok := rctx.(replyContext)
+	if !ok {
+		return nil, fmt.Errorf("wps-xiezuo: invalid reply context type %T", rctx)
+	}
+
+	cardData := buildWPSCard("", core.CardStatusThinking, "", "")
+	reqBody := sendMessageRequest{
+		Type: "card",
+		Receiver: receiverInfo{
+			Type:       "chat",
+			ReceiverID: rc.ChatID,
+		},
+		Content: messageContent{
+			Card: json.RawMessage(cardData),
+		},
+	}
+
+	body, err := json.Marshal(reqBody)
+	if err != nil {
+		return nil, fmt.Errorf("wps-xiezuo: marshal preview request: %w", err)
+	}
+
+	token, err := p.getToken(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("wps-xiezuo: get token: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, p.baseURL+"/v7/messages/create", bytes.NewReader(body))
+	if err != nil {
+		return nil, fmt.Errorf("wps-xiezuo: create preview request: %w", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := p.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("wps-xiezuo: send preview request: %w", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	respBody, err := io.ReadAll(io.LimitReader(resp.Body, int64(maxErrBodyBytes)+1))
+	if err != nil {
+		return nil, fmt.Errorf("wps-xiezuo: send preview: read body: %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("wps-xiezuo: send preview failed: status=%d body=%s", resp.StatusCode, truncateAndRedact(respBody, token))
+	}
+
+	var apiResp wpsAPIResponse
+	if err := json.Unmarshal(respBody, &apiResp); err != nil {
+		return nil, fmt.Errorf("wps-xiezuo: send preview: parse response: %w", err)
+	}
+	if apiResp.Code != 0 {
+		return nil, fmt.Errorf("wps-xiezuo: send preview failed: code=%d msg=%s", apiResp.Code, core.RedactToken(apiResp.Msg, token))
+	}
+
+	var createData wpsMessageCreateData
+	if err := json.Unmarshal(apiResp.Data, &createData); err != nil {
+		return nil, fmt.Errorf("wps-xiezuo: send preview: parse message_id: %w", err)
+	}
+	if createData.MessageID == "" {
+		return nil, fmt.Errorf("wps-xiezuo: send preview: empty message_id in response")
+	}
+
+	handle := &wpsPreviewHandle{
+		MessageID: createData.MessageID,
+		Status:    core.CardStatusThinking,
+		ChatID:    rc.ChatID,
+	}
+
+	slog.Info("wps-xiezuo: preview message created", "msg_id", createData.MessageID, "chat_id", rc.ChatID)
+	return handle, nil
+}
+
+// --- Optional interface: MessageUpdater ---
+
+// UpdateMessage updates an existing card message in-place via
+// POST /v7/messages/{message_id}/update.
+// Unlike Create (which only needs Bearer), the update API requires BOTH
+// Bearer token AND KSO-1 signing.
+func (p *Platform) UpdateMessage(ctx context.Context, rctx any, content string) error {
+	rc, ok := rctx.(replyContext)
+	if !ok {
+		return fmt.Errorf("wps-xiezuo: invalid reply context type %T", rctx)
+	}
+	if rc.MessageID == "" {
+		return fmt.Errorf("wps-xiezuo: update message: empty message_id in reply context")
+	}
+
+	cardData := resolveWPSContent(p.Name(), &wpsPreviewHandle{Status: core.CardStatusWorking}, content)
+	reqBody := updateMessageRequest{
+		Type: "card",
+		Content: messageContent{
+			Card: json.RawMessage(cardData),
+		},
+	}
+
+	body, err := json.Marshal(reqBody)
+	if err != nil {
+		return fmt.Errorf("wps-xiezuo: marshal update request: %w", err)
+	}
+
+	token, err := p.getToken(ctx)
+	if err != nil {
+		return fmt.Errorf("wps-xiezuo: get token: %w", err)
+	}
+
+	uri := "/v7/messages/" + rc.MessageID + "/update"
+	date, authHeader := p.kso1Sign("POST", uri, "application/json", body)
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, p.baseURL+uri, bytes.NewReader(body))
+	if err != nil {
+		return fmt.Errorf("wps-xiezuo: create update request: %w", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("X-Kso-Date", date)
+	req.Header.Set("X-Kso-Authorization", authHeader)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := p.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("wps-xiezuo: update message request: %w", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
+		respBody, _ := io.ReadAll(io.LimitReader(resp.Body, int64(maxErrBodyBytes)+1))
+		slog.Error("wps-xiezuo: update message auth/signing error",
+			"status", resp.StatusCode,
+			"body", truncateAndRedact(respBody, token),
+			"hint", "签名或权限问题，请在开发者后台开启接口签名并确认 kso.chat_message.readwrite 权限",
+			"app_id", core.RedactToken(p.appID, p.appID))
+		return fmt.Errorf("wps-xiezuo: update message failed: status=%d", resp.StatusCode)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		respBody, rerr := io.ReadAll(io.LimitReader(resp.Body, int64(maxErrBodyBytes)+1))
+		if rerr != nil {
+			return fmt.Errorf("wps-xiezuo: update message failed: status=%d (read body: %w)", resp.StatusCode, rerr)
+		}
+		return fmt.Errorf("wps-xiezuo: update message failed: status=%d body=%s", resp.StatusCode, truncateAndRedact(respBody, token))
+	}
+
+	var apiResp wpsAPIResponse
+	respBody, err := io.ReadAll(io.LimitReader(resp.Body, int64(maxErrBodyBytes)+1))
+	if err != nil {
+		return fmt.Errorf("wps-xiezuo: update message: read response body: %w", err)
+	}
+	if err := json.Unmarshal(respBody, &apiResp); err != nil {
+		return fmt.Errorf("wps-xiezuo: update message: parse response: %w", err)
+	}
+	if apiResp.Code != 0 {
+		return fmt.Errorf("wps-xiezuo: update message failed: code=%d msg=%s", apiResp.Code, core.RedactToken(apiResp.Msg, token))
+	}
+
+	slog.Debug("wps-xiezuo: message updated", "msg_id", rc.MessageID)
+	return nil
+}
+
+// --- Optional interface: PreviewStatusUpdater ---
+
+func (p *Platform) SetPreviewStatus(handle any, status core.CardStatus) {
+	h, ok := handle.(*wpsPreviewHandle)
+	if !ok {
+		return
+	}
+	h.mu.Lock()
+	h.Status = status
+	h.mu.Unlock()
+}
+
+// --- Optional interface: PreviewFinishPreference ---
+
+func (p *Platform) KeepPreviewOnFinish() bool {
+	return true
+}
+
+// --- Optional interface: PreviewCleaner ---
+
+func (p *Platform) DeletePreviewMessage(_ context.Context, _ any) error {
+	return nil
+}
+
 // --- Compile-time interface assertions ---
 
 var (
@@ -1314,4 +1526,9 @@ var (
 	_ core.ReplyContextReconstructor = (*Platform)(nil)
 	_ core.TypingIndicator           = (*Platform)(nil)
 	_ core.TypingIndicatorDone       = (*Platform)(nil)
+	_ core.PreviewStarter            = (*Platform)(nil)
+	_ core.MessageUpdater            = (*Platform)(nil)
+	_ core.PreviewStatusUpdater      = (*Platform)(nil)
+	_ core.PreviewFinishPreference   = (*Platform)(nil)
+	_ core.PreviewCleaner            = (*Platform)(nil)
 )
