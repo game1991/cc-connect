@@ -2598,21 +2598,17 @@ func TestConcurrentPreviewHandle(t *testing.T) {
 	}
 	var wg sync.WaitGroup
 	// Writer goroutines: SetPreviewStatus
-	for i := 0; i < 10; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+	for range 10 {
+		wg.Go(func() {
 			p := &Platform{}
 			p.SetPreviewStatus(h, core.CardStatusWorking)
-		}()
+		})
 	}
 	// Reader goroutines: resolveWPSContent reads Status
-	for i := 0; i < 10; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+	for range 10 {
+		wg.Go(func() {
 			_ = resolveWPSContent("agent", h, "test content")
-		}()
+		})
 	}
 	wg.Wait()
 	// If we get here without panic or race, the test passes
