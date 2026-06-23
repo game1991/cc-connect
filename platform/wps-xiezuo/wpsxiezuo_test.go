@@ -512,6 +512,49 @@ func TestSignWSHeader(t *testing.T) {
 	}
 }
 
+func TestKso1Sign_WithBody(t *testing.T) {
+	p := &Platform{appID: "test-app", appSecret: "test-secret"}
+	date, auth := p.kso1Sign("POST", "/v7/messages/msg123/update", "application/json", []byte(`{"type":"card"}`))
+	if date == "" {
+		t.Fatal("date should not be empty")
+	}
+	if !strings.HasPrefix(auth, "KSO-1 test-app:") {
+		t.Fatalf("unexpected auth header: %q", auth)
+	}
+	// Manually recompute signature to verify body hash is included in stringToSign
+	sig := strings.TrimPrefix(auth, "KSO-1 test-app:")
+	bodyHash := sha256.Sum256([]byte(`{"type":"card"}`))
+	bodyHashHex := hex.EncodeToString(bodyHash[:])
+	stringToSign := "KSO-1" + "POST" + "/v7/messages/msg123/update" + "application/json" + date + bodyHashHex
+	mac := hmac.New(sha256.New, []byte("test-secret"))
+	mac.Write([]byte(stringToSign))
+	expectedSig := hex.EncodeToString(mac.Sum(nil))
+	if sig != expectedSig {
+		t.Fatalf("signature mismatch: got %q, want %q", sig, expectedSig)
+	}
+}
+
+func TestKso1Sign_EmptyBody(t *testing.T) {
+	p := &Platform{appID: "ak", appSecret: "sk"}
+	date, auth := p.kso1Sign("GET", "/v7/event/ws", "", nil)
+	if date == "" {
+		t.Fatal("date should not be empty")
+	}
+	if !strings.HasPrefix(auth, "KSO-1 ak:") {
+		t.Fatalf("unexpected auth: %q", auth)
+	}
+	// No body hash appended for empty body
+	sig := strings.TrimPrefix(auth, "KSO-1 ak:")
+	// Signature should match manual computation
+	stringToSign := "KSO-1" + "GET" + "/v7/event/ws" + "" + date + ""
+	mac := hmac.New(sha256.New, []byte("sk"))
+	mac.Write([]byte(stringToSign))
+	expectedSig := hex.EncodeToString(mac.Sum(nil))
+	if sig != expectedSig {
+		t.Fatalf("signature mismatch: got %q, want %q", sig, expectedSig)
+	}
+}
+
 // ============================================================================
 // Handle chat message (unit)
 // ============================================================================

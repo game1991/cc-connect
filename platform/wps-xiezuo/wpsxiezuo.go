@@ -392,29 +392,39 @@ func (p *Platform) writeLoop(ctx context.Context, conn *websocket.Conn, writeCh 
 
 // --- KSO-1 HMAC-SHA256 signing ---
 
-func (p *Platform) signWSHeader() (http.Header, error) {
-	u, err := url.Parse(wsEndpoint)
-	if err != nil {
-		return nil, fmt.Errorf("parse ws url: %w", err)
+// kso1Sign computes the KSO-1 Authorization header for any HTTP request.
+// stringToSign = "KSO-1" + method + uri + contentType + date + sha256Hex(body)
+// For empty body, sha256Hex is omitted (empty string appended).
+func (p *Platform) kso1Sign(method, uri, contentType string, body []byte) (date, authHeader string) {
+	date = time.Now().UTC().Format("Mon, 02 Jan 2006 15:04:05 GMT")
+	bodyHash := ""
+	if len(body) > 0 {
+		h := sha256.Sum256(body)
+		bodyHash = hex.EncodeToString(h[:])
 	}
-
-	uri := u.RequestURI()
-	dateStr := time.Now().UTC().Format("Mon, 02 Jan 2006 15:04:05 GMT")
-
-	// stringToSign = "KSO-1" + method + uri + contentType + date + sha256Hex
-	// For WebSocket: method=GET, contentType="", sha256Hex=""
-	stringToSign := "KSO-1" + "GET" + uri + "" + dateStr + ""
+	stringToSign := "KSO-1" + method + uri + contentType + date + bodyHash
 
 	mac := hmac.New(sha256.New, []byte(p.appSecret))
 	mac.Write([]byte(stringToSign))
 	signature := hex.EncodeToString(mac.Sum(nil))
 
+	authHeader = fmt.Sprintf("KSO-1 %s:%s", p.appID, signature)
+	return
+}
+
+func (p *Platform) signWSHeader() (http.Header, error) {
+	u, err := url.Parse(wsEndpoint)
+	if err != nil {
+		return nil, fmt.Errorf("parse ws url: %w", err)
+	}
+	uri := u.RequestURI()
+	date, authHeader := p.kso1Sign("GET", uri, "", nil)
+
 	header := http.Header{
-		"X-Kso-Date":          {dateStr},
-		"X-Kso-Authorization": {fmt.Sprintf("KSO-1 %s:%s", p.appID, signature)},
+		"X-Kso-Date":          {date},
+		"X-Kso-Authorization": {authHeader},
 		"X-Ack-Mode":          {"required"},
 	}
-
 	return header, nil
 }
 
