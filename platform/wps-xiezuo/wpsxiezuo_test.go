@@ -1538,6 +1538,153 @@ func TestStatusEmoji(t *testing.T) {
 // WebSocket integration: mock server → handleRawMessage
 // ============================================================================
 
+// ============================================================================
+// buildWPSCard
+// ============================================================================
+
+func TestBuildWPSCard_Thinking(t *testing.T) {
+	raw := buildWPSCard("claudecode", core.CardStatusThinking, "", "")
+	var card map[string]any
+	if err := json.Unmarshal(raw, &card); err != nil {
+		t.Fatalf("invalid JSON: %v", err)
+	}
+	// Check top-level structure
+	if card["type"] != "card" {
+		t.Fatalf("expected type=card, got %v", card["type"])
+	}
+	content, _ := card["content"].(map[string]any)
+	inner, _ := content["card"].(map[string]any)
+	items, _ := inner["i18n_items"].([]any)
+	if len(items) == 0 {
+		t.Fatal("expected i18n_items")
+	}
+	item, _ := items[0].(map[string]any)
+	val, _ := item["value"].(map[string]any)
+	hdr, _ := val["header"].(map[string]any)
+
+	// Title must be "CC"
+	title, _ := hdr["title"].(map[string]any)
+	titleText, _ := title["text"].(map[string]any)
+	if titleText["content"] != "CC" {
+		t.Fatalf("expected header title 'CC', got %v", titleText["content"])
+	}
+
+	// Subtitle must be agent name
+	sub, _ := hdr["subtitle"].(map[string]any)
+	subText, _ := sub["text"].(map[string]any)
+	if subText["content"] != "claudecode" {
+		t.Fatalf("expected subtitle 'claudecode', got %v", subText["content"])
+	}
+
+	// First element must contain thinking emoji
+	elems, _ := val["elements"].([]any)
+	e0, _ := elems[0].(map[string]any)
+	txt, _ := e0["text"].(map[string]any)
+	innerTxt, _ := txt["text"].(map[string]any)
+	s, _ := innerTxt["content"].(string)
+	if !strings.Contains(s, "💭") {
+		t.Fatalf("expected thinking emoji in first element, got %q", s)
+	}
+}
+
+func TestBuildWPSCard_WithToolLines(t *testing.T) {
+	raw := buildWPSCard("agent", core.CardStatusWorking, "🔧 Read file\n🔧 Write file", "result text")
+	var card map[string]any
+	json.Unmarshal(raw, &card)
+
+	content, _ := card["content"].(map[string]any)
+	inner, _ := content["card"].(map[string]any)
+	items, _ := inner["i18n_items"].([]any)
+	item, _ := items[0].(map[string]any)
+	val, _ := item["value"].(map[string]any)
+	elems, _ := val["elements"].([]any)
+
+	// We expect: status element + 2 tool lines + hr + markdown = 5 elements
+	if len(elems) != 5 {
+		t.Fatalf("expected 5 elements, got %d", len(elems))
+	}
+
+	// Tool line elements (index 1 and 2) should each contain one tool line
+	for i := 1; i <= 2; i++ {
+		e, _ := elems[i].(map[string]any)
+		txt, _ := e["text"].(map[string]any)
+		innerTxt, _ := txt["text"].(map[string]any)
+		s, _ := innerTxt["content"].(string)
+		if !strings.Contains(s, "🔧") {
+			t.Fatalf("expected tool emoji in element %d, got %q", i, s)
+		}
+	}
+}
+
+func TestBuildWPSCard_SubtitleIsAgentName(t *testing.T) {
+	raw := buildWPSCard("my-agent", core.CardStatusDone, "", "done text")
+	var card map[string]any
+	json.Unmarshal(raw, &card)
+
+	content, _ := card["content"].(map[string]any)
+	inner, _ := content["card"].(map[string]any)
+	items, _ := inner["i18n_items"].([]any)
+	item, _ := items[0].(map[string]any)
+	val, _ := item["value"].(map[string]any)
+	hdr, _ := val["header"].(map[string]any)
+	sub, _ := hdr["subtitle"].(map[string]any)
+	subText, _ := sub["text"].(map[string]any)
+	if subText["content"] != "my-agent" {
+		t.Fatalf("expected subtitle 'my-agent', got %v", subText["content"])
+	}
+}
+
+// ============================================================================
+// truncateMarkdown
+// ============================================================================
+
+func TestTruncateMarkdown_Short(t *testing.T) {
+	got := truncateMarkdown("short text", 1000)
+	if got != "short text" {
+		t.Fatalf("expected unchanged, got %q", got)
+	}
+}
+
+func TestTruncateMarkdown_ExceedsLimit(t *testing.T) {
+	// Build a string longer than limit
+	long := strings.Repeat("a", 500)
+	got := truncateMarkdown(long, 200)
+	if !strings.Contains(got, "内容过长，已截断") {
+		t.Fatalf("expected truncation suffix, got %q", got)
+	}
+	if len(got) > 250 { // some slack for the suffix
+		t.Fatalf("truncated result too long: %d chars", len(got))
+	}
+}
+
+func TestTruncateMarkdown_ParagraphBoundary(t *testing.T) {
+	// Two paragraphs, second one is large
+	first := strings.Repeat("hello ", 100) // ~600 chars
+	second := strings.Repeat("x", 5000)
+	input := first + "\n\n" + second
+	got := truncateMarkdown(input, 2000)
+	// Should keep the longest suffix that fits (a paragraph boundary)
+	if !strings.Contains(got, "内容过长，已截断") {
+		t.Fatalf("expected truncation suffix, got %q", got)
+	}
+	// Must not contain first paragraph (it should have been dropped at boundary)
+	if strings.Contains(got, "hello") {
+		t.Fatalf("expected first paragraph to be dropped at boundary, but found it")
+	}
+}
+
+func TestTruncateMarkdown_HardCutoff(t *testing.T) {
+	// No paragraph boundaries at all — a single very long line
+	long := strings.Repeat("a", 15000)
+	got := truncateMarkdown(long, 1000)
+	if !strings.Contains(got, "内容过长，已截断") {
+		t.Fatalf("expected truncation suffix, got %q", got)
+	}
+	if len(got) > 1100 { // some slack
+		t.Fatalf("truncated result too long: %d chars", len(got))
+	}
+}
+
 func TestWebSocketIntegration_ReceiveEvent(t *testing.T) {
 	appID := "AK_WS"
 	appSecret := "ws-secret"

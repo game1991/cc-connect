@@ -30,6 +30,8 @@ var (
 	maxBackoff      = 60 * time.Second
 	maxErrBodyBytes = 256
 	httpTimeout     = 30 * time.Second
+	wpsCardMaxChars   = 15000
+	wpsCardTruncateKeep = 14000
 )
 
 // Platform implements core.Platform for WPS Xiezuo (WPS 协作).
@@ -82,6 +84,21 @@ func statusEmoji(s core.CardStatus) string {
 		return "❌"
 	default:
 		return "⏳"
+	}
+}
+
+func statusLabel(s core.CardStatus) string {
+	switch s {
+	case core.CardStatusThinking:
+		return "思考中"
+	case core.CardStatusWorking:
+		return "工作中"
+	case core.CardStatusDone:
+		return "已完成"
+	case core.CardStatusError:
+		return "出错"
+	default:
+		return "未知"
 	}
 }
 
@@ -154,7 +171,8 @@ type receiverInfo struct {
 }
 
 type messageContent struct {
-	Text textContent `json:"text"`
+	Text textContent    `json:"text"`
+	Card json.RawMessage `json:"card,omitempty"`
 }
 
 type textContent struct {
@@ -1159,6 +1177,123 @@ func applyWPSLineBreaks(content string) string {
 	content = strings.ReplaceAll(content, "\n", "  \n")
 	content = strings.ReplaceAll(content, marker, "  \n")
 	return content
+}
+
+// truncateMarkdown truncates text to fit within limit characters.
+// If the text exceeds the limit, it keeps the last (limit-100) characters,
+// preferring a paragraph boundary (\n\n) for a clean cut. Falls back to a
+// hard cutoff when no paragraph boundary works. Appends a truncation notice.
+func truncateMarkdown(text string, limit int) string {
+	if len(text) <= limit {
+		return text
+	}
+
+	const truncationNotice = "\n\n...（内容过长，已截断）"
+	keep := limit - 100 // 100 chars of headroom for the notice
+
+	// Try paragraph boundary: split by "\n\n", keep the longest suffix that fits.
+	paragraphs := strings.Split(text, "\n\n")
+	for i := 0; i < len(paragraphs); i++ {
+		suffix := strings.Join(paragraphs[i:], "\n\n")
+		if len(suffix) <= keep {
+			return suffix + truncationNotice
+		}
+	}
+
+	// Hard cutoff: take last `keep` chars.
+	if keep > 0 && keep < len(text) {
+		return text[len(text)-keep:] + truncationNotice
+	}
+
+	return text + truncationNotice
+}
+
+// buildWPSCard constructs a WPS i18n_items card JSON.
+// agentName goes in the header subtitle, "CC" goes in the header title.
+// Status emoji + label goes in the first element.
+// Tool lines are split by \n and each becomes a separate text element.
+// If markdown is non-empty, an hr separator + markdown text element is added.
+// The markdown is truncated and line-break-converted before rendering.
+func buildWPSCard(agentName string, status core.CardStatus, toolLines string, markdown string) []byte {
+	// Build elements: first is status emoji + label
+	elements := []map[string]any{
+		wpsTextElement(fmt.Sprintf("%s %s", statusEmoji(status), statusLabel(status))),
+	}
+
+	// Add tool lines, one per line
+	if toolLines != "" {
+		lines := strings.Split(toolLines, "\n")
+		for _, line := range lines {
+			if strings.TrimSpace(line) != "" {
+				elements = append(elements, wpsTextElement(line))
+			}
+		}
+	}
+
+	// Add hr + markdown if non-empty
+	if markdown != "" {
+		markdown = truncateMarkdown(markdown, wpsCardMaxChars)
+		markdown = applyWPSLineBreaks(markdown)
+		elements = append(elements, wpsHRElement())
+		elements = append(elements, wpsTextElement(markdown))
+	}
+
+	card := map[string]any{
+		"type": "card",
+		"content": map[string]any{
+			"card": map[string]any{
+				"config": map[string]any{},
+				"i18n_items": []map[string]any{
+					{
+						"key": "zh-CN",
+						"value": map[string]any{
+							"header": map[string]any{
+								"title":    wpsPlainElement("CC"),
+								"subtitle": wpsPlainElement(agentName),
+							},
+							"elements": elements,
+						},
+					},
+				},
+			},
+		},
+	}
+
+	b, _ := json.Marshal(card)
+	return b
+}
+
+// wpsTextElement returns a WPS card text element with markdown content type.
+func wpsTextElement(content string) map[string]any {
+	return map[string]any{
+		"text": map[string]any{
+			"tag": "text",
+			"text": map[string]any{
+				"type":    "markdown",
+				"content": content,
+			},
+		},
+	}
+}
+
+// wpsHRElement returns a WPS card horizontal rule element.
+func wpsHRElement() map[string]any {
+	return map[string]any{
+		"hr": map[string]any{
+			"tag": "hr",
+		},
+	}
+}
+
+// wpsPlainElement returns a WPS text element with plain content type.
+func wpsPlainElement(content string) map[string]any {
+	return map[string]any{
+		"tag": "text",
+		"text": map[string]any{
+			"type":    "plain",
+			"content": content,
+		},
+	}
 }
 
 // --- Compile-time interface assertions ---
