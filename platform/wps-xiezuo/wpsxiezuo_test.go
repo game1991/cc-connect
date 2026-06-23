@@ -20,6 +20,7 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+	"unicode/utf8"
 
 	"github.com/chenhg5/cc-connect/core"
 	"github.com/gorilla/websocket"
@@ -1788,24 +1789,31 @@ func TestTruncateMarkdown_Short(t *testing.T) {
 }
 
 func TestTruncateMarkdown_ExceedsLimit(t *testing.T) {
-	// Build a string longer than limit
-	long := strings.Repeat("a", 500)
-	got := truncateMarkdown(long, 200)
+	// Build a string longer than limit in rune count
+	long := strings.Repeat("a", 15001)
+	got := truncateMarkdown(long, 15000)
 	if !strings.Contains(got, "内容过长，已截断") {
 		t.Fatalf("expected truncation suffix, got %q", got)
 	}
-	if len(got) > 250 { // some slack for the suffix
-		t.Fatalf("truncated result too long: %d chars", len(got))
+	// Result rune count should be <= keep + suffix length
+	gotRunes := utf8.RuneCountInString(got)
+	if gotRunes > wpsCardTruncateKeep+50 { // slack for suffix
+		t.Fatalf("truncated result too long: %d runes", gotRunes)
+	}
+	// For ASCII, len == rune count; verify it's shorter than original
+	if len(got) >= len(long) {
+		t.Fatalf("expected truncated result to be shorter than original")
 	}
 }
 
 func TestTruncateMarkdown_ParagraphBoundary(t *testing.T) {
-	// Two paragraphs, second one is large
+	// Two paragraphs: first is small, second is large but within keep.
+	// Total must exceed keep=14000 to trigger truncation.
 	first := strings.Repeat("hello ", 100) // ~600 chars
-	second := strings.Repeat("x", 5000)
-	input := first + "\n\n" + second
-	got := truncateMarkdown(input, 2000)
-	// Should keep the longest suffix that fits (a paragraph boundary)
+	second := strings.Repeat("x", 14500)   // exceeds keep=14000
+	input := first + "\n\n" + second        // total ~15102
+	got := truncateMarkdown(input, 15000)
+	// Should keep the longest suffix that fits within keep (a paragraph boundary)
 	if !strings.Contains(got, "内容过长，已截断") {
 		t.Fatalf("expected truncation suffix, got %q", got)
 	}
@@ -1816,14 +1824,15 @@ func TestTruncateMarkdown_ParagraphBoundary(t *testing.T) {
 }
 
 func TestTruncateMarkdown_HardCutoff(t *testing.T) {
-	// No paragraph boundaries at all — a single very long line
+	// No paragraph boundaries at all — a single very long line exceeding keep
 	long := strings.Repeat("a", 15000)
 	got := truncateMarkdown(long, 1000)
 	if !strings.Contains(got, "内容过长，已截断") {
 		t.Fatalf("expected truncation suffix, got %q", got)
 	}
-	if len(got) > 1100 { // some slack
-		t.Fatalf("truncated result too long: %d chars", len(got))
+	gotRunes := utf8.RuneCountInString(got)
+	if gotRunes > wpsCardTruncateKeep+50 { // slack for suffix
+		t.Fatalf("truncated result too long: %d runes", gotRunes)
 	}
 }
 
@@ -2475,7 +2484,7 @@ func TestTruncateMarkdown_ExactLimit(t *testing.T) {
 	text := strings.Repeat("x", 15000)
 	got := truncateMarkdown(text, 15000)
 	if got != text {
-		t.Fatalf("expected text unchanged when exactly at limit, got len=%d", len(got))
+		t.Fatalf("expected text unchanged when exactly at limit, got rune count=%d", utf8.RuneCountInString(got))
 	}
 }
 
@@ -2487,6 +2496,35 @@ func TestTruncateMarkdown_OneOverLimit(t *testing.T) {
 	}
 	if !strings.Contains(got, "已截断") {
 		t.Fatal("expected truncation notice '已截断' in result, but not found")
+	}
+}
+
+// TestTruncateMarkdown_ChineseText verifies that Chinese characters are
+// counted correctly (1 rune each), not by byte count (3 bytes per CJK char).
+func TestTruncateMarkdown_ChineseText(t *testing.T) {
+	// 5000 Chinese characters = 5000 runes but 15000 bytes in UTF-8.
+	// With a limit of 5000 (bytes in the old code), this would be truncated
+	// incorrectly. With rune-counting, it should pass unchanged.
+	chinese := strings.Repeat("中", 5000)
+	got := truncateMarkdown(chinese, 15000)
+	if got != chinese {
+		t.Fatalf("expected 5000 Chinese chars to pass limit=15000 unchanged, got rune count=%d", utf8.RuneCountInString(got))
+	}
+
+	// 15001 Chinese characters = 15001 runes, exceeds limit of 15000.
+	longChinese := strings.Repeat("中", 15001)
+	got = truncateMarkdown(longChinese, 15000)
+	if got == longChinese {
+		t.Fatal("expected 15001 Chinese chars to be truncated, but got original back")
+	}
+	if !strings.Contains(got, "已截断") {
+		t.Fatal("expected truncation notice for Chinese text")
+	}
+	// The truncated result should keep wpsCardTruncateKeep (14000) runes
+	// from the end, plus the notice.
+	gotRunes := utf8.RuneCountInString(got)
+	if gotRunes > wpsCardTruncateKeep+30 { // slack for suffix
+		t.Fatalf("truncated Chinese result too long: %d runes (keep=%d)", gotRunes, wpsCardTruncateKeep)
 	}
 }
 

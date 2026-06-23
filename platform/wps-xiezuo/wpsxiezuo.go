@@ -19,6 +19,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	"github.com/chenhg5/cc-connect/core"
 	"github.com/gorilla/websocket"
@@ -1201,30 +1202,31 @@ func applyWPSLineBreaks(content string) string {
 	return content
 }
 
-// truncateMarkdown truncates text to fit within limit characters.
-// If the text exceeds the limit, it keeps the last (limit-100) characters,
+// truncateMarkdown truncates text to fit within limit characters (runes).
+// If the text exceeds the limit, it keeps the last wpsCardTruncateKeep characters,
 // preferring a paragraph boundary (\n\n) for a clean cut. Falls back to a
 // hard cutoff when no paragraph boundary works. Appends a truncation notice.
 func truncateMarkdown(text string, limit int) string {
-	if len(text) <= limit {
+	if utf8.RuneCountInString(text) <= limit {
 		return text
 	}
 
 	const truncationNotice = "\n\n...（内容过长，已截断）"
-	keep := limit - 100 // 100 chars of headroom for the notice
+	keep := wpsCardTruncateKeep
 
 	// Try paragraph boundary: split by "\n\n", keep the longest suffix that fits.
 	paragraphs := strings.Split(text, "\n\n")
 	for i := 0; i < len(paragraphs); i++ {
 		suffix := strings.Join(paragraphs[i:], "\n\n")
-		if len(suffix) <= keep {
+		if utf8.RuneCountInString(suffix) <= keep {
 			return suffix + truncationNotice
 		}
 	}
 
-	// Hard cutoff: take last `keep` chars.
-	if keep > 0 && keep < len(text) {
-		return text[len(text)-keep:] + truncationNotice
+	// Hard cutoff: take last `keep` runes.
+	runes := []rune(text)
+	if keep > 0 && keep < len(runes) {
+		return string(runes[len(runes)-keep:]) + truncationNotice
 	}
 
 	return text + truncationNotice
