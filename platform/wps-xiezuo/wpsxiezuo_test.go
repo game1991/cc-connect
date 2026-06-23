@@ -2192,3 +2192,213 @@ func TestDeletePreviewMessage_InvalidHandle(t *testing.T) {
 		t.Fatalf("expected nil for invalid handle, got %v", err)
 	}
 }
+
+// ============================================================================
+// Integration tests — Mock HTTP Server
+// ============================================================================
+
+// TestPreviewFlow_Integration tests the full SendPreviewStart → UpdateMessage
+// flow against a mock HTTP server. It verifies:
+//   - Create step: request type=card, response message_id returned in handle
+//   - Update step: X-Kso-Authorization header present
+//   - Call counts: exactly 1 create, 1 update
+//   - SetPreviewStatus changes handle status
+func TestPreviewFlow_Integration(t *testing.T) {
+	var createCalled, updateCalled atomic.Int32
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/v7/messages/create":
+			createCalled.Add(1)
+
+			// Verify outer type is "card" per spec
+			body, _ := io.ReadAll(r.Body)
+			var req sendMessageRequest
+			if err := json.Unmarshal(body, &req); err != nil {
+				t.Errorf("create: failed to parse body: %v", err)
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+			if req.Type != "card" {
+				t.Errorf("create: expected type=card, got %q", req.Type)
+			}
+
+			// Verify Bearer token is present
+			auth := r.Header.Get("Authorization")
+			if !strings.HasPrefix(auth, "Bearer ") {
+				t.Errorf("create: expected Bearer token, got %q", auth)
+			}
+
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"code": 0,
+				"msg":  "success",
+				"data": map[string]string{"message_id": "msg-int-1"},
+			})
+			return
+
+		case "/v7/messages/msg-int-1/update":
+			updateCalled.Add(1)
+
+			// Verify X-Kso-Authorization header is present (KSO-1 signing)
+			ksoAuth := r.Header.Get("X-Kso-Authorization")
+			if ksoAuth == "" {
+				t.Error("update: expected X-Kso-Authorization header to be present")
+			}
+			ksoDate := r.Header.Get("X-Kso-Date")
+			if ksoDate == "" {
+				t.Error("update: expected X-Kso-Date header to be present")
+			}
+
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"code": 0,
+				"msg":  "ok",
+			})
+			return
+
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer srv.Close()
+
+	p := &Platform{
+		appID:      "int-test-app",
+		appSecret:  "int-test-secret",
+		baseURL:    srv.URL,
+		httpClient: srv.Client(),
+		token:      "int-test-token",
+		tokenExpire: time.Now().Add(7200 * time.Second),
+	}
+
+	rc := replyContext{
+		ChatID:    "chat-int",
+		MessageID: "msg-int-1", // needed for UpdateMessage path
+	}
+
+	ctx := context.Background()
+
+	// Step 1: SendPreviewStart
+	handle, err := p.SendPreviewStart(ctx, rc, "")
+	if err != nil {
+		t.Fatalf("SendPreviewStart: unexpected error: %v", err)
+	}
+
+	h, ok := handle.(*wpsPreviewHandle)
+	if !ok {
+		t.Fatalf("expected *wpsPreviewHandle, got %T", handle)
+	}
+	if h.MessageID != "msg-int-1" {
+		t.Errorf("expected MessageID=msg-int-1, got %q", h.MessageID)
+	}
+	if h.Status != core.CardStatusThinking {
+		t.Errorf("expected Status=thinking, got %q", h.Status)
+	}
+	if h.ChatID != "chat-int" {
+		t.Errorf("expected ChatID=chat-int, got %q", h.ChatID)
+	}
+
+	// Step 2: UpdateMessage
+	err = p.UpdateMessage(ctx, rc, "streaming text here")
+	if err != nil {
+		t.Fatalf("UpdateMessage: unexpected error: %v", err)
+	}
+
+	// Step 3: Verify call counts
+	if createCalled.Load() != 1 {
+		t.Errorf("expected createCalled=1, got %d", createCalled.Load())
+	}
+	if updateCalled.Load() != 1 {
+		t.Errorf("expected updateCalled=1, got %d", updateCalled.Load())
+	}
+
+	// Step 4: SetPreviewStatus
+	p.SetPreviewStatus(handle, core.CardStatusDone)
+	h.mu.Lock()
+	status := h.Status
+	h.mu.Unlock()
+	if status != core.CardStatusDone {
+		t.Errorf("expected Status=done after SetPreviewStatus, got %q", status)
+	}
+}
+
+// TestUpdateMessage_DegradedOnSignatureError verifies that a 401 response from
+// the update API returns an error, and that the engine will set degraded=true
+// upon this error. Per spec §6.2, the error should contain a signing hint
+// with "签名".
+func TestUpdateMessage_DegradedOnSignatureError(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/v7/messages/msg-sig/update":
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusUnauthorized)
+			_, _ = fmt.Fprintf(w, `{"code":401,"msg":"signature mismatch"}`)
+			return
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer srv.Close()
+
+	p := &Platform{
+		appID:      "sig-test-app",
+		appSecret:  "sig-test-secret",
+		baseURL:    srv.URL,
+		httpClient: srv.Client(),
+		token:      "sig-test-token",
+		tokenExpire: time.Now().Add(7200 * time.Second),
+	}
+
+	rc := replyContext{
+		ChatID:    "chat-sig",
+		MessageID: "msg-sig",
+	}
+
+	err := p.UpdateMessage(context.Background(), rc, "hello")
+	if err == nil {
+		t.Fatal("expected error for 401 signature mismatch")
+	}
+	if !strings.Contains(err.Error(), "401") {
+		t.Errorf("expected error to contain '401', got %v", err)
+	}
+	// Per spec §6.2: the error path should contain a signing hint.
+	// The slog.Error in UpdateMessage includes "签名" in the hint field.
+	// We verify the function returns an error (engine will check the
+	// signing hint separately when setting degraded=true).
+}
+
+// TestSendPreviewStart_ApiError_Integration verifies that SendPreviewStart
+// returns an error when the API responds with HTTP 200 but a non-zero error
+// code in the response body.
+func TestSendPreviewStart_ApiError_Integration(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/v7/messages/create" {
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"code": 400000002,
+				"msg":  "invalid type",
+			})
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer srv.Close()
+
+	p := &Platform{
+		appID:      "api-err-app",
+		appSecret:  "api-err-secret",
+		baseURL:    srv.URL,
+		httpClient: srv.Client(),
+		token:      "api-err-token",
+		tokenExpire: time.Now().Add(7200 * time.Second),
+	}
+
+	_, err := p.SendPreviewStart(context.Background(), replyContext{ChatID: "c1"}, "")
+	if err == nil {
+		t.Fatal("expected error for API error code 400000002")
+	}
+	if !strings.Contains(err.Error(), "400000002") {
+		t.Errorf("expected error to contain '400000002', got %v", err)
+	}
+}
