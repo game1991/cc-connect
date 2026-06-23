@@ -1263,6 +1263,17 @@ func buildWPSCard(agentName string, status core.CardStatus, toolLines string, ma
 	return b
 }
 
+// resolveWPSContent reads the handle's Status (under mutex lock) and builds
+// a WPS i18n_items card JSON. The toolLines parameter is always empty because
+// tool progress is embedded in the content via compactProgressWriter's
+// markdown fallback.
+func resolveWPSContent(agentName string, handle *wpsPreviewHandle, content string) []byte {
+	handle.mu.Lock()
+	status := handle.Status
+	handle.mu.Unlock()
+	return buildWPSCard(agentName, status, "", content)
+}
+
 // wpsTextElement returns a WPS card text element with markdown content type.
 func wpsTextElement(content string) map[string]any {
 	return map[string]any{

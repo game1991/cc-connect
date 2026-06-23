@@ -1635,6 +1635,91 @@ func TestBuildWPSCard_SubtitleIsAgentName(t *testing.T) {
 }
 
 // ============================================================================
+// resolveWPSContent
+// ============================================================================
+
+func TestResolveWPSContent_PlainMarkdown(t *testing.T) {
+	handle := &wpsPreviewHandle{
+		MessageID: "msg123",
+		Status:    core.CardStatusWorking,
+		ChatID:    "chat1",
+	}
+
+	raw := resolveWPSContent("claudecode", handle, "hello **world**")
+	var card map[string]any
+	if err := json.Unmarshal(raw, &card); err != nil {
+		t.Fatalf("invalid JSON: %v", err)
+	}
+
+	// Navigate to elements
+	content, _ := card["content"].(map[string]any)
+	inner, _ := content["card"].(map[string]any)
+	items, _ := inner["i18n_items"].([]any)
+	item, _ := items[0].(map[string]any)
+	val, _ := item["value"].(map[string]any)
+	elems, _ := val["elements"].([]any)
+
+	// First element should contain the working status emoji (🔧)
+	e0, _ := elems[0].(map[string]any)
+	txt, _ := e0["text"].(map[string]any)
+	innerTxt, _ := txt["text"].(map[string]any)
+	s, _ := innerTxt["content"].(string)
+	if !strings.Contains(s, "🔧") {
+		t.Fatalf("expected working emoji '🔧' in first element, got %q", s)
+	}
+
+	// The markdown text should appear as the last element (after hr)
+	lastElem, _ := elems[len(elems)-1].(map[string]any)
+	lastTxt, _ := lastElem["text"].(map[string]any)
+	lastInnerTxt, _ := lastTxt["text"].(map[string]any)
+	lastContent, _ := lastInnerTxt["content"].(string)
+	if !strings.Contains(lastContent, "hello **world**") {
+		t.Fatalf("expected markdown text in last element, got %q", lastContent)
+	}
+
+	// toolLines is empty, so there should be only: status + hr + markdown = 3 elements
+	if len(elems) != 3 {
+		t.Fatalf("expected 3 elements (status + hr + markdown), got %d", len(elems))
+	}
+}
+
+func TestResolveWPSContent_EmptyContent(t *testing.T) {
+	handle := &wpsPreviewHandle{
+		MessageID: "msg456",
+		Status:    core.CardStatusThinking,
+		ChatID:    "chat2",
+	}
+
+	raw := resolveWPSContent("codex", handle, "")
+	var card map[string]any
+	if err := json.Unmarshal(raw, &card); err != nil {
+		t.Fatalf("invalid JSON: %v", err)
+	}
+
+	// Navigate to elements
+	content, _ := card["content"].(map[string]any)
+	inner, _ := content["card"].(map[string]any)
+	items, _ := inner["i18n_items"].([]any)
+	item, _ := items[0].(map[string]any)
+	val, _ := item["value"].(map[string]any)
+	elems, _ := val["elements"].([]any)
+
+	// With empty content, there should be only the status element (no hr, no markdown)
+	if len(elems) != 1 {
+		t.Fatalf("expected 1 element (status only), got %d", len(elems))
+	}
+
+	// The single element should contain the thinking emoji (💭)
+	e0, _ := elems[0].(map[string]any)
+	txt, _ := e0["text"].(map[string]any)
+	innerTxt, _ := txt["text"].(map[string]any)
+	s, _ := innerTxt["content"].(string)
+	if !strings.Contains(s, "💭") {
+		t.Fatalf("expected thinking emoji '💭' in first element, got %q", s)
+	}
+}
+
+// ============================================================================
 // truncateMarkdown
 // ============================================================================
 
