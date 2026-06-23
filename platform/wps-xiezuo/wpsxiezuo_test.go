@@ -2402,3 +2402,123 @@ func TestSendPreviewStart_ApiError_Integration(t *testing.T) {
 		t.Errorf("expected error to contain '400000002', got %v", err)
 	}
 }
+
+func TestBuildWPSCard_ExceedsCharLimit(t *testing.T) {
+	longMD := strings.Repeat("a", 16000)
+	raw := buildWPSCard("agent", core.CardStatusDone, "", longMD)
+	rawStr := string(raw)
+	if strings.Contains(rawStr, strings.Repeat("a", 16000)) {
+		t.Fatal("expected markdown to be truncated, but found 16000 consecutive 'a's in card JSON")
+	}
+	if !strings.Contains(rawStr, "已截断") {
+		t.Fatal("expected truncation notice '已截断' in card JSON, but not found")
+	}
+}
+
+func TestBuildWPSCard_EmptyToolLines(t *testing.T) {
+	raw := buildWPSCard("agent", core.CardStatusWorking, "", "some markdown text")
+	var card map[string]any
+	json.Unmarshal(raw, &card)
+
+	content, _ := card["content"].(map[string]any)
+	inner, _ := content["card"].(map[string]any)
+	items, _ := inner["i18n_items"].([]any)
+	item, _ := items[0].(map[string]any)
+	val, _ := item["value"].(map[string]any)
+	elems, _ := val["elements"].([]any)
+
+	// With empty toolLines but non-empty markdown:
+	// status element + hr + markdown = 3 elements
+	if len(elems) != 3 {
+		t.Fatalf("expected 3 elements (status + hr + markdown), got %d", len(elems))
+	}
+
+	// Last element should contain the markdown text
+	last, _ := elems[2].(map[string]any)
+	txt, _ := last["text"].(map[string]any)
+	innerTxt, _ := txt["text"].(map[string]any)
+	s, _ := innerTxt["content"].(string)
+	if !strings.Contains(s, "some markdown text") {
+		t.Fatalf("expected markdown text in last element, got %q", s)
+	}
+}
+
+func TestBuildWPSCard_NilContent(t *testing.T) {
+	raw := buildWPSCard("agent", core.CardStatusThinking, "", "")
+	var card map[string]any
+	json.Unmarshal(raw, &card)
+
+	content, _ := card["content"].(map[string]any)
+	inner, _ := content["card"].(map[string]any)
+	items, _ := inner["i18n_items"].([]any)
+	item, _ := items[0].(map[string]any)
+	val, _ := item["value"].(map[string]any)
+	elems, _ := val["elements"].([]any)
+
+	// With empty toolLines and empty markdown: only status element
+	if len(elems) != 1 {
+		t.Fatalf("expected 1 element (status only), got %d", len(elems))
+	}
+
+	// The single element must contain the thinking emoji
+	e0, _ := elems[0].(map[string]any)
+	txt, _ := e0["text"].(map[string]any)
+	innerTxt, _ := txt["text"].(map[string]any)
+	s, _ := innerTxt["content"].(string)
+	if !strings.Contains(s, "💭") {
+		t.Fatalf("expected thinking emoji in first element, got %q", s)
+	}
+}
+
+func TestTruncateMarkdown_ExactLimit(t *testing.T) {
+	text := strings.Repeat("x", 15000)
+	got := truncateMarkdown(text, 15000)
+	if got != text {
+		t.Fatalf("expected text unchanged when exactly at limit, got len=%d", len(got))
+	}
+}
+
+func TestTruncateMarkdown_OneOverLimit(t *testing.T) {
+	text := strings.Repeat("a", 15001)
+	got := truncateMarkdown(text, 15000)
+	if got == text {
+		t.Fatal("expected text to be truncated, but got original back")
+	}
+	if !strings.Contains(got, "已截断") {
+		t.Fatal("expected truncation notice '已截断' in result, but not found")
+	}
+}
+
+func TestBuildWPSCard_StatusLabels(t *testing.T) {
+	tests := []struct {
+		status core.CardStatus
+		label  string
+	}{
+		{core.CardStatusThinking, "思考中"},
+		{core.CardStatusWorking, "工作中"},
+		{core.CardStatusDone, "已完成"},
+		{core.CardStatusError, "出错"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.label, func(t *testing.T) {
+			raw := buildWPSCard("agent", tc.status, "", "")
+			var card map[string]any
+			json.Unmarshal(raw, &card)
+
+			content, _ := card["content"].(map[string]any)
+			inner, _ := content["card"].(map[string]any)
+			items, _ := inner["i18n_items"].([]any)
+			item, _ := items[0].(map[string]any)
+			val, _ := item["value"].(map[string]any)
+			elems, _ := val["elements"].([]any)
+			e0, _ := elems[0].(map[string]any)
+			txt, _ := e0["text"].(map[string]any)
+			innerTxt, _ := txt["text"].(map[string]any)
+			s, _ := innerTxt["content"].(string)
+			if !strings.Contains(s, tc.label) {
+				t.Fatalf("expected status label %q in first element content, got %q", tc.label, s)
+			}
+		})
+	}
+}
