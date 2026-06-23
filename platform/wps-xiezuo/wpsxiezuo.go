@@ -494,7 +494,7 @@ func (p *Platform) signWSHeader() (http.Header, error) {
 
 // --- Raw message dispatch ---
 
-func (p *Platform) handleRawMessage(ctx context.Context, raw []byte) {
+func (p *Platform) handleRawMessage(_ context.Context, raw []byte) {
 	// Try to detect frame type
 	var probe map[string]json.RawMessage
 	if err := json.Unmarshal(raw, &probe); err != nil {
@@ -1216,7 +1216,7 @@ func truncateMarkdown(text string, limit int) string {
 
 	// Try paragraph boundary: split by "\n\n", keep the longest suffix that fits.
 	paragraphs := strings.Split(text, "\n\n")
-	for i := 0; i < len(paragraphs); i++ {
+	for i := range paragraphs {
 		suffix := strings.Join(paragraphs[i:], "\n\n")
 		if utf8.RuneCountInString(suffix) <= keep {
 			return suffix + truncationNotice
@@ -1235,23 +1235,12 @@ func truncateMarkdown(text string, limit int) string {
 // buildWPSCard constructs a WPS i18n_items card JSON.
 // agentName goes in the header subtitle, "CC" goes in the header title.
 // Status emoji + label goes in the first element.
-// Tool lines are split by \n and each becomes a separate text element.
 // If markdown is non-empty, an hr separator + markdown text element is added.
 // The markdown is truncated and line-break-converted before rendering.
-func buildWPSCard(agentName string, status core.CardStatus, toolLines string, markdown string) []byte {
+func buildWPSCard(agentName string, status core.CardStatus, markdown string) []byte {
 	// Build elements: first is status emoji + label
 	elements := []map[string]any{
 		wpsTextElement(fmt.Sprintf("%s %s", statusEmoji(status), statusLabel(status))),
-	}
-
-	// Add tool lines, one per line
-	if toolLines != "" {
-		lines := strings.Split(toolLines, "\n")
-		for _, line := range lines {
-			if strings.TrimSpace(line) != "" {
-				elements = append(elements, wpsTextElement(line))
-			}
-		}
 	}
 
 	// Add hr + markdown if non-empty
@@ -1288,14 +1277,12 @@ func buildWPSCard(agentName string, status core.CardStatus, toolLines string, ma
 }
 
 // resolveWPSContent reads the handle's Status (under mutex lock) and builds
-// a WPS i18n_items card JSON. The toolLines parameter is always empty because
-// tool progress is embedded in the content via compactProgressWriter's
-// markdown fallback.
+// a WPS i18n_items card JSON.
 func resolveWPSContent(agentName string, handle *wpsPreviewHandle, content string) []byte {
 	handle.mu.Lock()
 	status := handle.Status
 	handle.mu.Unlock()
-	return buildWPSCard(agentName, status, "", content)
+	return buildWPSCard(agentName, status, content)
 }
 
 // wpsTextElement returns a WPS card text element with markdown content type.
@@ -1342,7 +1329,7 @@ func (p *Platform) SendPreviewStart(ctx context.Context, rctx any, content strin
 		return nil, fmt.Errorf("wps-xiezuo: invalid reply context type %T", rctx)
 	}
 
-	cardData := buildWPSCard("", core.CardStatusThinking, "", "")
+	cardData := buildWPSCard("", core.CardStatusThinking, "")
 	reqBody := sendMessageRequest{
 		Type: "card",
 		Receiver: receiverInfo{
@@ -1463,29 +1450,25 @@ func (p *Platform) UpdateMessage(ctx context.Context, rctx any, content string) 
 	}
 	defer func() { _ = resp.Body.Close() }()
 
-	if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
-		respBody, _ := io.ReadAll(io.LimitReader(resp.Body, int64(maxErrBodyBytes)+1))
+	respBody, err := io.ReadAll(io.LimitReader(resp.Body, int64(maxErrBodyBytes)+1))
+	if err != nil {
+		return fmt.Errorf("wps-xiezuo: update message: read response body: %w", err)
+	}
+
+	switch {
+	case resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden:
 		slog.Error("wps-xiezuo: update message auth/signing error",
 			"status", resp.StatusCode,
 			"body", truncateAndRedact(respBody, token),
 			"hint", "签名或权限问题，请在开发者后台开启接口签名并确认 kso.chat_message.readwrite 权限",
 			"app_id", core.RedactToken(p.appID, p.appID))
 		return fmt.Errorf("wps-xiezuo: update message failed: status=%d", resp.StatusCode)
-	}
 
-	if resp.StatusCode != http.StatusOK {
-		respBody, rerr := io.ReadAll(io.LimitReader(resp.Body, int64(maxErrBodyBytes)+1))
-		if rerr != nil {
-			return fmt.Errorf("wps-xiezuo: update message failed: status=%d (read body: %w)", resp.StatusCode, rerr)
-		}
+	case resp.StatusCode != http.StatusOK:
 		return fmt.Errorf("wps-xiezuo: update message failed: status=%d body=%s", resp.StatusCode, truncateAndRedact(respBody, token))
 	}
 
 	var apiResp wpsAPIResponse
-	respBody, err := io.ReadAll(io.LimitReader(resp.Body, int64(maxErrBodyBytes)+1))
-	if err != nil {
-		return fmt.Errorf("wps-xiezuo: update message: read response body: %w", err)
-	}
 	if err := json.Unmarshal(respBody, &apiResp); err != nil {
 		return fmt.Errorf("wps-xiezuo: update message: parse response: %w", err)
 	}

@@ -17,6 +17,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -1601,7 +1602,7 @@ func TestStatusEmoji(t *testing.T) {
 // ============================================================================
 
 func TestBuildWPSCard_Thinking(t *testing.T) {
-	raw := buildWPSCard("claudecode", core.CardStatusThinking, "", "")
+	raw := buildWPSCard("claudecode", core.CardStatusThinking, "")
 	var card map[string]any
 	if err := json.Unmarshal(raw, &card); err != nil {
 		t.Fatalf("invalid JSON: %v", err)
@@ -1645,37 +1646,8 @@ func TestBuildWPSCard_Thinking(t *testing.T) {
 	}
 }
 
-func TestBuildWPSCard_WithToolLines(t *testing.T) {
-	raw := buildWPSCard("agent", core.CardStatusWorking, "🔧 Read file\n🔧 Write file", "result text")
-	var card map[string]any
-	json.Unmarshal(raw, &card)
-
-	content, _ := card["content"].(map[string]any)
-	inner, _ := content["card"].(map[string]any)
-	items, _ := inner["i18n_items"].([]any)
-	item, _ := items[0].(map[string]any)
-	val, _ := item["value"].(map[string]any)
-	elems, _ := val["elements"].([]any)
-
-	// We expect: status element + 2 tool lines + hr + markdown = 5 elements
-	if len(elems) != 5 {
-		t.Fatalf("expected 5 elements, got %d", len(elems))
-	}
-
-	// Tool line elements (index 1 and 2) should each contain one tool line
-	for i := 1; i <= 2; i++ {
-		e, _ := elems[i].(map[string]any)
-		txt, _ := e["text"].(map[string]any)
-		innerTxt, _ := txt["text"].(map[string]any)
-		s, _ := innerTxt["content"].(string)
-		if !strings.Contains(s, "🔧") {
-			t.Fatalf("expected tool emoji in element %d, got %q", i, s)
-		}
-	}
-}
-
 func TestBuildWPSCard_SubtitleIsAgentName(t *testing.T) {
-	raw := buildWPSCard("my-agent", core.CardStatusDone, "", "done text")
+	raw := buildWPSCard("my-agent", core.CardStatusDone, "done text")
 	var card map[string]any
 	json.Unmarshal(raw, &card)
 
@@ -2415,7 +2387,7 @@ func TestSendPreviewStart_ApiError_Integration(t *testing.T) {
 
 func TestBuildWPSCard_ExceedsCharLimit(t *testing.T) {
 	longMD := strings.Repeat("a", 16000)
-	raw := buildWPSCard("agent", core.CardStatusDone, "", longMD)
+	raw := buildWPSCard("agent", core.CardStatusDone, longMD)
 	rawStr := string(raw)
 	if strings.Contains(rawStr, strings.Repeat("a", 16000)) {
 		t.Fatal("expected markdown to be truncated, but found 16000 consecutive 'a's in card JSON")
@@ -2425,36 +2397,8 @@ func TestBuildWPSCard_ExceedsCharLimit(t *testing.T) {
 	}
 }
 
-func TestBuildWPSCard_EmptyToolLines(t *testing.T) {
-	raw := buildWPSCard("agent", core.CardStatusWorking, "", "some markdown text")
-	var card map[string]any
-	json.Unmarshal(raw, &card)
-
-	content, _ := card["content"].(map[string]any)
-	inner, _ := content["card"].(map[string]any)
-	items, _ := inner["i18n_items"].([]any)
-	item, _ := items[0].(map[string]any)
-	val, _ := item["value"].(map[string]any)
-	elems, _ := val["elements"].([]any)
-
-	// With empty toolLines but non-empty markdown:
-	// status element + hr + markdown = 3 elements
-	if len(elems) != 3 {
-		t.Fatalf("expected 3 elements (status + hr + markdown), got %d", len(elems))
-	}
-
-	// Last element should contain the markdown text
-	last, _ := elems[2].(map[string]any)
-	txt, _ := last["text"].(map[string]any)
-	innerTxt, _ := txt["text"].(map[string]any)
-	s, _ := innerTxt["content"].(string)
-	if !strings.Contains(s, "some markdown text") {
-		t.Fatalf("expected markdown text in last element, got %q", s)
-	}
-}
-
 func TestBuildWPSCard_NilContent(t *testing.T) {
-	raw := buildWPSCard("agent", core.CardStatusThinking, "", "")
+	raw := buildWPSCard("agent", core.CardStatusThinking, "")
 	var card map[string]any
 	json.Unmarshal(raw, &card)
 
@@ -2541,7 +2485,7 @@ func TestBuildWPSCard_StatusLabels(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.label, func(t *testing.T) {
-			raw := buildWPSCard("agent", tc.status, "", "")
+			raw := buildWPSCard("agent", tc.status, "")
 			var card map[string]any
 			json.Unmarshal(raw, &card)
 
@@ -2559,5 +2503,123 @@ func TestBuildWPSCard_StatusLabels(t *testing.T) {
 				t.Fatalf("expected status label %q in first element content, got %q", tc.label, s)
 			}
 		})
+	}
+}
+
+// ============================================================================
+// TestUpdateMessage_DegradedOn403 (C-5)
+// ============================================================================
+
+func TestUpdateMessage_DegradedOn403(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/v7/messages/msg-403/update":
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusForbidden)
+			_, _ = fmt.Fprintf(w, `{"code":403,"msg":"forbidden"}`)
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer srv.Close()
+
+	p := &Platform{
+		appID:      "test-app",
+		appSecret:  "test-secret",
+		baseURL:    srv.URL,
+		httpClient: srv.Client(),
+		token:      "test-token",
+		tokenExpire: time.Now().Add(7200 * time.Second),
+	}
+
+	h := &wpsPreviewHandle{MessageID: "msg-403", Status: core.CardStatusWorking}
+	err := p.UpdateMessage(context.Background(), h, "hello")
+	if err == nil {
+		t.Fatal("expected error for 403 response")
+	}
+	if !strings.Contains(err.Error(), "403") {
+		t.Errorf("expected error to contain 403, got %v", err)
+	}
+}
+
+// ============================================================================
+// TestUpdateMessage_ApiErrorCode (C-6)
+// ============================================================================
+
+func TestUpdateMessage_ApiErrorCode(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/v7/messages/msg-apicheck/update":
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_, _ = fmt.Fprintf(w, `{"code":400000002,"msg":"invalid parameter test-token"}`)
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer srv.Close()
+
+	p := &Platform{
+		appID:      "test-app",
+		appSecret:  "test-secret",
+		baseURL:    srv.URL,
+		httpClient: srv.Client(),
+		token:      "test-token",
+		tokenExpire: time.Now().Add(7200 * time.Second),
+	}
+
+	h := &wpsPreviewHandle{MessageID: "msg-apicheck", Status: core.CardStatusWorking}
+	err := p.UpdateMessage(context.Background(), h, "hello")
+	if err == nil {
+		t.Fatal("expected error for API error code 400000002")
+	}
+	if !strings.Contains(err.Error(), "400000002") {
+		t.Errorf("expected error to contain 400000002, got %v", err)
+	}
+	// Verify RedactToken is applied — the token embedded in the msg
+	// should be replaced with [REDACTED].
+	if strings.Contains(err.Error(), "test-token") {
+		t.Errorf("expected token to be redacted in error, but found raw test-token: %v", err)
+	}
+	if !strings.Contains(err.Error(), "[REDACTED]") {
+		t.Errorf("expected [REDACTED] in error message, got %v", err)
+	}
+}
+
+// ============================================================================
+// TestConcurrentPreviewHandle (C-7)
+// ============================================================================
+
+func TestConcurrentPreviewHandle(t *testing.T) {
+	h := &wpsPreviewHandle{
+		MessageID: "msg-concurrent",
+		Status:    core.CardStatusThinking,
+		ChatID:    "c1",
+	}
+	var wg sync.WaitGroup
+	// Writer goroutines: SetPreviewStatus
+	for i := 0; i < 10; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			p := &Platform{}
+			p.SetPreviewStatus(h, core.CardStatusWorking)
+		}()
+	}
+	// Reader goroutines: resolveWPSContent reads Status
+	for i := 0; i < 10; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_ = resolveWPSContent("agent", h, "test content")
+		}()
+	}
+	wg.Wait()
+	// If we get here without panic or race, the test passes
+	h.mu.Lock()
+	status := h.Status
+	h.mu.Unlock()
+	if status != core.CardStatusWorking {
+		t.Errorf("expected working, got %q", status)
 	}
 }
