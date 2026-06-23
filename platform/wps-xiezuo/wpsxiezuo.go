@@ -25,9 +25,11 @@ import (
 )
 
 var (
-	wsEndpoint    = "wss://openapi.wps.cn/v7/event/ws"
-	tokenEndpoint = "https://openapi.wps.cn"
-	maxBackoff    = 60 * time.Second
+	wsEndpoint      = "wss://openapi.wps.cn/v7/event/ws"
+	tokenEndpoint   = "https://openapi.wps.cn"
+	maxBackoff      = 60 * time.Second
+	maxErrBodyBytes = 256
+	httpTimeout     = 30 * time.Second
 )
 
 // Platform implements core.Platform for WPS Xiezuo (WPS 协作).
@@ -48,6 +50,7 @@ type Platform struct {
 	tokenMu     sync.Mutex
 	stopOnce    sync.Once
 	stopped     bool
+	httpClient  *http.Client
 }
 
 // replyContext holds the context needed to reply to a specific message.
@@ -112,25 +115,6 @@ type wpsMessageInfo struct {
 type wpsSenderInfo struct {
 	ID   string `json:"id"`
 	Type string `json:"type"`
-}
-
-// wpsImageContent represents the image data within a WPS message content.
-type wpsImageContent struct {
-	Height             int    `json:"height"`
-	Width              int    `json:"width"`
-	Name               string `json:"name"`
-	Size               int64  `json:"size"`
-	StorageKey         string `json:"storage_key"`
-	ThumbnailStorageKey string `json:"thumbnail_storage_key"`
-	ThumbnailType      string `json:"thumbnail_type"`
-	Type               string `json:"type"`
-}
-
-// wpsMessageDetail represents the response from the message detail API.
-type wpsMessageDetail struct {
-	ID      string          `json:"id"`
-	Type    string          `json:"type"`
-	Content json.RawMessage `json:"content"`
 }
 
 // --- Message create API ---
@@ -198,6 +182,7 @@ func New(opts map[string]any) (core.Platform, error) {
 		baseURL:    baseURL,
 		cleanReply: cleanReply,
 		allowFrom:  allowFrom,
+		httpClient: &http.Client{Timeout: httpTimeout},
 	}, nil
 }
 
@@ -433,38 +418,6 @@ func (p *Platform) signWSHeader() (http.Header, error) {
 	return header, nil
 }
 
-// signHTTPRequest signs an HTTP request with KSO-1 HMAC-SHA256.
-// stringToSign = "KSO-1" + method + uri + contentType + date + sha256Hex(body)
-func (p *Platform) signHTTPRequest(req *http.Request) error {
-	u := req.URL
-	uri := u.RequestURI()
-	if u.RawQuery != "" {
-		uri = u.Path + "?" + u.RawQuery
-	}
-	dateStr := time.Now().UTC().Format("Mon, 02 Jan 2006 15:04:05 GMT")
-
-	contentType := req.Header.Get("Content-Type")
-	var bodyHex string
-	if req.Body != nil {
-		bodyBytes, _ := io.ReadAll(req.Body)
-		_ = req.Body.Close()
-		req.Body = io.NopCloser(bytes.NewReader(bodyBytes))
-		if len(bodyBytes) > 0 {
-			h := sha256.Sum256(bodyBytes)
-			bodyHex = hex.EncodeToString(h[:])
-		}
-	}
-	stringToSign := "KSO-1" + req.Method + uri + contentType + dateStr + bodyHex
-
-	mac := hmac.New(sha256.New, []byte(p.appSecret))
-	mac.Write([]byte(stringToSign))
-	signature := hex.EncodeToString(mac.Sum(nil))
-
-	req.Header.Set("X-Kso-Date", dateStr)
-	req.Header.Set("X-Kso-Authorization", fmt.Sprintf("KSO-1 %s:%s", p.appID, signature))
-	return nil
-}
-
 // --- Raw message dispatch ---
 
 func (p *Platform) handleRawMessage(ctx context.Context, raw []byte) {
@@ -679,30 +632,22 @@ func (p *Platform) handleChatMessage(plain []byte) {
 		return
 	}
 
-	// Route by message type
-	switch msgData.Message.Type {
-	case "image":
-		p.handleImageMessage(msgData)
+	// Extract text content
+	text := extractText(msgData.Message.Content)
+	if text == "" {
+		slog.Debug("wps-xiezuo: no text content in message", "msg_id", msgData.Message.ID)
 		return
-	default:
-		// Text, rich_text, card, etc. — extract text content
-		text := extractText(msgData.Message.Content)
-		if text == "" {
-			slog.Debug("wps-xiezuo: no text content in message", "msg_id", msgData.Message.ID)
-			return
-		}
-		p.dispatchTextMessage(msgData, text)
 	}
-}
 
-func (p *Platform) dispatchTextMessage(msgData wpsMessageData, text string) {
+	// Build session key. P2P sessions include both actual chat ID and sender ID:
+	// chat ID is needed for proactive sends, sender ID keeps the session user-scoped.
 	sessionKey := fmt.Sprintf("wps-xiezuo:%s:%s", msgData.CompanyID, msgData.Chat.ID)
 	if isP2P(msgData.Chat.Type) {
 		sessionKey = fmt.Sprintf("wps-xiezuo:%s:%s:%s", msgData.CompanyID, msgData.Chat.ID, msgData.Sender.ID)
 	}
 
 	rctx := replyContext{
-		ChatID:    msgData.Chat.ID,
+		ChatID:    msgData.Chat.ID, // Always use actual chat ID for WPS API
 		ChatType:  msgData.Chat.Type,
 		CompanyID: msgData.CompanyID,
 		MessageID: msgData.Message.ID,
@@ -714,82 +659,10 @@ func (p *Platform) dispatchTextMessage(msgData wpsMessageData, text string) {
 		Platform:   "wps-xiezuo",
 		MessageID:  msgData.Message.ID,
 		UserID:     msgData.Sender.ID,
-		UserName:   msgData.Sender.ID,
+		UserName:   msgData.Sender.ID, // WPS doesn't include name in event data
 		Content:    text,
-		ChannelKey: msgData.Chat.ID,
+		ChannelKey: msgData.Chat.ID, // needed for per-group session isolation (#1217)
 		ReplyCtx:   rctx,
-	})
-}
-
-func (p *Platform) handleImageMessage(msgData wpsMessageData) {
-	slog.Info("wps-xiezuo: image message received", "msg_id", msgData.Message.ID, "sender", msgData.Sender.ID)
-
-	// Parse image content directly from the callback data — the message event
-	// already contains the full image content including storage_key, so there
-	// is no need to call the message detail API.
-	var imgContent struct {
-		Image wpsImageContent `json:"image"`
-	}
-	if err := json.Unmarshal(msgData.Message.Content, &imgContent); err != nil {
-		slog.Error("wps-xiezuo: failed to parse image content", "error", err, "msg_id", msgData.Message.ID)
-		return
-	}
-
-	if imgContent.Image.StorageKey == "" {
-		slog.Error("wps-xiezuo: image message missing storage_key", "msg_id", msgData.Message.ID)
-		return
-	}
-
-	mimeType := imgContent.Image.Type
-	if mimeType == "" {
-		mimeType = "image/png"
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	// Download image bytes via storage_key, with message detail fallback
-	imgBytes, err := p.downloadImageWithFallback(ctx, imgContent.Image.StorageKey, msgData.Chat.ID, msgData.Message.ID)
-	if err != nil {
-		slog.Error("wps-xiezuo: failed to download image", "error", err, "storage_key", imgContent.Image.StorageKey)
-		return
-	}
-
-	const maxImageBytes = 25 * 1024 * 1024 // 25 MiB
-	if len(imgBytes) > maxImageBytes {
-		slog.Error("wps-xiezuo: image too large, dropping", "size", len(imgBytes), "limit", maxImageBytes)
-		return
-	}
-
-	slog.Info("wps-xiezuo: image downloaded successfully", "size", len(imgBytes), "mime", mimeType)
-
-	sessionKey := fmt.Sprintf("wps-xiezuo:%s:%s", msgData.CompanyID, msgData.Chat.ID)
-	if isP2P(msgData.Chat.Type) {
-		sessionKey = fmt.Sprintf("wps-xiezuo:%s:%s:%s", msgData.CompanyID, msgData.Chat.ID, msgData.Sender.ID)
-	}
-
-	rctx := replyContext{
-		ChatID:    msgData.Chat.ID,
-		ChatType:  msgData.Chat.Type,
-		CompanyID: msgData.CompanyID,
-		MessageID: msgData.Message.ID,
-		SenderID:  msgData.Sender.ID,
-	}
-
-	go p.handler(p, &core.Message{
-		SessionKey: sessionKey,
-		Platform:   "wps-xiezuo",
-		MessageID:  msgData.Message.ID,
-		UserID:     msgData.Sender.ID,
-		UserName:   msgData.Sender.ID,
-		Content:    "[image]",
-		ChannelKey: msgData.Chat.ID,
-		ReplyCtx:   rctx,
-		Images: []core.ImageAttachment{{
-			MimeType: mimeType,
-			Data:     imgBytes,
-			FileName: imgContent.Image.Name,
-		}},
 	})
 }
 
@@ -983,15 +856,18 @@ func (p *Platform) sendWPSMessage(ctx context.Context, rctx any, content string)
 	req.Header.Set("Authorization", "Bearer "+token)
 	req.Header.Set("Content-Type", "application/json")
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := p.httpClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("wps-xiezuo: send request: %w", err)
 	}
-	defer func() { _ = resp.Body.Close() }()
+	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		respBody, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("wps-xiezuo: send failed: status=%d body=%s", resp.StatusCode, string(respBody))
+		respBody, rerr := io.ReadAll(io.LimitReader(resp.Body, int64(maxErrBodyBytes)+1))
+		if rerr != nil {
+			return fmt.Errorf("wps-xiezuo: send failed: status=%d (read body: %w)", resp.StatusCode, rerr)
+		}
+		return fmt.Errorf("wps-xiezuo: send failed: status=%d body=%s", resp.StatusCode, truncateAndRedact(respBody, token))
 	}
 
 	slog.Debug("wps-xiezuo: message sent", "chat_id", rc.ChatID, "len", len(content))
@@ -1026,7 +902,7 @@ func (p *Platform) getToken(ctx context.Context) (string, error) {
 		}
 		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
-		resp, err := http.DefaultClient.Do(req)
+		resp, err := p.httpClient.Do(req)
 		if err != nil {
 			lastErr = err
 			continue
@@ -1040,7 +916,7 @@ func (p *Platform) getToken(ctx context.Context) (string, error) {
 		}
 
 		if resp.StatusCode != http.StatusOK {
-			lastErr = fmt.Errorf("status=%d body=%s", resp.StatusCode, string(respBody))
+			lastErr = fmt.Errorf("status=%d body=%s", resp.StatusCode, truncateAndRedact(respBody, ""))
 			continue
 		}
 
@@ -1074,7 +950,7 @@ func (p *Platform) getToken(ctx context.Context) (string, error) {
 func (p *Platform) addReaction(ctx context.Context, rctx replyContext, reactionType string) error {
 	token, err := p.getToken(ctx)
 	if err != nil {
-		return err
+		return fmt.Errorf("wps-xiezuo: get token: %w", err)
 	}
 
 	body, _ := json.Marshal(reactionRequest{ReactionType: reactionType})
@@ -1082,20 +958,23 @@ func (p *Platform) addReaction(ctx context.Context, rctx replyContext, reactionT
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
 	if err != nil {
-		return err
+		return fmt.Errorf("wps-xiezuo: create request: %w", err)
 	}
 	req.Header.Set("Authorization", "Bearer "+token)
 	req.Header.Set("Content-Type", "application/json")
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := p.httpClient.Do(req)
 	if err != nil {
-		return err
+		return fmt.Errorf("wps-xiezuo: add reaction: %w", err)
 	}
-	defer func() { _ = resp.Body.Close() }()
+	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		respBody, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("add reaction failed: status=%d body=%s", resp.StatusCode, string(respBody))
+		respBody, rerr := io.ReadAll(io.LimitReader(resp.Body, int64(maxErrBodyBytes)+1))
+		if rerr != nil {
+			return fmt.Errorf("wps-xiezuo: add reaction failed: status=%d (read body: %w)", resp.StatusCode, rerr)
+		}
+		return fmt.Errorf("wps-xiezuo: add reaction failed: status=%d body=%s", resp.StatusCode, truncateAndRedact(respBody, token))
 	}
 	return nil
 }
@@ -1103,7 +982,7 @@ func (p *Platform) addReaction(ctx context.Context, rctx replyContext, reactionT
 func (p *Platform) deleteReaction(ctx context.Context, rctx replyContext, reactionType string) error {
 	token, err := p.getToken(ctx)
 	if err != nil {
-		return err
+		return fmt.Errorf("wps-xiezuo: get token: %w", err)
 	}
 
 	body, _ := json.Marshal(reactionRequest{ReactionType: reactionType})
@@ -1111,165 +990,25 @@ func (p *Platform) deleteReaction(ctx context.Context, rctx replyContext, reacti
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
 	if err != nil {
-		return err
+		return fmt.Errorf("wps-xiezuo: create request: %w", err)
 	}
 	req.Header.Set("Authorization", "Bearer "+token)
 	req.Header.Set("Content-Type", "application/json")
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := p.httpClient.Do(req)
 	if err != nil {
-		return err
+		return fmt.Errorf("wps-xiezuo: delete reaction: %w", err)
 	}
-	defer func() { _ = resp.Body.Close() }()
+	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		respBody, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("delete reaction failed: status=%d body=%s", resp.StatusCode, string(respBody))
+		respBody, rerr := io.ReadAll(io.LimitReader(resp.Body, int64(maxErrBodyBytes)+1))
+		if rerr != nil {
+			return fmt.Errorf("wps-xiezuo: delete reaction failed: status=%d (read body: %w)", resp.StatusCode, rerr)
+		}
+		return fmt.Errorf("wps-xiezuo: delete reaction failed: status=%d body=%s", resp.StatusCode, truncateAndRedact(respBody, token))
 	}
 	return nil
-}
-
-// --- Message detail & image download API ---
-
-// fetchMessageDetail calls GET /v7/chats/{chat_id}/messages/{message_id} with KSO-1 signing.
-func (p *Platform) fetchMessageDetail(ctx context.Context, chatID, messageID string) (*wpsMessageDetail, error) {
-	url := fmt.Sprintf("%s/v7/chats/%s/messages/%s", p.baseURL, chatID, messageID)
-
-	token, err := p.getToken(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("get token: %w", err)
-	}
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
-	if err != nil {
-		return nil, fmt.Errorf("create request: %w", err)
-	}
-	req.Header.Set("Authorization", "Bearer "+token)
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("send request: %w", err)
-	}
-	defer func() { _ = resp.Body.Close() }()
-
-	respBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("read response: %w", err)
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("unexpected status %d: %s", resp.StatusCode, string(respBody))
-	}
-
-	var detail wpsMessageDetail
-	if err := json.Unmarshal(respBody, &detail); err != nil {
-		return nil, fmt.Errorf("parse response: %w", err)
-	}
-	return &detail, nil
-}
-
-// downloadImage downloads image bytes by storage_key using KSO-1 signed request.
-// It first tries the direct download endpoint, falling back to message detail if needed.
-func (p *Platform) downloadImage(ctx context.Context, storageKey string) ([]byte, error) {
-	// Try the dedicated file download endpoint with KSO-1 signing
-	url := fmt.Sprintf("%s/v7/files/download?storage_key=%s", p.baseURL, url.QueryEscape(storageKey))
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
-	if err != nil {
-		return nil, fmt.Errorf("create request: %w", err)
-	}
-	if err := p.signHTTPRequest(req); err != nil {
-		return nil, fmt.Errorf("sign request: %w", err)
-	}
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("send request: %w", err)
-	}
-	defer func() { _ = resp.Body.Close() }()
-
-	if resp.StatusCode == http.StatusOK {
-		ct := resp.Header.Get("Content-Type")
-		if ct != "" && !strings.HasPrefix(ct, "application/json") {
-			// Binary response — this is the image data
-			return io.ReadAll(io.LimitReader(resp.Body, 25*1024*1024+1))
-		}
-		// JSON response might contain a download_url
-		var result struct {
-			Code int `json:"code"`
-			Data struct {
-				DownloadURL string `json:"download_url"`
-				URL         string `json:"url"`
-			} `json:"data"`
-		}
-		if err := json.NewDecoder(resp.Body).Decode(&result); err == nil {
-			dlURL := result.Data.DownloadURL
-			if dlURL == "" {
-				dlURL = result.Data.URL
-			}
-			if dlURL != "" {
-				return p.downloadFromURL(ctx, dlURL)
-			}
-		}
-	}
-
-	// Non-OK response — caller will handle fallback via downloadImageWithFallback
-	respBody, _ := io.ReadAll(resp.Body)
-	return nil, fmt.Errorf("image download failed: status=%d body=%s", resp.StatusCode, string(respBody))
-}
-
-func (p *Platform) downloadImageWithFallback(ctx context.Context, storageKey, chatID, messageID string) ([]byte, error) {
-	// Try direct download first
-	imgBytes, err := p.downloadImage(ctx, storageKey)
-	if err == nil {
-		return imgBytes, nil
-	}
-
-	// Fallback: fetch message detail to extract download_url
-	slog.Info("wps-xiezuo: fetching message detail for download_url", "chat_id", chatID, "msg_id", messageID)
-	detail, dErr := p.fetchMessageDetail(ctx, chatID, messageID)
-	if dErr != nil {
-		return nil, fmt.Errorf("direct download failed (%w) and message detail fallback failed (%v)", err, dErr)
-	}
-
-	var imgContent struct {
-		Image struct {
-			StorageKey   string `json:"storage_key"`
-			DownloadURL  string `json:"download_url"`
-			URL          string `json:"url"`
-		} `json:"image"`
-	}
-	if jErr := json.Unmarshal(detail.Content, &imgContent); jErr != nil {
-		return nil, fmt.Errorf("direct download failed (%w) and parse message detail failed (%v)", err, jErr)
-	}
-
-	dlURL := imgContent.Image.DownloadURL
-	if dlURL == "" {
-		dlURL = imgContent.Image.URL
-	}
-	if dlURL == "" {
-		return nil, fmt.Errorf("direct download failed (%w) and message detail has no download_url", err)
-	}
-
-	slog.Info("wps-xiezuo: using download_url from message detail", "url", dlURL)
-	return p.downloadFromURL(ctx, dlURL)
-}
-
-func (p *Platform) downloadFromURL(ctx context.Context, downloadURL string) ([]byte, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, downloadURL, nil)
-	if err != nil {
-		return nil, fmt.Errorf("create download request: %w", err)
-	}
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("download from URL: %w", err)
-	}
-	defer func() { _ = resp.Body.Close() }()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("download returned status %d", resp.StatusCode)
-	}
-	return io.ReadAll(io.LimitReader(resp.Body, 25*1024*1024+1))
 }
 
 // --- Optional interface: ReplyContextReconstructor ---
@@ -1344,6 +1083,16 @@ func cleanReplyContent(content string) string {
 		return content // Return original if everything was filtered
 	}
 	return result
+}
+
+// --- HTTP response helpers ---
+
+func truncateAndRedact(body []byte, token string) string {
+	s := string(body)
+	if len(s) > maxErrBodyBytes {
+		s = s[:maxErrBodyBytes] + "...(truncated)"
+	}
+	return core.RedactToken(s, token)
 }
 
 // applyWPSLineBreaks converts engine-emitted "\n" into the form that WPS

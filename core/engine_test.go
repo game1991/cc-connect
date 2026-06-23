@@ -14135,6 +14135,11 @@ func TestCmdList_ProviderSwitchThenNewDoesNotHideSessions(t *testing.T) {
 	}
 }
 
+// countListRows counts how many session rows appear in a /list reply.
+// Each row starts with "| ▶" or "| ◻" in the current Markdown table format.
+func countListRows(reply string) int {
+	return strings.Count(reply, "| ▶") + strings.Count(reply, "| ◻")
+}
 // TestCmdList_RealWorldLegacyDataFullFlow is a precise reproduction of the
 // user-reported bug using data shaped exactly like the real qa-release project:
 //   - 15 internal sessions, 14 with lost AgentSessionIDs (old code damage)
@@ -14205,7 +14210,7 @@ func TestCmdList_RealWorldLegacyDataFullFlow(t *testing.T) {
 	if len(p.sent) != 1 {
 		t.Fatalf("step1: expected 1 reply, got %d", len(p.sent))
 	}
-	step1Count := strings.Count(p.sent[0], "msgs")
+	step1Count := countListRows(p.sent[0])
 	if step1Count != 20 {
 		t.Fatalf("step1: /list should show first page (20 sessions), got %d", step1Count)
 	}
@@ -14220,7 +14225,7 @@ func TestCmdList_RealWorldLegacyDataFullFlow(t *testing.T) {
 	if len(p.sent) != 1 {
 		t.Fatalf("step3: expected 1 reply, got %d", len(p.sent))
 	}
-	step3Count := strings.Count(p.sent[0], "msgs")
+	step3Count := countListRows(p.sent[0])
 	if step3Count < 20 {
 		t.Fatalf("step3: /list BEFORE agent reply should still show all sessions (page 1 = 20), got %d\nreply:\n%s",
 			step3Count, p.sent[0])
@@ -14250,7 +14255,7 @@ func TestCmdList_RealWorldLegacyDataFullFlow(t *testing.T) {
 	if len(p.sent) != 1 {
 		t.Fatalf("step4: expected 1 reply, got %d", len(p.sent))
 	}
-	step4Count := strings.Count(p.sent[0], "msgs")
+	step4Count := countListRows(p.sent[0])
 	if step4Count < 20 {
 		t.Fatalf("step4: /list AFTER agent reply should show all sessions (page 1 = 20), got %d\nreply:\n%s",
 			step4Count, p.sent[0])
@@ -14491,7 +14496,7 @@ func TestFilterExternalSessions_DynamicToggle(t *testing.T) {
 
 	p.sent = nil
 	e.cmdList(p, msg, nil)
-	count1 := strings.Count(p.sent[0], "msgs")
+	count1 := countListRows(p.sent[0])
 	if count1 != len(agentSessions) {
 		t.Fatalf("before toggle: expected %d sessions, got %d", len(agentSessions), count1)
 	}
@@ -14500,7 +14505,7 @@ func TestFilterExternalSessions_DynamicToggle(t *testing.T) {
 
 	p.sent = nil
 	e.cmdList(p, msg, nil)
-	count2 := strings.Count(p.sent[0], "msgs")
+	count2 := countListRows(p.sent[0])
 	if count2 != 2 {
 		t.Fatalf("after enabling filter: expected 2 sessions, got %d\nreply:\n%s", count2, p.sent[0])
 	}
@@ -14509,7 +14514,7 @@ func TestFilterExternalSessions_DynamicToggle(t *testing.T) {
 
 	p.sent = nil
 	e.cmdList(p, msg, nil)
-	count3 := strings.Count(p.sent[0], "msgs")
+	count3 := countListRows(p.sent[0])
 	if count3 != len(agentSessions) {
 		t.Fatalf("after disabling filter: expected %d sessions, got %d", len(agentSessions), count3)
 	}
