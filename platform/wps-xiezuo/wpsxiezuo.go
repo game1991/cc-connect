@@ -982,7 +982,7 @@ func (p *Platform) getToken(ctx context.Context) (string, error) {
 			continue
 		}
 
-		respBody, err := io.ReadAll(resp.Body)
+		respBody, err := io.ReadAll(io.LimitReader(resp.Body, 64*1024))
 		resp.Body.Close()
 		if err != nil {
 			lastErr = err
@@ -1027,8 +1027,12 @@ func (p *Platform) addReaction(ctx context.Context, rctx replyContext, reactionT
 		return fmt.Errorf("wps-xiezuo: get token: %w", err)
 	}
 
-	body, _ := json.Marshal(reactionRequest{ReactionType: reactionType})
-	url := fmt.Sprintf("%s/v7/chats/%s/messages/%s/reactions/create", p.baseURL, rctx.ChatID, rctx.MessageID)
+	body, err := json.Marshal(reactionRequest{ReactionType: reactionType})
+	if err != nil {
+		slog.Error("wps-xiezuo: marshal reaction request", "error", err)
+		return fmt.Errorf("wps-xiezuo: marshal reaction request: %w", err)
+	}
+	url := fmt.Sprintf("%s/v7/chats/%s/messages/%s/reactions/create", p.baseURL, url.PathEscape(rctx.ChatID), url.PathEscape(rctx.MessageID))
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
 	if err != nil {
@@ -1059,8 +1063,12 @@ func (p *Platform) deleteReaction(ctx context.Context, rctx replyContext, reacti
 		return fmt.Errorf("wps-xiezuo: get token: %w", err)
 	}
 
-	body, _ := json.Marshal(reactionRequest{ReactionType: reactionType})
-	url := fmt.Sprintf("%s/v7/chats/%s/messages/%s/reactions/delete", p.baseURL, rctx.ChatID, rctx.MessageID)
+	body, err := json.Marshal(reactionRequest{ReactionType: reactionType})
+	if err != nil {
+		slog.Error("wps-xiezuo: marshal reaction request", "error", err)
+		return fmt.Errorf("wps-xiezuo: marshal reaction request: %w", err)
+	}
+	url := fmt.Sprintf("%s/v7/chats/%s/messages/%s/reactions/delete", p.baseURL, url.PathEscape(rctx.ChatID), url.PathEscape(rctx.MessageID))
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
 	if err != nil {
@@ -1272,7 +1280,10 @@ func buildWPSCard(agentName string, status core.CardStatus, markdown string) []b
 		},
 	}
 
-	b, _ := json.Marshal(card)
+	b, err := json.Marshal(card)
+	if err != nil {
+		slog.Error("wps-xiezuo: marshal card JSON", "error", err)
+	}
 	return b
 }
 
@@ -1432,7 +1443,7 @@ func (p *Platform) UpdateMessage(ctx context.Context, rctx any, content string) 
 		return fmt.Errorf("wps-xiezuo: get token: %w", err)
 	}
 
-	uri := "/v7/messages/" + h.MessageID + "/update"
+	uri := "/v7/messages/" + url.PathEscape(h.MessageID) + "/update"
 	date, authHeader := p.kso1Sign("POST", uri, "application/json", body)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, p.baseURL+uri, bytes.NewReader(body))
