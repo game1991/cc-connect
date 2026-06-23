@@ -151,6 +151,7 @@ func TestNew_CleanReply(t *testing.T) {
 
 func TestPlatformImplementsInterfaces(t *testing.T) {
 	var _ core.Platform = (*Platform)(nil)
+	var _ core.ProgressStyleProvider = (*Platform)(nil)
 	var _ core.ReplyContextReconstructor = (*Platform)(nil)
 	var _ core.TypingIndicator = (*Platform)(nil)
 	var _ core.TypingIndicatorDone = (*Platform)(nil)
@@ -159,6 +160,17 @@ func TestPlatformImplementsInterfaces(t *testing.T) {
 	var _ core.PreviewStatusUpdater = (*Platform)(nil)
 	var _ core.PreviewFinishPreference = (*Platform)(nil)
 	var _ core.PreviewCleaner = (*Platform)(nil)
+}
+
+// ============================================================================
+// ProgressStyleProvider
+// ============================================================================
+
+func TestProgressStyle(t *testing.T) {
+	p := &Platform{}
+	if got := p.ProgressStyle(); got != "compact" {
+		t.Errorf("expected compact, got %q", got)
+	}
 }
 
 // ============================================================================
@@ -2617,5 +2629,43 @@ func TestConcurrentPreviewHandle(t *testing.T) {
 	h.mu.Unlock()
 	if status != core.CardStatusWorking {
 		t.Errorf("expected working, got %q", status)
+	}
+}
+
+// ============================================================================
+// TestUpdateMessage_DegradedOn404 (C-06)
+// ============================================================================
+
+func TestUpdateMessage_DegradedOn404(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/v7/messages/msg-404/update":
+			w.WriteHeader(http.StatusNotFound)
+			_, _ = fmt.Fprintf(w, `{"code":404,"msg":"message not found"}`)
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer srv.Close()
+
+	p := &Platform{
+		appID:      "test-app",
+		appSecret:  "test-secret",
+		baseURL:    srv.URL,
+		httpClient: srv.Client(),
+		token:      "test-token",
+		tokenExpire: time.Now().Add(7200 * time.Second),
+	}
+
+	h := &wpsPreviewHandle{MessageID: "msg-404", ChatID: "c1", Status: core.CardStatusWorking}
+	err := p.UpdateMessage(context.Background(), h, "hello")
+	if err == nil {
+		t.Fatal("expected error for 404")
+	}
+	if !strings.Contains(err.Error(), "404") {
+		t.Errorf("expected error to contain '404', got %v", err)
+	}
+	if !strings.Contains(err.Error(), "deleted") {
+		t.Errorf("expected error to mention 'deleted', got %v", err)
 	}
 }

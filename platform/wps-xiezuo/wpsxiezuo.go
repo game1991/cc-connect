@@ -43,6 +43,7 @@ type Platform struct {
 	cleanReply  bool
 	allowFrom   string
 	handler     core.MessageHandler
+	ctx         context.Context // set by Start, used for context-aware waits
 	cancel      context.CancelFunc
 	conn        *websocket.Conn
 	mu          sync.Mutex // protects conn access
@@ -256,6 +257,7 @@ func (p *Platform) Name() string { return "wps-xiezuo" }
 func (p *Platform) Start(handler core.MessageHandler) error {
 	p.handler = handler
 	ctx, cancel := context.WithCancel(context.Background())
+	p.ctx = ctx
 	p.cancel = cancel
 	go p.connectLoop(ctx)
 	return nil
@@ -545,9 +547,17 @@ func (p *Platform) handleGoAway(goAway wpsGoAwayFrame) {
 		return
 	}
 
-	// For other reasons (server_shutdown etc.), normal reconnect will happen
+	// For other reasons (server_shutdown etc.), wait before reconnect
 	if goAway.ReconnectMs > 0 {
-		time.Sleep(time.Duration(goAway.ReconnectMs) * time.Millisecond)
+		if p.ctx != nil {
+			select {
+			case <-time.After(time.Duration(goAway.ReconnectMs) * time.Millisecond):
+			case <-p.ctx.Done():
+			}
+		} else {
+			// Fallback: before Start is called, just sleep
+			time.Sleep(time.Duration(goAway.ReconnectMs) * time.Millisecond)
+		}
 	}
 }
 
@@ -1093,6 +1103,13 @@ func (p *Platform) deleteReaction(ctx context.Context, rctx replyContext, reacti
 	return nil
 }
 
+// --- Optional interface: ProgressStyleProvider ---
+
+// ProgressStyle returns "compact" so that compactProgressWriter enables the
+// markdown fallback path. WPS does not support ProgressCardPayloadSupport,
+// so "card" would be inappropriate; "compact" is the right value.
+func (p *Platform) ProgressStyle() string { return "compact" }
+
 // --- Optional interface: ReplyContextReconstructor ---
 
 func (p *Platform) ReconstructReplyCtx(sessionKey string) (any, error) {
@@ -1475,6 +1492,11 @@ func (p *Platform) UpdateMessage(ctx context.Context, rctx any, content string) 
 			"app_id", core.RedactToken(p.appID, p.appID))
 		return fmt.Errorf("wps-xiezuo: update message failed: status=%d", resp.StatusCode)
 
+	case resp.StatusCode == http.StatusNotFound:
+		slog.Warn("wps-xiezuo: message not found, card may have been deleted",
+			"msg_id", h.MessageID)
+		return fmt.Errorf("wps-xiezuo: update message failed: status=404 (message deleted)")
+
 	case resp.StatusCode != http.StatusOK:
 		return fmt.Errorf("wps-xiezuo: update message failed: status=%d body=%s", resp.StatusCode, truncateAndRedact(respBody, token))
 	}
@@ -1519,6 +1541,7 @@ func (p *Platform) DeletePreviewMessage(_ context.Context, _ any) error {
 
 var (
 	_ core.Platform                  = (*Platform)(nil)
+	_ core.ProgressStyleProvider     = (*Platform)(nil)
 	_ core.ReplyContextReconstructor = (*Platform)(nil)
 	_ core.TypingIndicator           = (*Platform)(nil)
 	_ core.TypingIndicatorDone       = (*Platform)(nil)
