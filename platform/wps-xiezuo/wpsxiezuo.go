@@ -1417,15 +1417,15 @@ func (p *Platform) SendPreviewStart(ctx context.Context, rctx any, content strin
 // Unlike Create (which only needs Bearer), the update API requires BOTH
 // Bearer token AND KSO-1 signing.
 func (p *Platform) UpdateMessage(ctx context.Context, rctx any, content string) error {
-	rc, ok := rctx.(replyContext)
+	h, ok := rctx.(*wpsPreviewHandle)
 	if !ok {
-		return fmt.Errorf("wps-xiezuo: invalid reply context type %T", rctx)
+		return fmt.Errorf("wps-xiezuo: invalid preview handle type %T", rctx)
 	}
-	if rc.MessageID == "" {
-		return fmt.Errorf("wps-xiezuo: update message: empty message_id in reply context")
+	if h.MessageID == "" {
+		return fmt.Errorf("wps-xiezuo: update message: empty message_id in preview handle")
 	}
 
-	cardData := resolveWPSContent(p.Name(), &wpsPreviewHandle{Status: core.CardStatusWorking}, content)
+	cardData := resolveWPSContent(p.Name(), h, content)
 	reqBody := updateMessageRequest{
 		Type: "card",
 		Content: messageContent{
@@ -1443,7 +1443,7 @@ func (p *Platform) UpdateMessage(ctx context.Context, rctx any, content string) 
 		return fmt.Errorf("wps-xiezuo: get token: %w", err)
 	}
 
-	uri := "/v7/messages/" + rc.MessageID + "/update"
+	uri := "/v7/messages/" + h.MessageID + "/update"
 	date, authHeader := p.kso1Sign("POST", uri, "application/json", body)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, p.baseURL+uri, bytes.NewReader(body))
@@ -1491,7 +1491,7 @@ func (p *Platform) UpdateMessage(ctx context.Context, rctx any, content string) 
 		return fmt.Errorf("wps-xiezuo: update message failed: code=%d msg=%s", apiResp.Code, core.RedactToken(apiResp.Msg, token))
 	}
 
-	slog.Debug("wps-xiezuo: message updated", "msg_id", rc.MessageID)
+	slog.Debug("wps-xiezuo: message updated", "msg_id", h.MessageID)
 	return nil
 }
 

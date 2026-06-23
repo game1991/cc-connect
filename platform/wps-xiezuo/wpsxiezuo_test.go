@@ -2045,8 +2045,8 @@ func TestUpdateMessage_Success(t *testing.T) {
 		httpClient: srv.Client(),
 	}
 
-	rc := replyContext{MessageID: "msg-1"}
-	err := p.UpdateMessage(context.Background(), rc, "hello world")
+	h := &wpsPreviewHandle{MessageID: "msg-1", ChatID: "c1", Status: core.CardStatusWorking}
+	err := p.UpdateMessage(context.Background(), h, "hello world")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -2102,8 +2102,8 @@ func TestUpdateMessage_DegradedOn401(t *testing.T) {
 		httpClient: srv.Client(),
 	}
 
-	rc := replyContext{MessageID: "msg-1"}
-	err := p.UpdateMessage(context.Background(), rc, "hello")
+	h := &wpsPreviewHandle{MessageID: "msg-1", Status: core.CardStatusWorking}
+	err := p.UpdateMessage(context.Background(), h, "hello")
 	if err == nil {
 		t.Fatal("expected error for 401 response")
 	}
@@ -2120,8 +2120,8 @@ func TestUpdateMessage_EmptyMessageID(t *testing.T) {
 		httpClient: &http.Client{},
 	}
 
-	rc := replyContext{MessageID: ""}
-	err := p.UpdateMessage(context.Background(), rc, "hello")
+	h := &wpsPreviewHandle{MessageID: "", Status: core.CardStatusWorking}
+	err := p.UpdateMessage(context.Background(), h, "hello")
 	if err == nil {
 		t.Fatal("expected error for empty message ID")
 	}
@@ -2300,7 +2300,7 @@ func TestPreviewFlow_Integration(t *testing.T) {
 	}
 
 	// Step 2: UpdateMessage
-	err = p.UpdateMessage(ctx, rc, "streaming text here")
+	err = p.UpdateMessage(ctx, handle, "streaming text here")
 	if err != nil {
 		t.Fatalf("UpdateMessage: unexpected error: %v", err)
 	}
@@ -2314,7 +2314,7 @@ func TestPreviewFlow_Integration(t *testing.T) {
 	}
 
 	// Step 4: SetPreviewStatus
-	p.SetPreviewStatus(handle, core.CardStatusDone)
+	p.SetPreviewStatus(h, core.CardStatusDone)
 	h.mu.Lock()
 	status := h.Status
 	h.mu.Unlock()
@@ -2350,12 +2350,13 @@ func TestUpdateMessage_DegradedOnSignatureError(t *testing.T) {
 		tokenExpire: time.Now().Add(7200 * time.Second),
 	}
 
-	rc := replyContext{
-		ChatID:    "chat-sig",
+	h := &wpsPreviewHandle{
 		MessageID: "msg-sig",
+		ChatID:    "chat-sig",
+		Status:    core.CardStatusWorking,
 	}
 
-	err := p.UpdateMessage(context.Background(), rc, "hello")
+	err := p.UpdateMessage(context.Background(), h, "hello")
 	if err == nil {
 		t.Fatal("expected error for 401 signature mismatch")
 	}
