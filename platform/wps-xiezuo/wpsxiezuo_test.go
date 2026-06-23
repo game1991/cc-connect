@@ -1512,6 +1512,29 @@ func TestAddDoneReaction_NoMessageID(t *testing.T) {
 }
 
 // ============================================================================
+// statusEmoji
+// ============================================================================
+
+func TestStatusEmoji(t *testing.T) {
+	tests := []struct {
+		status core.CardStatus
+		want   string
+	}{
+		{core.CardStatusThinking, "💭"},
+		{core.CardStatusWorking, "🔧"},
+		{core.CardStatusDone, "✅"},
+		{core.CardStatusError, "❌"},
+		{core.CardStatus("unknown"), "⏳"},
+	}
+	for _, tt := range tests {
+		got := statusEmoji(tt.status)
+		if got != tt.want {
+			t.Errorf("statusEmoji(%q) = %q, want %q", tt.status, got, tt.want)
+		}
+	}
+}
+
+// ============================================================================
 // WebSocket integration: mock server → handleRawMessage
 // ============================================================================
 

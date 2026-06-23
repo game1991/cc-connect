@@ -62,6 +62,29 @@ type replyContext struct {
 	SenderID  string `json:"sender_id"`
 }
 
+// wpsPreviewHandle holds state for an in-place card preview.
+type wpsPreviewHandle struct {
+	mu        sync.Mutex
+	MessageID string
+	Status    core.CardStatus
+	ChatID    string
+}
+
+func statusEmoji(s core.CardStatus) string {
+	switch s {
+	case core.CardStatusThinking:
+		return "💭"
+	case core.CardStatusWorking:
+		return "🔧"
+	case core.CardStatusDone:
+		return "✅"
+	case core.CardStatusError:
+		return "❌"
+	default:
+		return "⏳"
+	}
+}
+
 // --- WPS event frame types ---
 
 // wpsEventFrame represents an event frame from the WPS WebSocket.
