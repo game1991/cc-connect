@@ -1037,7 +1037,7 @@ func TestSendWPSMessage_Success(t *testing.T) {
 	var gotBody []byte
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/oauth2/token" {
-			_ = json.NewEncoder(w).Encode(tokenResponse{AccessToken: "test-token-123", ExpiresIn: 7200})
+			_ = json.NewEncoder(w).Encode(wpsTokenResponse{AccessToken: "test-token-123", ExpiresIn: 7200})
 			return
 		}
 		if r.URL.Path == "/v7/messages/create" {
@@ -1068,7 +1068,7 @@ func TestSendWPSMessage_Success(t *testing.T) {
 	if len(gotBody) == 0 {
 		t.Fatal("expected request body")
 	}
-	var req sendMessageRequest
+	var req wpsSendMessageRequest
 	if err := json.Unmarshal(gotBody, &req); err != nil {
 		t.Fatalf("parse request: %v", err)
 	}
@@ -1101,7 +1101,7 @@ func TestSendWPSMessage_NewlinesConvertedToHardBreaks(t *testing.T) {
 	var gotBody []byte
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/oauth2/token" {
-			_ = json.NewEncoder(w).Encode(tokenResponse{AccessToken: "tok", ExpiresIn: 7200})
+			_ = json.NewEncoder(w).Encode(wpsTokenResponse{AccessToken: "tok", ExpiresIn: 7200})
 			return
 		}
 		if r.URL.Path == "/v7/messages/create" {
@@ -1126,7 +1126,7 @@ func TestSendWPSMessage_NewlinesConvertedToHardBreaks(t *testing.T) {
 		t.Fatalf("Reply: %v", err)
 	}
 
-	var req sendMessageRequest
+	var req wpsSendMessageRequest
 	if err := json.Unmarshal(gotBody, &req); err != nil {
 		t.Fatalf("parse: %v", err)
 	}
@@ -1170,7 +1170,7 @@ func TestSendWPSMessage_CleanReply(t *testing.T) {
 	var gotBody []byte
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/oauth2/token" {
-			_ = json.NewEncoder(w).Encode(tokenResponse{AccessToken: "tok", ExpiresIn: 7200})
+			_ = json.NewEncoder(w).Encode(wpsTokenResponse{AccessToken: "tok", ExpiresIn: 7200})
 			return
 		}
 		if r.URL.Path == "/v7/messages/create" {
@@ -1195,7 +1195,7 @@ func TestSendWPSMessage_CleanReply(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	var req sendMessageRequest
+	var req wpsSendMessageRequest
 	json.Unmarshal(gotBody, &req)
 	if req.Content.Text.Content != "ok" {
 		t.Fatalf("expected cleaned content 'ok', got %q", req.Content.Text.Content)
@@ -1214,7 +1214,7 @@ func TestSendWPSMessage_EmptyContent(t *testing.T) {
 func TestSendWPSMessage_ApiError(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/oauth2/token" {
-			_ = json.NewEncoder(w).Encode(tokenResponse{AccessToken: "tok", ExpiresIn: 7200})
+			_ = json.NewEncoder(w).Encode(wpsTokenResponse{AccessToken: "tok", ExpiresIn: 7200})
 			return
 		}
 		if r.URL.Path == "/v7/messages/create" {
@@ -1250,7 +1250,7 @@ func TestGetToken_PrimaryEndpoint(t *testing.T) {
 	var hitPath string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		hitPath = r.URL.Path
-		json.NewEncoder(w).Encode(tokenResponse{AccessToken: "primary-tok", ExpiresIn: 3600})
+		json.NewEncoder(w).Encode(wpsTokenResponse{AccessToken: "primary-tok", ExpiresIn: 3600})
 	}))
 	defer srv.Close()
 
@@ -1281,7 +1281,7 @@ func TestGetToken_FallbackEndpoint(t *testing.T) {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
-		json.NewEncoder(w).Encode(tokenResponse{AccessToken: "fallback-tok", ExpiresIn: 7200})
+		json.NewEncoder(w).Encode(wpsTokenResponse{AccessToken: "fallback-tok", ExpiresIn: 7200})
 	}))
 	defer srv.Close()
 
@@ -1308,7 +1308,7 @@ func TestGetToken_Cached(t *testing.T) {
 	var calls atomic.Int32
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls.Add(1)
-		json.NewEncoder(w).Encode(tokenResponse{AccessToken: "cached-tok", ExpiresIn: 7200})
+		json.NewEncoder(w).Encode(wpsTokenResponse{AccessToken: "cached-tok", ExpiresIn: 7200})
 	}))
 	defer srv.Close()
 
@@ -1371,7 +1371,7 @@ func TestAddReaction(t *testing.T) {
 	var gotBody []byte
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/oauth2/token" {
-			_ = json.NewEncoder(w).Encode(tokenResponse{AccessToken: "tok", ExpiresIn: 7200})
+			_ = json.NewEncoder(w).Encode(wpsTokenResponse{AccessToken: "tok", ExpiresIn: 7200})
 			return
 		}
 		gotPath = r.URL.Path
@@ -1400,7 +1400,7 @@ func TestAddReaction(t *testing.T) {
 		t.Fatalf("expected path %s, got %s", expectedPath, gotPath)
 	}
 
-	var req reactionRequest
+	var req wpsReactionRequest
 	json.Unmarshal(gotBody, &req)
 	if req.ReactionType != "emoji_busy" {
 		t.Fatalf("expected emoji_busy, got %s", req.ReactionType)
@@ -1411,7 +1411,7 @@ func TestDeleteReaction(t *testing.T) {
 	var gotPath string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/oauth2/token" {
-			_ = json.NewEncoder(w).Encode(tokenResponse{AccessToken: "tok", ExpiresIn: 7200})
+			_ = json.NewEncoder(w).Encode(wpsTokenResponse{AccessToken: "tok", ExpiresIn: 7200})
 			return
 		}
 		gotPath = r.URL.Path
@@ -1443,7 +1443,7 @@ func TestDeleteReaction(t *testing.T) {
 func TestAddReaction_Error(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/oauth2/token" {
-			_ = json.NewEncoder(w).Encode(tokenResponse{AccessToken: "tok", ExpiresIn: 7200})
+			_ = json.NewEncoder(w).Encode(wpsTokenResponse{AccessToken: "tok", ExpiresIn: 7200})
 			return
 		}
 		w.WriteHeader(http.StatusTooManyRequests)
@@ -1474,7 +1474,7 @@ func TestStartTyping(t *testing.T) {
 	var addCalled atomic.Int32
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/oauth2/token" {
-			_ = json.NewEncoder(w).Encode(tokenResponse{AccessToken: "tok", ExpiresIn: 7200})
+			_ = json.NewEncoder(w).Encode(wpsTokenResponse{AccessToken: "tok", ExpiresIn: 7200})
 			return
 		}
 		if strings.Contains(r.URL.Path, "reactions/create") {
@@ -1531,7 +1531,7 @@ func TestAddDoneReaction(t *testing.T) {
 	var delCalled atomic.Int32
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/oauth2/token" {
-			_ = json.NewEncoder(w).Encode(tokenResponse{AccessToken: "tok", ExpiresIn: 7200})
+			_ = json.NewEncoder(w).Encode(wpsTokenResponse{AccessToken: "tok", ExpiresIn: 7200})
 			return
 		}
 		if strings.Contains(r.URL.Path, "reactions/delete") {
@@ -1682,9 +1682,9 @@ func TestBuildWPSCard_SubtitleIsAgentName(t *testing.T) {
 
 func TestResolveWPSContent_PlainMarkdown(t *testing.T) {
 	handle := &wpsPreviewHandle{
-		MessageID: "msg123",
-		Status:    core.CardStatusWorking,
-		ChatID:    "chat1",
+		messageID: "msg123",
+		status:    core.CardStatusWorking,
+		chatID:    "chat1",
 	}
 
 	raw := resolveWPSContent("claudecode", handle, "hello **world**")
@@ -1727,9 +1727,9 @@ func TestResolveWPSContent_PlainMarkdown(t *testing.T) {
 
 func TestResolveWPSContent_EmptyContent(t *testing.T) {
 	handle := &wpsPreviewHandle{
-		MessageID: "msg456",
-		Status:    core.CardStatusThinking,
-		ChatID:    "chat2",
+		messageID: "msg456",
+		status:    core.CardStatusThinking,
+		chatID:    "chat2",
 	}
 
 	raw := resolveWPSContent("codex", handle, "")
@@ -1831,7 +1831,7 @@ func TestSendPreviewStart_Success(t *testing.T) {
 	var gotContentType string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/oauth2/token" {
-			_ = json.NewEncoder(w).Encode(tokenResponse{AccessToken: "preview-tok", ExpiresIn: 7200})
+			_ = json.NewEncoder(w).Encode(wpsTokenResponse{AccessToken: "preview-tok", ExpiresIn: 7200})
 			return
 		}
 		if r.URL.Path == "/v7/messages/create" {
@@ -1874,7 +1874,7 @@ func TestSendPreviewStart_Success(t *testing.T) {
 	}
 
 	// Verify request body
-	var req sendMessageRequest
+	var req wpsSendMessageRequest
 	if err := json.Unmarshal(gotBody, &req); err != nil {
 		t.Fatalf("parse request: %v", err)
 	}
@@ -1896,21 +1896,21 @@ func TestSendPreviewStart_Success(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected *wpsPreviewHandle, got %T", handle)
 	}
-	if h.MessageID != "msg-preview-1" {
-		t.Fatalf("expected MessageID=msg-preview-1, got %q", h.MessageID)
+	if h.messageID != "msg-preview-1" {
+		t.Fatalf("expected messageID=msg-preview-1, got %q", h.messageID)
 	}
-	if h.Status != core.CardStatusThinking {
-		t.Fatalf("expected Status=thinking, got %q", h.Status)
+	if h.status != core.CardStatusThinking {
+		t.Fatalf("expected status=thinking, got %q", h.status)
 	}
-	if h.ChatID != "chat-preview" {
-		t.Fatalf("expected ChatID=chat-preview, got %q", h.ChatID)
+	if h.chatID != "chat-preview" {
+		t.Fatalf("expected chatID=chat-preview, got %q", h.chatID)
 	}
 }
 
 func TestSendPreviewStart_ApiError(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/oauth2/token" {
-			_ = json.NewEncoder(w).Encode(tokenResponse{AccessToken: "tok", ExpiresIn: 7200})
+			_ = json.NewEncoder(w).Encode(wpsTokenResponse{AccessToken: "tok", ExpiresIn: 7200})
 			return
 		}
 		if r.URL.Path == "/v7/messages/create" {
@@ -2038,7 +2038,7 @@ func TestUpdateMessage_Success(t *testing.T) {
 		httpClient: srv.Client(),
 	}
 
-	h := &wpsPreviewHandle{MessageID: "msg-1", ChatID: "c1", Status: core.CardStatusWorking}
+	h := &wpsPreviewHandle{messageID: "msg-1", chatID: "c1", status: core.CardStatusWorking}
 	err := p.UpdateMessage(context.Background(), h, "hello world")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -2060,7 +2060,7 @@ func TestUpdateMessage_Success(t *testing.T) {
 		t.Error("expected X-Kso-Date header to be set")
 	}
 
-	var parsed updateMessageRequest
+	var parsed wpsUpdateMessageRequest
 	if err := json.Unmarshal(updateBody, &parsed); err != nil {
 		t.Fatalf("failed to parse request body: %v", err)
 	}
@@ -2095,7 +2095,7 @@ func TestUpdateMessage_DegradedOn401(t *testing.T) {
 		httpClient: srv.Client(),
 	}
 
-	h := &wpsPreviewHandle{MessageID: "msg-1", Status: core.CardStatusWorking}
+	h := &wpsPreviewHandle{messageID: "msg-1", status: core.CardStatusWorking}
 	err := p.UpdateMessage(context.Background(), h, "hello")
 	if err == nil {
 		t.Fatal("expected error for 401 response")
@@ -2113,7 +2113,7 @@ func TestUpdateMessage_EmptyMessageID(t *testing.T) {
 		httpClient: &http.Client{},
 	}
 
-	h := &wpsPreviewHandle{MessageID: "", Status: core.CardStatusWorking}
+	h := &wpsPreviewHandle{messageID: "", status: core.CardStatusWorking}
 	err := p.UpdateMessage(context.Background(), h, "hello")
 	if err == nil {
 		t.Fatal("expected error for empty message ID")
@@ -2130,15 +2130,15 @@ func TestUpdateMessage_EmptyMessageID(t *testing.T) {
 func TestSetPreviewStatus(t *testing.T) {
 	p := &Platform{}
 	handle := &wpsPreviewHandle{
-		MessageID: "msg-status-1",
-		Status:    core.CardStatusThinking,
-		ChatID:    "chat-1",
+		messageID: "msg-status-1",
+		status:    core.CardStatusThinking,
+		chatID:    "chat-1",
 	}
 
 	p.SetPreviewStatus(handle, core.CardStatusWorking)
 
-	if handle.Status != core.CardStatusWorking {
-		t.Fatalf("expected status=working, got %q", handle.Status)
+	if handle.status != core.CardStatusWorking {
+		t.Fatalf("expected status=working, got %q", handle.status)
 	}
 }
 
@@ -2168,9 +2168,9 @@ func TestKeepPreviewOnFinish(t *testing.T) {
 func TestDeletePreviewMessage_ValidHandle(t *testing.T) {
 	p := &Platform{}
 	handle := &wpsPreviewHandle{
-		MessageID: "msg-del-1",
-		Status:    core.CardStatusDone,
-		ChatID:    "chat-1",
+		messageID: "msg-del-1",
+		status:    core.CardStatusDone,
+		chatID:    "chat-1",
 	}
 	err := p.DeletePreviewMessage(context.Background(), handle)
 	if err != nil {
@@ -2206,7 +2206,7 @@ func TestPreviewFlow_Integration(t *testing.T) {
 
 			// Verify outer type is "card" per spec
 			body, _ := io.ReadAll(r.Body)
-			var req sendMessageRequest
+			var req wpsSendMessageRequest
 			if err := json.Unmarshal(body, &req); err != nil {
 				t.Errorf("create: failed to parse body: %v", err)
 				w.WriteHeader(http.StatusBadRequest)
@@ -2282,14 +2282,14 @@ func TestPreviewFlow_Integration(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected *wpsPreviewHandle, got %T", handle)
 	}
-	if h.MessageID != "msg-int-1" {
-		t.Errorf("expected MessageID=msg-int-1, got %q", h.MessageID)
+	if h.messageID != "msg-int-1" {
+		t.Errorf("expected messageID=msg-int-1, got %q", h.messageID)
 	}
-	if h.Status != core.CardStatusThinking {
-		t.Errorf("expected Status=thinking, got %q", h.Status)
+	if h.status != core.CardStatusThinking {
+		t.Errorf("expected status=thinking, got %q", h.status)
 	}
-	if h.ChatID != "chat-int" {
-		t.Errorf("expected ChatID=chat-int, got %q", h.ChatID)
+	if h.chatID != "chat-int" {
+		t.Errorf("expected chatID=chat-int, got %q", h.chatID)
 	}
 
 	// Step 2: UpdateMessage
@@ -2309,7 +2309,7 @@ func TestPreviewFlow_Integration(t *testing.T) {
 	// Step 4: SetPreviewStatus
 	p.SetPreviewStatus(h, core.CardStatusDone)
 	h.mu.Lock()
-	status := h.Status
+	status := h.status
 	h.mu.Unlock()
 	if status != core.CardStatusDone {
 		t.Errorf("expected Status=done after SetPreviewStatus, got %q", status)
@@ -2344,9 +2344,9 @@ func TestUpdateMessage_DegradedOnSignatureError(t *testing.T) {
 	}
 
 	h := &wpsPreviewHandle{
-		MessageID: "msg-sig",
-		ChatID:    "chat-sig",
-		Status:    core.CardStatusWorking,
+		messageID: "msg-sig",
+		chatID:    "chat-sig",
+		status:    core.CardStatusWorking,
 	}
 
 	err := p.UpdateMessage(context.Background(), h, "hello")
@@ -2544,7 +2544,7 @@ func TestUpdateMessage_DegradedOn403(t *testing.T) {
 		tokenExpire: time.Now().Add(7200 * time.Second),
 	}
 
-	h := &wpsPreviewHandle{MessageID: "msg-403", Status: core.CardStatusWorking}
+	h := &wpsPreviewHandle{messageID: "msg-403", status: core.CardStatusWorking}
 	err := p.UpdateMessage(context.Background(), h, "hello")
 	if err == nil {
 		t.Fatal("expected error for 403 response")
@@ -2580,7 +2580,7 @@ func TestUpdateMessage_ApiErrorCode(t *testing.T) {
 		tokenExpire: time.Now().Add(7200 * time.Second),
 	}
 
-	h := &wpsPreviewHandle{MessageID: "msg-apicheck", Status: core.CardStatusWorking}
+	h := &wpsPreviewHandle{messageID: "msg-apicheck", status: core.CardStatusWorking}
 	err := p.UpdateMessage(context.Background(), h, "hello")
 	if err == nil {
 		t.Fatal("expected error for API error code 400000002")
@@ -2604,9 +2604,9 @@ func TestUpdateMessage_ApiErrorCode(t *testing.T) {
 
 func TestConcurrentPreviewHandle(t *testing.T) {
 	h := &wpsPreviewHandle{
-		MessageID: "msg-concurrent",
-		Status:    core.CardStatusThinking,
-		ChatID:    "c1",
+		messageID: "msg-concurrent",
+		status:    core.CardStatusThinking,
+		chatID:    "c1",
 	}
 	var wg sync.WaitGroup
 	// Writer goroutines: SetPreviewStatus
@@ -2625,7 +2625,7 @@ func TestConcurrentPreviewHandle(t *testing.T) {
 	wg.Wait()
 	// If we get here without panic or race, the test passes
 	h.mu.Lock()
-	status := h.Status
+	status := h.status
 	h.mu.Unlock()
 	if status != core.CardStatusWorking {
 		t.Errorf("expected working, got %q", status)
@@ -2657,7 +2657,7 @@ func TestUpdateMessage_DegradedOn404(t *testing.T) {
 		tokenExpire: time.Now().Add(7200 * time.Second),
 	}
 
-	h := &wpsPreviewHandle{MessageID: "msg-404", ChatID: "c1", Status: core.CardStatusWorking}
+	h := &wpsPreviewHandle{messageID: "msg-404", chatID: "c1", status: core.CardStatusWorking}
 	err := p.UpdateMessage(context.Background(), h, "hello")
 	if err == nil {
 		t.Fatal("expected error for 404")
@@ -2667,5 +2667,142 @@ func TestUpdateMessage_DegradedOn404(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "deleted") {
 		t.Errorf("expected error to mention 'deleted', got %v", err)
+	}
+}
+
+// ============================================================================
+// TestTruncateMarkdown_MixedCJKLatin (C-10)
+// ============================================================================
+
+func TestTruncateMarkdown_MixedCJKLatin(t *testing.T) {
+	// Build a string: 14999 ASCII chars + 1 CJK char (3 bytes) = exactly 15000 runes
+	// This should NOT be truncated (exactly at limit)
+	ascii := strings.Repeat("a", 14999)
+	cjk := "中" // 3 bytes in UTF-8, 1 rune
+	text := ascii + cjk
+
+	if utf8.RuneCountInString(text) != 15000 {
+		t.Fatalf("expected 15000 runes, got %d", utf8.RuneCountInString(text))
+	}
+	result := truncateMarkdown(text, 15000)
+	if result != text {
+		t.Error("text at exactly limit=15000 runes should not be truncated")
+	}
+	if !utf8.ValidString(result) {
+		t.Error("result is not valid UTF-8")
+	}
+
+	// Add one more CJK char → 15001 runes → exceeds limit, should be truncated
+	// After truncation, keeps last wpsCardTruncateKeep=14000 runes from the end
+	text2 := text + "文"
+	result2 := truncateMarkdown(text2, 15000)
+	if result2 == text2 {
+		t.Error("text exceeding limit should be truncated")
+	}
+	if !utf8.ValidString(result2) {
+		t.Error("truncated result is not valid UTF-8")
+	}
+	// Should keep last 14000 runes plus truncation notice
+	if utf8.RuneCountInString(result2) < 14000 {
+		t.Errorf("expected at least 14000 runes in result, got %d", utf8.RuneCountInString(result2))
+	}
+}
+
+// ============================================================================
+// TestUpdateMessage_ApiErrorCodeAsString (C-07 json.Number)
+// ============================================================================
+
+func TestUpdateMessage_ApiErrorCodeAsString(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/oauth2/token":
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprintf(w, `{"access_token":"test-token","expires_in":7200}`)
+		case "/v7/messages/msg-str/update":
+			w.Header().Set("Content-Type", "application/json")
+			// Code as string instead of int
+			fmt.Fprintf(w, `{"code":"400000002","msg":"invalid parameter"}`)
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer srv.Close()
+
+	p := &Platform{
+		appID:      "test-app",
+		appSecret:  "test-secret",
+		baseURL:    srv.URL,
+		httpClient: srv.Client(),
+	}
+
+	h := &wpsPreviewHandle{messageID: "msg-str", chatID: "c1", status: core.CardStatusWorking}
+	err := p.UpdateMessage(context.Background(), h, "hello")
+	if err == nil {
+		t.Fatal("expected error for non-zero API code")
+	}
+	if !strings.Contains(err.Error(), "400000002") {
+		t.Errorf("expected error to contain code '400000002', got %v", err)
+	}
+}
+
+// ============================================================================
+// TestSendPreviewStart_DuplicateDefense (C-08)
+// ============================================================================
+
+func TestSendPreviewStart_DuplicateDefense(t *testing.T) {
+	var createCalls atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/oauth2/token":
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprintf(w, `{"access_token":"tok","expires_in":7200}`)
+		case "/v7/messages/create":
+			createCalls.Add(1)
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"code": 0,
+				"msg":  "success",
+				"data": map[string]string{"message_id": "msg-dup-1"},
+			})
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer srv.Close()
+
+	plat, _ := New(map[string]any{
+		"app_id":     "id",
+		"app_secret": "secret",
+		"base_url":   srv.URL,
+	})
+	p := plat.(*Platform)
+
+	rc := replyContext{ChatID: "chat-dup", MessageID: "msg-orig"}
+
+	// First call: creates a new card
+	h1, err := p.SendPreviewStart(context.Background(), rc, "")
+	if err != nil {
+		t.Fatalf("first call: unexpected error: %v", err)
+	}
+	handle1 := h1.(*wpsPreviewHandle)
+
+	// Second call with same chatID: should return existing handle, NOT create a new card
+	h2, err := p.SendPreviewStart(context.Background(), rc, "")
+	if err != nil {
+		t.Fatalf("second call: unexpected error: %v", err)
+	}
+	handle2 := h2.(*wpsPreviewHandle)
+
+	// Must be the same handle
+	if handle1 != handle2 {
+		t.Fatal("expected same handle instance for duplicate SendPreviewStart")
+	}
+	if handle1.messageID != "msg-dup-1" {
+		t.Fatalf("expected messageID=msg-dup-1, got %q", handle1.messageID)
+	}
+
+	// Only one create call should have been made
+	if createCalls.Load() != 1 {
+		t.Fatalf("expected 1 create call, got %d", createCalls.Load())
 	}
 }

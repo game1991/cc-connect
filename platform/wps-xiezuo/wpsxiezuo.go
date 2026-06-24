@@ -27,7 +27,7 @@ import (
 
 var (
 	wsEndpoint      = "wss://openapi.wps.cn/v7/event/ws"
-	tokenEndpoint   = "https://openapi.wps.cn"
+	defaultBaseURL    = "https://openapi.wps.cn"
 	maxBackoff      = 60 * time.Second
 	maxErrBodyBytes = 256
 	httpTimeout     = 30 * time.Second
@@ -55,6 +55,8 @@ type Platform struct {
 	stopOnce    sync.Once
 	stopped     bool
 	httpClient  *http.Client
+	previewMu   sync.Mutex
+	previewHandles map[string]*wpsPreviewHandle // key: chatID
 }
 
 // replyContext holds the context needed to reply to a specific message.
@@ -68,10 +70,11 @@ type replyContext struct {
 
 // wpsPreviewHandle holds state for an in-place card preview.
 type wpsPreviewHandle struct {
-	mu        sync.Mutex
-	MessageID string
-	Status    core.CardStatus
-	ChatID    string
+	mu          sync.Mutex
+	messageID   string
+	status      core.CardStatus
+	chatID      string
+	lastContent string
 }
 
 func statusEmoji(s core.CardStatus) string {
@@ -161,23 +164,23 @@ type wpsSenderInfo struct {
 
 // --- Message create API ---
 
-type sendMessageRequest struct {
-	Type     string         `json:"type"`
-	Receiver receiverInfo   `json:"receiver"`
-	Content  messageContent `json:"content"`
+type wpsSendMessageRequest struct {
+	Type     string           `json:"type"`
+	Receiver wpsReceiverInfo  `json:"receiver"`
+	Content  wpsMessageContent `json:"content"`
 }
 
-type receiverInfo struct {
+type wpsReceiverInfo struct {
 	Type       string `json:"type"`
 	ReceiverID string `json:"receiver_id"`
 }
 
-type messageContent struct {
-	Text textContent    `json:"text"`
-	Card json.RawMessage `json:"card,omitempty"`
+type wpsMessageContent struct {
+	Text wpsTextContent    `json:"text"`
+	Card json.RawMessage   `json:"card,omitempty"`
 }
 
-type textContent struct {
+type wpsTextContent struct {
 	Content string `json:"content"`
 	Type    string `json:"type"`
 }
@@ -186,8 +189,8 @@ type textContent struct {
 
 // wpsAPIResponse is the standard envelope for all WPS Open Platform v7 APIs.
 type wpsAPIResponse struct {
-	Code int             `json:"code"`
-	Msg  string          `json:"msg"`
+	Code json.Number    `json:"code"`
+	Msg  string         `json:"msg"`
 	Data json.RawMessage `json:"data"`
 }
 
@@ -198,22 +201,22 @@ type wpsMessageCreateData struct {
 
 // --- Message update API ---
 
-// updateMessageRequest is the request body for POST /v7/messages/{message_id}/update.
-type updateMessageRequest struct {
-	Type    string         `json:"type"`
-	Content messageContent `json:"content"`
+// wpsUpdateMessageRequest is the request body for POST /v7/messages/{message_id}/update.
+type wpsUpdateMessageRequest struct {
+	Type    string            `json:"type"`
+	Content wpsMessageContent `json:"content"`
 }
 
 // --- Token API ---
 
-type tokenResponse struct {
+type wpsTokenResponse struct {
 	AccessToken string `json:"access_token"`
 	ExpiresIn   int64  `json:"expires_in"`
 }
 
 // --- Reaction API ---
 
-type reactionRequest struct {
+type wpsReactionRequest struct {
 	ReactionType string `json:"reaction_type"`
 }
 
@@ -231,7 +234,7 @@ func New(opts map[string]any) (core.Platform, error) {
 		return nil, fmt.Errorf("wps-xiezuo: app_id and app_secret are required")
 	}
 
-	baseURL := tokenEndpoint
+	baseURL := defaultBaseURL
 	if v, ok := opts["base_url"].(string); ok && v != "" {
 		baseURL = strings.TrimRight(v, "/")
 	}
@@ -248,6 +251,7 @@ func New(opts map[string]any) (core.Platform, error) {
 		cleanReply: cleanReply,
 		allowFrom:  allowFrom,
 		httpClient: &http.Client{Timeout: httpTimeout},
+		previewHandles: make(map[string]*wpsPreviewHandle),
 	}, nil
 }
 
@@ -914,14 +918,14 @@ func (p *Platform) sendWPSMessage(ctx context.Context, rctx any, content string)
 		return fmt.Errorf("wps-xiezuo: get token: %w", err)
 	}
 
-	reqBody := sendMessageRequest{
+	reqBody := wpsSendMessageRequest{
 		Type: "text",
-		Receiver: receiverInfo{
+		Receiver: wpsReceiverInfo{
 			Type:       "chat",
 			ReceiverID: rc.ChatID,
 		},
-		Content: messageContent{
-			Text: textContent{
+		Content: wpsMessageContent{
+			Text: wpsTextContent{
 				Content: content,
 				Type:    "markdown",
 			},
@@ -1004,7 +1008,7 @@ func (p *Platform) getToken(ctx context.Context) (string, error) {
 			continue
 		}
 
-		var tokenResp tokenResponse
+		var tokenResp wpsTokenResponse
 		if err := json.Unmarshal(respBody, &tokenResp); err != nil {
 			lastErr = err
 			continue
@@ -1037,7 +1041,7 @@ func (p *Platform) addReaction(ctx context.Context, rctx replyContext, reactionT
 		return fmt.Errorf("wps-xiezuo: get token: %w", err)
 	}
 
-	body, err := json.Marshal(reactionRequest{ReactionType: reactionType})
+	body, err := json.Marshal(wpsReactionRequest{ReactionType: reactionType})
 	if err != nil {
 		slog.Error("wps-xiezuo: marshal reaction request", "error", err)
 		return fmt.Errorf("wps-xiezuo: marshal reaction request: %w", err)
@@ -1073,7 +1077,7 @@ func (p *Platform) deleteReaction(ctx context.Context, rctx replyContext, reacti
 		return fmt.Errorf("wps-xiezuo: get token: %w", err)
 	}
 
-	body, err := json.Marshal(reactionRequest{ReactionType: reactionType})
+	body, err := json.Marshal(wpsReactionRequest{ReactionType: reactionType})
 	if err != nil {
 		slog.Error("wps-xiezuo: marshal reaction request", "error", err)
 		return fmt.Errorf("wps-xiezuo: marshal reaction request: %w", err)
@@ -1164,6 +1168,11 @@ func (p *Platform) AddDoneReaction(rctx any) {
 	}
 }
 
+// cleanReplyPrefixes lists emoji prefixes whose lines are stripped from
+// Reply output when clean_reply is enabled. These correspond to the
+// thinking/tool/summary indicators the engine emits during streaming.
+var cleanReplyPrefixes = []string{"💭", "🔧", "🧾"}
+
 // --- Clean reply content ---
 
 func cleanReplyContent(content string) string {
@@ -1171,7 +1180,14 @@ func cleanReplyContent(content string) string {
 	var filtered []string
 	for _, line := range lines {
 		trimmed := strings.TrimLeft(line, " \t")
-		if strings.HasPrefix(trimmed, "💭") || strings.HasPrefix(trimmed, "🔧") || strings.HasPrefix(trimmed, "🧾") {
+		skip := false
+		for _, prefix := range cleanReplyPrefixes {
+			if strings.HasPrefix(trimmed, prefix) {
+				skip = true
+				break
+			}
+		}
+		if skip {
 			continue
 		}
 		filtered = append(filtered, line)
@@ -1179,7 +1195,7 @@ func cleanReplyContent(content string) string {
 	result := strings.Join(filtered, "\n")
 	result = strings.TrimSpace(result)
 	if result == "" {
-		return content // Return original if everything was filtered
+		return content
 	}
 	return result
 }
@@ -1308,7 +1324,7 @@ func buildWPSCard(agentName string, status core.CardStatus, markdown string) []b
 // a WPS i18n_items card JSON.
 func resolveWPSContent(agentName string, handle *wpsPreviewHandle, content string) []byte {
 	handle.mu.Lock()
-	status := handle.Status
+	status := handle.status
 	handle.mu.Unlock()
 	return buildWPSCard(agentName, status, content)
 }
@@ -1357,14 +1373,26 @@ func (p *Platform) SendPreviewStart(ctx context.Context, rctx any, content strin
 		return nil, fmt.Errorf("wps-xiezuo: invalid reply context type %T", rctx)
 	}
 
+	// Defense: if a preview card already exists for this chat, return it
+	p.previewMu.Lock()
+	if p.previewHandles == nil {
+		p.previewHandles = make(map[string]*wpsPreviewHandle)
+	}
+	if h, exists := p.previewHandles[rc.ChatID]; exists {
+		p.previewMu.Unlock()
+		slog.Debug("wps-xiezuo: returning existing preview handle for chat", "chat_id", rc.ChatID, "msg_id", h.messageID)
+		return h, nil
+	}
+	p.previewMu.Unlock()
+
 	cardData := buildWPSCard("", core.CardStatusThinking, "")
-	reqBody := sendMessageRequest{
+	reqBody := wpsSendMessageRequest{
 		Type: "card",
-		Receiver: receiverInfo{
+		Receiver: wpsReceiverInfo{
 			Type:       "chat",
 			ReceiverID: rc.ChatID,
 		},
-		Content: messageContent{
+		Content: wpsMessageContent{
 			Card: json.RawMessage(cardData),
 		},
 	}
@@ -1405,8 +1433,8 @@ func (p *Platform) SendPreviewStart(ctx context.Context, rctx any, content strin
 	if err := json.Unmarshal(respBody, &apiResp); err != nil {
 		return nil, fmt.Errorf("wps-xiezuo: send preview: parse response: %w", err)
 	}
-	if apiResp.Code != 0 {
-		return nil, fmt.Errorf("wps-xiezuo: send preview failed: code=%d msg=%s", apiResp.Code, core.RedactToken(apiResp.Msg, token))
+	if apiResp.Code.String() != "0" {
+		return nil, fmt.Errorf("wps-xiezuo: send preview failed: code=%s msg=%s", apiResp.Code, core.RedactToken(apiResp.Msg, token))
 	}
 
 	var createData wpsMessageCreateData
@@ -1418,10 +1446,14 @@ func (p *Platform) SendPreviewStart(ctx context.Context, rctx any, content strin
 	}
 
 	handle := &wpsPreviewHandle{
-		MessageID: createData.MessageID,
-		Status:    core.CardStatusThinking,
-		ChatID:    rc.ChatID,
+		messageID: createData.MessageID,
+		status:    core.CardStatusThinking,
+		chatID:    rc.ChatID,
 	}
+
+	p.previewMu.Lock()
+	p.previewHandles[rc.ChatID] = handle
+	p.previewMu.Unlock()
 
 	slog.Info("wps-xiezuo: preview message created", "msg_id", createData.MessageID, "chat_id", rc.ChatID)
 	return handle, nil
@@ -1438,14 +1470,21 @@ func (p *Platform) UpdateMessage(ctx context.Context, rctx any, content string) 
 	if !ok {
 		return fmt.Errorf("wps-xiezuo: invalid preview handle type %T", rctx)
 	}
-	if h.MessageID == "" {
+	if h.messageID == "" {
 		return fmt.Errorf("wps-xiezuo: update message: empty message_id in preview handle")
 	}
 
+	h.mu.Lock()
+	if content == h.lastContent {
+		h.mu.Unlock()
+		return nil
+	}
+	h.mu.Unlock()
+
 	cardData := resolveWPSContent(p.Name(), h, content)
-	reqBody := updateMessageRequest{
+	reqBody := wpsUpdateMessageRequest{
 		Type: "card",
-		Content: messageContent{
+		Content: wpsMessageContent{
 			Card: json.RawMessage(cardData),
 		},
 	}
@@ -1460,7 +1499,7 @@ func (p *Platform) UpdateMessage(ctx context.Context, rctx any, content string) 
 		return fmt.Errorf("wps-xiezuo: get token: %w", err)
 	}
 
-	uri := "/v7/messages/" + url.PathEscape(h.MessageID) + "/update"
+	uri := "/v7/messages/" + url.PathEscape(h.messageID) + "/update"
 	date, authHeader := p.kso1Sign("POST", uri, "application/json", body)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, p.baseURL+uri, bytes.NewReader(body))
@@ -1494,7 +1533,7 @@ func (p *Platform) UpdateMessage(ctx context.Context, rctx any, content string) 
 
 	case resp.StatusCode == http.StatusNotFound:
 		slog.Warn("wps-xiezuo: message not found, card may have been deleted",
-			"msg_id", h.MessageID)
+			"msg_id", h.messageID)
 		return fmt.Errorf("wps-xiezuo: update message failed: status=404 (message deleted)")
 
 	case resp.StatusCode != http.StatusOK:
@@ -1505,11 +1544,14 @@ func (p *Platform) UpdateMessage(ctx context.Context, rctx any, content string) 
 	if err := json.Unmarshal(respBody, &apiResp); err != nil {
 		return fmt.Errorf("wps-xiezuo: update message: parse response: %w", err)
 	}
-	if apiResp.Code != 0 {
-		return fmt.Errorf("wps-xiezuo: update message failed: code=%d msg=%s", apiResp.Code, core.RedactToken(apiResp.Msg, token))
+	if apiResp.Code.String() != "0" {
+		return fmt.Errorf("wps-xiezuo: update message failed: code=%s msg=%s", apiResp.Code, core.RedactToken(apiResp.Msg, token))
 	}
 
-	slog.Debug("wps-xiezuo: message updated", "msg_id", h.MessageID)
+	slog.Debug("wps-xiezuo: message updated", "msg_id", h.messageID)
+	h.mu.Lock()
+	h.lastContent = content
+	h.mu.Unlock()
 	return nil
 }
 
@@ -1521,7 +1563,7 @@ func (p *Platform) SetPreviewStatus(handle any, status core.CardStatus) {
 		return
 	}
 	h.mu.Lock()
-	h.Status = status
+	h.status = status
 	h.mu.Unlock()
 }
 
@@ -1533,7 +1575,16 @@ func (p *Platform) KeepPreviewOnFinish() bool {
 
 // --- Optional interface: PreviewCleaner ---
 
-func (p *Platform) DeletePreviewMessage(_ context.Context, _ any) error {
+func (p *Platform) DeletePreviewMessage(_ context.Context, handle any) error {
+	p.previewMu.Lock()
+	if p.previewHandles == nil {
+		p.previewHandles = make(map[string]*wpsPreviewHandle)
+	}
+	if h, ok := handle.(*wpsPreviewHandle); ok && h.chatID != "" {
+		delete(p.previewHandles, h.chatID)
+	}
+	p.previewMu.Unlock()
+	slog.Debug("wps-xiezuo: message deletion not supported by WPS API, card will persist")
 	return nil
 }
 
