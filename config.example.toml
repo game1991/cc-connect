@@ -1105,6 +1105,7 @@ app_secret = "your-feishu-app-secret"
 # allow_from = "*"             # Allowed WPS user IDs / 允许的 WPS 用户 ID
 # clean_reply = false          # Strip thinking/tool progress lines from replies / 过滤思考和工具进度行
 # base_url = "https://openapi.wps.cn"  # Optional API base URL override / 可选 API 基础地址覆盖
+# progress_style = "compact"   # "compact" shows inline tool progress; omit for default / compact 显示行内工具进度；省略则为默认
 
 # Telegram (uncomment to enable / 取消注释以启用)
 # 1. Message @BotFather on Telegram, send /newbot to create a bot
