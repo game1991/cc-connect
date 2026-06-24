@@ -14694,7 +14694,7 @@ func (e *Engine) cmdSkills(p Platform, msg *Message) {
 		sb.WriteString(e.i18n.Tf(MsgSkillsTitle, e.agent.Name(), len(skills)))
 
 		for _, s := range skills {
-			sb.WriteString(fmt.Sprintf("  /%s — %s\n", displayCommandForPlatform(p, s.Name), s.Description))
+			fmt.Fprintf(&sb, "  /%s — %s\n", displayCommandForPlatform(p, s.Name), s.Description)
 		}
 
 		sb.WriteString("\n" + e.i18n.T(MsgSkillsHint))
