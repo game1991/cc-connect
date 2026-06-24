@@ -682,6 +682,22 @@ type CommandRegistrar interface {
 	RegisterCommands(commands []BotCommandInfo) error
 }
 
+// BotCommandLimiter is an optional interface for platforms that impose
+// a hard limit on the number of bot menu commands (e.g. Telegram's 100-command cap).
+// If a platform implements this, the engine will truncate the command list
+// before calling RegisterCommands, dropping skill commands first.
+type BotCommandLimiter interface {
+	BotCommandLimit() int
+}
+
+// CommandNameSanitizer is an optional interface for platforms that require
+// command names in a specific format for the bot menu (e.g. Telegram's
+// lowercase alphanumeric + underscore). Implementations return the sanitized
+// name or "" to skip the entry.
+type CommandNameSanitizer interface {
+	SanitizeCommandName(raw string) string
+}
+
 // ChannelNameResolver is an optional interface for platforms that can resolve
 // channel IDs to human-readable names.
 type ChannelNameResolver interface {

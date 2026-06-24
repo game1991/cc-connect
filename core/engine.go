@@ -27,7 +27,6 @@ import (
 )
 
 const maxPlatformMessageLen = 4000
-const telegramBotCommandLimit = 100
 const defaultMaxQueuedMessages = 5 // default cap for queued messages per session
 
 // defaultPendingRestartTimeout is how long the post-restart notify
@@ -444,7 +443,7 @@ type Engine struct {
 	observeCancel     context.CancelFunc
 
 	// Interactive agent session management
-	interactiveMu     sync.Mutex
+	interactiveMu     sync.RWMutex
 	interactiveStates map[string]*interactiveState // key = sessionKey
 
 	platformLifecycleMu sync.Mutex
@@ -892,13 +891,12 @@ func estimateTokens(entries []HistoryEntry) int {
 // estimateTokensWithPendingAssistant is like estimateTokens but includes an assistant
 // message not yet written to history (used at EventResult before AddHistory).
 func estimateTokensWithPendingAssistant(entries []HistoryEntry, pendingAssistant string) int {
-	// Heuristic: ~1 token per 4 characters in mixed English/Chinese.
 	count := 0
 	for _, h := range entries {
-		count += len([]rune(h.Content))
+		count += utf8.RuneCountInString(h.Content)
 	}
 	if pendingAssistant != "" {
-		count += len([]rune(pendingAssistant))
+		count += utf8.RuneCountInString(pendingAssistant)
 	}
 	if count == 0 {
 		return 0
@@ -1390,8 +1388,8 @@ func (e *Engine) AgentTypeName() string {
 
 // ActiveSessionKeys returns the session keys of all active interactive sessions.
 func (e *Engine) ActiveSessionKeys() []string {
-	e.interactiveMu.Lock()
-	defer e.interactiveMu.Unlock()
+	e.interactiveMu.RLock()
+	defer e.interactiveMu.RUnlock()
 	var keys []string
 	for key, state := range e.interactiveStates {
 		if state.platform != nil {
@@ -2409,9 +2407,10 @@ func (e *Engine) markPlatformUnavailable(p Platform) bool {
 
 func (e *Engine) initPlatformCapabilities(p Platform) {
 	if registrar, ok := p.(CommandRegistrar); ok {
-		commands, skillsOmitted := e.menuCommandsForPlatform(p.Name())
-		if skillsOmitted && strings.EqualFold(p.Name(), "telegram") {
-			slog.Info("telegram: omitting skill commands from menu due to command limit", "project", e.name)
+		commands, skillsOmitted := e.menuCommandsForPlatform(p)
+		if skillsOmitted {
+			slog.Info("skill commands omitted from menu due to command limit",
+				"project", e.name, "platform", p.Name())
 		}
 		if err := registrar.RegisterCommands(commands); err != nil {
 			slog.Error("platform command registration failed", "project", e.name, "platform", p.Name(), "error", err)
@@ -2500,8 +2499,8 @@ func (e *Engine) handleMessageRecall(p Platform, msg *Message) {
 }
 
 func (e *Engine) findCurrentMessageSession(messageID string) (string, bool) {
-	e.interactiveMu.Lock()
-	defer e.interactiveMu.Unlock()
+	e.interactiveMu.RLock()
+	defer e.interactiveMu.RUnlock()
 
 	for sessionKey, state := range e.interactiveStates {
 		if state == nil {
@@ -4322,6 +4321,9 @@ func (e *Engine) cleanupInteractiveState(sessionKey string, expected ...*interac
 		return
 	}
 	delete(e.interactiveStates, sessionKey)
+	e.sendWorkDirMu.Lock()
+	delete(e.sendWorkDirs, sessionKey)
+	e.sendWorkDirMu.Unlock()
 	e.interactiveMu.Unlock()
 }
 
@@ -9409,15 +9411,16 @@ func (e *Engine) GetAllCommands() []BotCommandInfo {
 	return commands
 }
 
-func (e *Engine) menuCommandsForPlatform(platformName string) ([]BotCommandInfo, bool) {
+func (e *Engine) menuCommandsForPlatform(p Platform) ([]BotCommandInfo, bool) {
 	commands := e.GetAllCommands()
-	if !strings.EqualFold(platformName, "telegram") {
+
+	limiter, hasLimit := p.(BotCommandLimiter)
+	sanitizer, hasSanitizer := p.(CommandNameSanitizer)
+	if !hasLimit || !hasSanitizer {
 		return commands, false
 	}
-	return telegramMenuCommandsAllOrNone(commands)
-}
+	limit := limiter.BotCommandLimit()
 
-func telegramMenuCommandsAllOrNone(commands []BotCommandInfo) ([]BotCommandInfo, bool) {
 	var nonSkill []BotCommandInfo
 	var skill []BotCommandInfo
 	for _, command := range commands {
@@ -9428,49 +9431,22 @@ func telegramMenuCommandsAllOrNone(commands []BotCommandInfo) ([]BotCommandInfo,
 		nonSkill = append(nonSkill, command)
 	}
 
-	if len(telegramMenuEntryNames(append(append([]BotCommandInfo{}, nonSkill...), skill...))) <= telegramBotCommandLimit {
-		return commands, false
-	}
-	return nonSkill, len(skill) > 0
-}
-
-func telegramMenuEntryNames(commands []BotCommandInfo) []string {
-	var names []string
+	all := append(append([]BotCommandInfo{}, nonSkill...), skill...)
+	var uniqueCount int
 	seen := make(map[string]bool)
-	for _, command := range commands {
-		name := sanitizeTelegramMenuCommand(command.Command)
+	for _, command := range all {
+		name := sanitizer.SanitizeCommandName(command.Command)
 		if name == "" || seen[name] {
 			continue
 		}
 		seen[name] = true
-		names = append(names, name)
+		uniqueCount++
 	}
-	return names
-}
 
-func sanitizeTelegramMenuCommand(cmd string) string {
-	cmd = strings.ToLower(cmd)
-	var b strings.Builder
-	for _, c := range cmd {
-		switch {
-		case c >= 'a' && c <= 'z', c >= '0' && c <= '9':
-			b.WriteRune(c)
-		default:
-			b.WriteByte('_')
-		}
+	if uniqueCount <= limit {
+		return commands, false
 	}
-	result := b.String()
-	for strings.Contains(result, "__") {
-		result = strings.ReplaceAll(result, "__", "_")
-	}
-	result = strings.Trim(result, "_")
-	if len(result) == 0 || result[0] < 'a' || result[0] > 'z' {
-		return ""
-	}
-	if len(result) > 32 {
-		result = result[:32]
-	}
-	return result
+	return nonSkill, len(skill) > 0
 }
 
 func (e *Engine) cmdModel(p Platform, msg *Message, args []string) {
@@ -11197,11 +11173,12 @@ func normalizeSendWorkDir(workDir, base string) (string, error) {
 		}
 		dir = filepath.Join(base, dir)
 	}
-	abs, err := filepath.Abs(filepath.Clean(dir))
+	abs := filepath.Clean(dir)
+	resolved, err := filepath.EvalSymlinks(abs)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("resolve symlinks in work_dir: %w", err)
 	}
-	return abs, nil
+	return filepath.ToSlash(resolved), nil
 }
 
 // SendTTSToSession synthesizes and sends a voice message to an active session.
@@ -14717,11 +14694,11 @@ func (e *Engine) cmdSkills(p Platform, msg *Message) {
 		sb.WriteString(e.i18n.Tf(MsgSkillsTitle, e.agent.Name(), len(skills)))
 
 		for _, s := range skills {
-			sb.WriteString(fmt.Sprintf("  /%s — %s\n", displayCommandForPlatform(p.Name(), s.Name), s.Description))
+			sb.WriteString(fmt.Sprintf("  /%s — %s\n", displayCommandForPlatform(p, s.Name), s.Description))
 		}
 
 		sb.WriteString("\n" + e.i18n.T(MsgSkillsHint))
-		if _, skillsOmitted := e.menuCommandsForPlatform(p.Name()); skillsOmitted && strings.EqualFold(p.Name(), "telegram") {
+		if _, skillsOmitted := e.menuCommandsForPlatform(p); skillsOmitted {
 			sb.WriteString("\n" + e.i18n.T(MsgSkillsTelegramMenuHint))
 		}
 		e.reply(p, msg.ReplyCtx, sb.String())
@@ -14731,39 +14708,13 @@ func (e *Engine) cmdSkills(p Platform, msg *Message) {
 	e.replyWithCard(p, msg.ReplyCtx, e.renderSkillsCard())
 }
 
-func displayCommandForPlatform(platformName, command string) string {
-	if !strings.EqualFold(platformName, "telegram") {
-		return command
-	}
-	if sanitized := sanitizeTelegramDisplayCommand(command); sanitized != "" {
-		return sanitized
-	}
-	return command
-}
-
-func sanitizeTelegramDisplayCommand(cmd string) string {
-	cmd = strings.ToLower(cmd)
-	var b strings.Builder
-	for _, c := range cmd {
-		switch {
-		case c >= 'a' && c <= 'z', c >= '0' && c <= '9':
-			b.WriteRune(c)
-		default:
-			b.WriteByte('_')
+func displayCommandForPlatform(p Platform, command string) string {
+	if sanitizer, ok := p.(CommandNameSanitizer); ok {
+		if sanitized := sanitizer.SanitizeCommandName(command); sanitized != "" {
+			return sanitized
 		}
 	}
-	result := b.String()
-	for strings.Contains(result, "__") {
-		result = strings.ReplaceAll(result, "__", "_")
-	}
-	result = strings.Trim(result, "_")
-	if len(result) == 0 || result[0] < 'a' || result[0] > 'z' {
-		return ""
-	}
-	if len(result) > 32 {
-		result = result[:32]
-	}
-	return result
+	return command
 }
 
 // ── /config command ──────────────────────────────────────────

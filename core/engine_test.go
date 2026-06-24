@@ -86,6 +86,39 @@ func (p *stubPlatformEngine) clearSent() {
 	p.mu.Unlock()
 }
 
+// stubTelegramPlatform implements BotCommandLimiter and CommandNameSanitizer
+// for tests that need Telegram-like command menu behavior.
+type stubTelegramPlatform struct {
+	stubPlatformEngine
+}
+
+func (p *stubTelegramPlatform) BotCommandLimit() int { return 100 }
+
+func (p *stubTelegramPlatform) SanitizeCommandName(raw string) string {
+	cmd := strings.ToLower(raw)
+	var b strings.Builder
+	for _, c := range cmd {
+		switch {
+		case c >= 'a' && c <= 'z', c >= '0' && c <= '9':
+			b.WriteRune(c)
+		default:
+			b.WriteByte('_')
+		}
+	}
+	result := b.String()
+	for strings.Contains(result, "__") {
+		result = strings.ReplaceAll(result, "__", "_")
+	}
+	result = strings.Trim(result, "_")
+	if len(result) == 0 || result[0] < 'a' || result[0] > 'z' {
+		return ""
+	}
+	if len(result) > 32 {
+		result = result[:32]
+	}
+	return result
+}
+
 type recallCheckingPlatform struct {
 	stubPlatformEngine
 	recalled bool
@@ -6061,7 +6094,7 @@ func TestCmdSkills_UsesLegacyTextOnPlatformWithoutCardSupport(t *testing.T) {
 }
 
 func TestCmdSkills_UsesTelegramSafeNamesOnTelegramPlatform(t *testing.T) {
-	p := &stubPlatformEngine{n: "telegram"}
+	p := &stubTelegramPlatform{stubPlatformEngine{n: "telegram"}}
 	e := NewEngine("test", &stubAgent{}, []Platform{p}, "", LangEnglish)
 	temp := t.TempDir()
 	skillDir := temp + "/telegram-codex-bot"
@@ -6101,7 +6134,7 @@ func TestMenuCommandsForPlatform_TelegramOmitsAllSkillsWhenMenuWouldOverflow(t *
 	}
 	e.skills.SetDirs([]string{temp})
 
-	commands, skillsOmitted := e.menuCommandsForPlatform("telegram")
+	commands, skillsOmitted := e.menuCommandsForPlatform(&stubTelegramPlatform{stubPlatformEngine{n: "telegram"}})
 
 	if !skillsOmitted {
 		t.Fatalf("expected Telegram menu planner to omit skill commands when command menu overflows")
@@ -6114,7 +6147,7 @@ func TestMenuCommandsForPlatform_TelegramOmitsAllSkillsWhenMenuWouldOverflow(t *
 }
 
 func TestCmdSkills_TelegramShowsManualInvocationHintWhenSkillsAreOmittedFromMenu(t *testing.T) {
-	p := &stubPlatformEngine{n: "telegram"}
+	p := &stubTelegramPlatform{stubPlatformEngine{n: "telegram"}}
 	e := NewEngine("test", &stubAgent{}, []Platform{p}, "", LangEnglish)
 	temp := t.TempDir()
 	for i := 0; i < 80; i++ {

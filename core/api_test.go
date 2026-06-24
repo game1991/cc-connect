@@ -273,7 +273,8 @@ func TestHandleSend_WorkDirStartsSideSession(t *testing.T) {
 		ReplyCtx:   "reply-ctx",
 	})
 	sent = waitForPlatformSend(&platform.stubPlatformEngine, 1, 3*time.Second)
-	if len(sent) == 0 || !strings.Contains(strings.Join(sent, "\n"), "agent result from "+targetDir) {
+	normalizedTarget, _ := normalizeSendWorkDir(targetDir, "")
+	if len(sent) == 0 || !strings.Contains(strings.Join(sent, "\n"), "agent result from "+normalizedTarget) {
 		t.Fatalf("platform sent after reply = %#v, want agent result from target work dir", sent)
 	}
 	if workspaceSession == nil || len(workspaceSession.sentPrompts) != 1 || !strings.Contains(workspaceSession.sentPrompts[0], "human answer") {
@@ -343,7 +344,8 @@ func TestHandleSend_WorkDirFollowsDirectParticipantOnInboundSession(t *testing.T
 		ReplyCtx:   "reply-ctx",
 	})
 	sent := waitForPlatformSend(&platform.stubPlatformEngine, 1, 3*time.Second)
-	if len(sent) == 0 || !strings.Contains(strings.Join(sent, "\n"), "agent result from "+targetDir) {
+	normalizedTarget, _ := normalizeSendWorkDir(targetDir, "")
+	if len(sent) == 0 || !strings.Contains(strings.Join(sent, "\n"), "agent result from "+normalizedTarget) {
 		t.Fatalf("platform sent after reply = %#v, want agent result from target work dir", sent)
 	}
 	if workspaceSession == nil || len(workspaceSession.sentPrompts) != 1 || !strings.Contains(workspaceSession.sentPrompts[0], "human answer") {

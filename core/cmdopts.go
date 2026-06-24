@@ -28,7 +28,7 @@ func ParseCmdOpts(opts map[string]any, defaultBin string) (cmd string, extraArgs
 		slog.Warn("DEPRECATED: 'cli_path' is deprecated, use 'cmd' instead",
 			"deprecated_key", "cli_path",
 			"new_key", "cmd",
-			"value", v)
+			"value", truncateForLog(v, 16))
 		parts := strings.Fields(v)
 		return parts[0], parts[1:]
 	}
@@ -37,7 +37,7 @@ func ParseCmdOpts(opts map[string]any, defaultBin string) (cmd string, extraArgs
 		slog.Warn("DEPRECATED: 'command' is deprecated, use 'cmd' instead",
 			"deprecated_key", "command",
 			"new_key", "cmd",
-			"value", v)
+			"value", truncateForLog(v, 16))
 		parts := strings.Fields(v)
 		return parts[0], parts[1:]
 	}
@@ -77,4 +77,17 @@ func ParseConfigEnv(opts map[string]any) []string {
 	default:
 		return nil
 	}
+}
+
+// truncateForLog returns a short preview of s for safe inclusion in log output.
+// Shows at most maxRunes runes, appending "…" when truncated.
+func truncateForLog(s string, maxRunes int) string {
+	if maxRunes <= 0 {
+		return s
+	}
+	runes := []rune(s)
+	if len(runes) <= maxRunes {
+		return s
+	}
+	return string(runes[:maxRunes]) + "…"
 }

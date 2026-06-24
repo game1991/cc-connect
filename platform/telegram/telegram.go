@@ -1786,6 +1786,15 @@ func enrichTextLinks(text string, entities []models.MessageEntity) string {
 	return string(utf16.Decode(utf16Encoded))
 }
 
+// BotCommandLimit returns Telegram's hard cap on registered bot menu commands.
+func (p *Platform) BotCommandLimit() int { return 100 }
+
+// SanitizeCommandName implements core.CommandNameSanitizer using Telegram's
+// command name rules (lowercase alphanumeric + underscore, 1-32 chars, starts with letter).
+func (p *Platform) SanitizeCommandName(raw string) string {
+	return sanitizeTelegramCommand(raw)
+}
+
 // sanitizeTelegramCommand converts a command name to Telegram-compatible format.
 // Telegram rules: 1-32 chars, lowercase letters/digits/underscores, must start with a letter.
 // Returns "" if the command cannot be sanitized (e.g. empty or no letter to start with).

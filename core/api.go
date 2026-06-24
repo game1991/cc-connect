@@ -284,6 +284,11 @@ func (s *APIServer) handleSend(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *APIServer) handleSessions(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "GET only", http.StatusMethodNotAllowed)
+		return
+	}
+
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -295,7 +300,7 @@ func (s *APIServer) handleSessions(w http.ResponseWriter, r *http.Request) {
 
 	var result []sessionInfo
 	for name, e := range s.engines {
-		e.interactiveMu.Lock()
+		e.interactiveMu.RLock()
 		for key, state := range e.interactiveStates {
 			if state.platform != nil {
 				result = append(result, sessionInfo{
@@ -305,7 +310,7 @@ func (s *APIServer) handleSessions(w http.ResponseWriter, r *http.Request) {
 				})
 			}
 		}
-		e.interactiveMu.Unlock()
+		e.interactiveMu.RUnlock()
 	}
 
 	apiJSON(w, http.StatusOK, result)
