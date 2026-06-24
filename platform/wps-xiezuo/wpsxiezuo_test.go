@@ -598,7 +598,7 @@ func TestKso1Sign_OfficialVector(t *testing.T) {
 	}
 	// Verify hex content
 	for _, c := range sig {
-		if !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f')) {
+		if c < '0' || (c > '9' && c < 'a') || c > 'f' {
 			t.Fatalf("signature contains non-hex char: %c", c)
 		}
 	}
@@ -1196,7 +1196,7 @@ func TestSendWPSMessage_CleanReply(t *testing.T) {
 	}
 
 	var req wpsSendMessageRequest
-	json.Unmarshal(gotBody, &req)
+	_ = json.Unmarshal(gotBody, &req)
 	if req.Content.Text.Content != "ok" {
 		t.Fatalf("expected cleaned content 'ok', got %q", req.Content.Text.Content)
 	}
@@ -1250,7 +1250,7 @@ func TestGetToken_PrimaryEndpoint(t *testing.T) {
 	var hitPath string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		hitPath = r.URL.Path
-		json.NewEncoder(w).Encode(wpsTokenResponse{AccessToken: "primary-tok", ExpiresIn: 3600})
+		_ = json.NewEncoder(w).Encode(wpsTokenResponse{AccessToken: "primary-tok", ExpiresIn: 3600})
 	}))
 	defer srv.Close()
 
@@ -1281,7 +1281,7 @@ func TestGetToken_FallbackEndpoint(t *testing.T) {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
-		json.NewEncoder(w).Encode(wpsTokenResponse{AccessToken: "fallback-tok", ExpiresIn: 7200})
+		_ = json.NewEncoder(w).Encode(wpsTokenResponse{AccessToken: "fallback-tok", ExpiresIn: 7200})
 	}))
 	defer srv.Close()
 
@@ -1308,7 +1308,7 @@ func TestGetToken_Cached(t *testing.T) {
 	var calls atomic.Int32
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls.Add(1)
-		json.NewEncoder(w).Encode(wpsTokenResponse{AccessToken: "cached-tok", ExpiresIn: 7200})
+		_ = json.NewEncoder(w).Encode(wpsTokenResponse{AccessToken: "cached-tok", ExpiresIn: 7200})
 	}))
 	defer srv.Close()
 
@@ -1401,7 +1401,7 @@ func TestAddReaction(t *testing.T) {
 	}
 
 	var req wpsReactionRequest
-	json.Unmarshal(gotBody, &req)
+	_ = json.Unmarshal(gotBody, &req)
 	if req.ReactionType != "emoji_busy" {
 		t.Fatalf("expected emoji_busy, got %s", req.ReactionType)
 	}
@@ -1661,7 +1661,7 @@ func TestBuildWPSCard_Thinking(t *testing.T) {
 func TestBuildWPSCard_SubtitleIsAgentName(t *testing.T) {
 	raw := buildWPSCard("my-agent", core.CardStatusDone, "done text")
 	var card map[string]any
-	json.Unmarshal(raw, &card)
+	_ = json.Unmarshal(raw, &card)
 
 	content, _ := card["content"].(map[string]any)
 	inner, _ := content["card"].(map[string]any)
@@ -1953,7 +1953,7 @@ func TestWebSocketIntegration_ReceiveEvent(t *testing.T) {
 		if err != nil {
 			return
 		}
-		defer conn.Close()
+		defer func() { _ = conn.Close() }()
 
 		// Build encrypted event
 		payload := map[string]any{
@@ -1964,10 +1964,10 @@ func TestWebSocketIntegration_ReceiveEvent(t *testing.T) {
 		}
 		event := encryptEventForTest(appID, appSecret, "kso.app_chat.message", "create", payload)
 		frameData, _ := json.Marshal(event)
-		conn.WriteMessage(websocket.TextMessage, frameData)
+		_ = conn.WriteMessage(websocket.TextMessage, frameData)
 
 		// Wait for ACK
-		conn.SetReadDeadline(time.Now().Add(2 * time.Second))
+		_ = conn.SetReadDeadline(time.Now().Add(2 * time.Second))
 		_, _, _ = conn.ReadMessage()
 	}))
 	defer wsSrv.Close()
@@ -2019,12 +2019,12 @@ func TestUpdateMessage_Success(t *testing.T) {
 		switch r.URL.Path {
 		case "/oauth2/token":
 			w.Header().Set("Content-Type", "application/json")
-			fmt.Fprintf(w, `{"access_token":"test-token","expires_in":7200}`)
+			_, _ = fmt.Fprintf(w, `{"access_token":"test-token","expires_in":7200}`)
 		case "/v7/messages/msg-1/update":
 			updateReq = r
 			updateBody, _ = io.ReadAll(r.Body)
 			w.Header().Set("Content-Type", "application/json")
-			fmt.Fprintf(w, `{"code":0,"msg":"ok"}`)
+			_, _ = fmt.Fprintf(w, `{"code":0,"msg":"ok"}`)
 		default:
 			w.WriteHeader(http.StatusNotFound)
 		}
@@ -2077,11 +2077,11 @@ func TestUpdateMessage_DegradedOn401(t *testing.T) {
 		switch r.URL.Path {
 		case "/oauth2/token":
 			w.Header().Set("Content-Type", "application/json")
-			fmt.Fprintf(w, `{"access_token":"test-token","expires_in":7200}`)
+			_, _ = fmt.Fprintf(w, `{"access_token":"test-token","expires_in":7200}`)
 		case "/v7/messages/msg-1/update":
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusUnauthorized)
-			fmt.Fprintf(w, `{"code":401,"msg":"unauthorized"}`)
+			_, _ = fmt.Fprintf(w, `{"code":401,"msg":"unauthorized"}`)
 		default:
 			w.WriteHeader(http.StatusNotFound)
 		}
@@ -2412,7 +2412,7 @@ func TestBuildWPSCard_ExceedsCharLimit(t *testing.T) {
 func TestBuildWPSCard_NilContent(t *testing.T) {
 	raw := buildWPSCard("agent", core.CardStatusThinking, "")
 	var card map[string]any
-	json.Unmarshal(raw, &card)
+	_ = json.Unmarshal(raw, &card)
 
 	content, _ := card["content"].(map[string]any)
 	inner, _ := content["card"].(map[string]any)
@@ -2499,7 +2499,7 @@ func TestBuildWPSCard_StatusLabels(t *testing.T) {
 		t.Run(tc.label, func(t *testing.T) {
 			raw := buildWPSCard("agent", tc.status, "")
 			var card map[string]any
-			json.Unmarshal(raw, &card)
+			_ = json.Unmarshal(raw, &card)
 
 			content, _ := card["content"].(map[string]any)
 			inner, _ := content["card"].(map[string]any)
@@ -2717,11 +2717,11 @@ func TestUpdateMessage_ApiErrorCodeAsString(t *testing.T) {
 		switch r.URL.Path {
 		case "/oauth2/token":
 			w.Header().Set("Content-Type", "application/json")
-			fmt.Fprintf(w, `{"access_token":"test-token","expires_in":7200}`)
+			_, _ = fmt.Fprintf(w, `{"access_token":"test-token","expires_in":7200}`)
 		case "/v7/messages/msg-str/update":
 			w.Header().Set("Content-Type", "application/json")
 			// Code as string instead of int
-			fmt.Fprintf(w, `{"code":"400000002","msg":"invalid parameter"}`)
+			_, _ = fmt.Fprintf(w, `{"code":"400000002","msg":"invalid parameter"}`)
 		default:
 			w.WriteHeader(http.StatusNotFound)
 		}
@@ -2755,7 +2755,7 @@ func TestSendPreviewStart_DuplicateDefense(t *testing.T) {
 		switch r.URL.Path {
 		case "/oauth2/token":
 			w.Header().Set("Content-Type", "application/json")
-			fmt.Fprintf(w, `{"access_token":"tok","expires_in":7200}`)
+			_, _ = fmt.Fprintf(w, `{"access_token":"tok","expires_in":7200}`)
 		case "/v7/messages/create":
 			createCalls.Add(1)
 			w.Header().Set("Content-Type", "application/json")

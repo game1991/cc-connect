@@ -162,7 +162,7 @@ func (p *Platform) Stop() error {
 		}
 		p.mu.Lock()
 		if p.conn != nil {
-			p.conn.Close()
+			_ = p.conn.Close()
 			p.conn = nil
 		}
 		p.mu.Unlock()
@@ -232,7 +232,7 @@ func (p *Platform) runConnection(ctx context.Context) error {
 		p.writeCh = nil
 		p.mu.Unlock()
 		close(writeCh)
-		conn.Close()
+		_ = conn.Close()
 	}()
 
 	slog.Info("wps-xiezuo: connected")
@@ -883,7 +883,7 @@ func (p *Platform) getToken(ctx context.Context) (string, error) {
 		}
 
 		respBody, err := io.ReadAll(io.LimitReader(resp.Body, 64*1024))
-		resp.Body.Close()
+		_ = resp.Body.Close()
 		if err != nil {
 			lastErr = err
 			continue
