@@ -165,10 +165,6 @@ func rewriteLauncherScript(cfg Config) error {
 	return os.Chmod(windowsTaskScriptPath(), 0600)
 }
 
-func windowsTaskAction(scriptPath string) string {
-	return fmt.Sprintf(`powershell.exe %s`, windowsTaskActionArgs(scriptPath))
-}
-
 func windowsTaskActionArgs(scriptPath string) string {
 	return fmt.Sprintf(`-WindowStyle Hidden -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "%s"`, scriptPath)
 }

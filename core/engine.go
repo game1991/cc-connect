@@ -132,7 +132,7 @@ func ConsumeRestartNotify(dataDir string) *RestartRequest {
 	if err != nil {
 		return nil
 	}
-	os.Remove(p)
+	_ = os.Remove(p)
 	var req RestartRequest
 	if json.Unmarshal(data, &req) != nil {
 		return nil
@@ -2327,7 +2327,7 @@ func (e *Engine) Stop() error {
 	for key, state := range states {
 		if state.agentSession != nil {
 			slog.Debug("engine.Stop: closing agent session", "session", key)
-			state.agentSession.Close()
+			_ = state.agentSession.Close()
 		}
 	}
 
@@ -3980,8 +3980,7 @@ func (e *Engine) getOrCreateInteractiveStateWith(sessionKey string, p Platform, 
 		// continues outputting while new agent starts (issue #327).
 		e.closeAgentSessionWithTimeout(sessionKey, state.agentSession)
 		delete(e.interactiveStates, sessionKey)
-		ok = false // prevent reading stale settings below
-	}
+			}
 
 	// Select the agent to use for this session
 	agent := e.agent
@@ -4230,7 +4229,7 @@ func (e *Engine) getOrCreateInteractiveStateWith(sessionKey string, p Platform, 
 					for t := range role.AllowedTools {
 						tools = append(tools, t)
 					}
-					authorizer.AddAllowedTools(tools...)
+					_ = authorizer.AddAllowedTools(tools...)
 					slog.Info("applied role-based allowed_tools", "role", role.Name, "user", ownerUserID, "tools", tools)
 				}
 			}
@@ -4352,7 +4351,7 @@ func (e *Engine) closeAgentSessionWithTimeout(sessionKey string, agentSession Ag
 
 	done := make(chan struct{})
 	go func() {
-		agentSession.Close()
+		_ = agentSession.Close()
 		close(done)
 	}()
 
@@ -4385,7 +4384,7 @@ func buildCardContent(thinking string, tools []cardToolEntry, answer string) str
 		sb.WriteString("\n\n---\n\n")
 	}
 	for _, t := range tools {
-		sb.WriteString(fmt.Sprintf("🔧 **Tool #%d**: `%s`\n", t.Index, t.Name))
+		fmt.Fprintf(&sb,"🔧 **Tool #%d**: `%s`\n", t.Index, t.Name)
 		if t.Input != "" {
 			sb.WriteString(t.Input)
 			sb.WriteString("\n")
@@ -5647,7 +5646,6 @@ func (e *Engine) processInteractiveEvents(state *interactiveState, session *Sess
 							}
 						}
 					}
-					cardMessageID = nil
 				}
 				slog.Info("silent reply suppressed", "session", session.ID)
 			} else if hasRichCard {
@@ -6640,7 +6638,7 @@ func (e *Engine) handleWorkspaceCommand(p Platform, msg *Message, args []string)
 			if name == "" {
 				name = chID
 			}
-			sb.WriteString(fmt.Sprintf("• #%s → `%s`\n", name, b.Workspace))
+			fmt.Fprintf(&sb, "• #%s → `%s`\n", name, b.Workspace)
 		}
 		e.reply(p, msg.ReplyCtx, sb.String())
 	}
@@ -6863,9 +6861,9 @@ func (e *Engine) cmdList(p Platform, msg *Message, args []string) {
 
 		var sb strings.Builder
 		if totalPages > 1 {
-			sb.WriteString(fmt.Sprintf(e.i18n.T(MsgListTitlePaged), agentName, total, page, totalPages))
+			fmt.Fprintf(&sb, e.i18n.T(MsgListTitlePaged), agentName, total, page, totalPages)
 		} else {
-			sb.WriteString(fmt.Sprintf(e.i18n.T(MsgListTitle), agentName, total))
+			fmt.Fprintf(&sb, e.i18n.T(MsgListTitle), agentName, total)
 		}
 		sb.WriteString(e.listTableHeader())
 		for i := start; i < end; i++ {
@@ -6904,8 +6902,8 @@ func (e *Engine) cmdList(p Platform, msg *Message, args []string) {
 			if ctxPct != "" {
 				displayName = fmt.Sprintf("%s [%s]", displayName, ctxPct)
 			}
-			sb.WriteString(fmt.Sprintf(listTableRow+"\n",
-				marker, i+1, s.ModifiedAt.Format("01-02 15:04"), displayName, s.MessageCount))
+			fmt.Fprintf(&sb, listTableRow+"\n",
+				marker, i+1, s.ModifiedAt.Format("01-02 15:04"), displayName, s.MessageCount)
 		}
 		if totalPages > 1 {
 			sb.WriteString(fmt.Sprintf(e.i18n.T(MsgListPageHint), page, totalPages))
@@ -7629,28 +7627,6 @@ func appendReplyFooter(content, footer string) string {
 		return "*" + footer + "*"
 	}
 	return content + "\n\n*" + footer + "*"
-}
-
-func appendFinalMetadataToSegment(segment, fullResponse string) string {
-	segment = strings.TrimRight(segment, "\n ")
-	if segment == "" {
-		return fullResponse
-	}
-	fullResponse = strings.TrimSpace(fullResponse)
-	if fullResponse == "" || strings.TrimSpace(segment) == fullResponse {
-		return segment
-	}
-
-	metadata := ""
-	if idx := strings.LastIndex(fullResponse, "\n\n*"); idx >= 0 && strings.HasSuffix(fullResponse, "*") {
-		metadata = fullResponse[idx:]
-	} else if match := ctxSelfReportRe.FindString(fullResponse); match != "" {
-		metadata = "\n" + strings.TrimSpace(match)
-	}
-	if metadata == "" || strings.Contains(segment, strings.TrimSpace(metadata)) {
-		return segment
-	}
-	return segment + metadata
 }
 
 func (e *Engine) cmdShow(p Platform, msg *Message, args []string) {
@@ -13748,7 +13724,7 @@ func (e *Engine) appendMemoryFile(p Platform, msg *Message, filePath, text strin
 		e.reply(p, msg.ReplyCtx, fmt.Sprintf(e.i18n.T(MsgMemoryAddFailed), err))
 		return
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	entry := "\n- " + text + "\n"
 	if _, err := f.WriteString(entry); err != nil {
@@ -15671,7 +15647,7 @@ func (e *Engine) HandleRelay(ctx context.Context, fromProject, sourceSessionKey,
 	saveRelaySessionID(agentSession.CurrentSessionID(), false)
 
 	if err := agentSession.Send(message, nil, nil); err != nil {
-		agentSession.Close()
+		_ = agentSession.Close()
 		return "", fmt.Errorf("send relay message: %w", err)
 	}
 
@@ -15710,10 +15686,10 @@ func (e *Engine) HandleRelay(ctx context.Context, fromProject, sourceSessionKey,
 				resp = "(empty response)"
 			}
 			slog.Info("relay: turn complete", "from", fromProject, "to", e.name, "response_len", len(resp))
-			agentSession.Close()
+			_ = agentSession.Close()
 			return resp, nil
 		case EventError:
-			agentSession.Close()
+			_ = agentSession.Close()
 			if event.Error != nil {
 				return "", event.Error
 			}
@@ -15735,7 +15711,7 @@ func (e *Engine) HandleRelay(ctx context.Context, fromProject, sourceSessionKey,
 	}
 
 	// Event channel closed without EventResult.
-	agentSession.Close()
+	_ = agentSession.Close()
 
 	if ctx.Err() != nil {
 		return relayPartialResponseOrError(ctx.Err(), textParts, fromProject, e.name)
@@ -15775,7 +15751,7 @@ func (e *Engine) drainRelaySession(agentSession AgentSession, session *Session, 
 		case ev, ok := <-agentSession.Events():
 			if !ok {
 				// Event channel closed — session ended naturally.
-				agentSession.Close()
+				_ = agentSession.Close()
 				return
 			}
 			if ev.SessionID != "" {
@@ -15786,12 +15762,12 @@ func (e *Engine) drainRelaySession(agentSession AgentSession, session *Session, 
 			case EventResult:
 				slog.Info("relay: background drain completed (agent finished turn)",
 					"relay_key", relaySessionKey)
-				agentSession.Close()
+				_ = agentSession.Close()
 				return
 			case EventError:
 				slog.Warn("relay: background drain got error",
 					"relay_key", relaySessionKey, "error", ev.Error)
-				agentSession.Close()
+				_ = agentSession.Close()
 				return
 			case EventPermissionRequest:
 				_ = agentSession.RespondPermission(ev.RequestID, PermissionResult{
@@ -15802,10 +15778,10 @@ func (e *Engine) drainRelaySession(agentSession AgentSession, session *Session, 
 		case <-timer.C:
 			slog.Warn("relay: background drain timed out, closing session",
 				"relay_key", relaySessionKey)
-			agentSession.Close()
+			_ = agentSession.Close()
 			return
 		case <-e.ctx.Done():
-			agentSession.Close()
+			_ = agentSession.Close()
 			return
 		}
 	}
@@ -15979,7 +15955,7 @@ func (e *Engine) setupMemoryFile() (setupResult, string, error) {
 	if err != nil {
 		return setupError, baseName, err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	if _, err := f.WriteString(block); err != nil {
 		return setupError, baseName, err
@@ -16055,15 +16031,6 @@ func extractUserID(sessionKey string) string {
 		return parts[2]
 	}
 	return ""
-}
-
-func stringSliceContains(ss []string, target string) bool {
-	for _, s := range ss {
-		if s == target {
-			return true
-		}
-	}
-	return false
 }
 
 func extractPlatformName(sessionKey string) string {

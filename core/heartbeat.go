@@ -301,7 +301,7 @@ func (hs *HeartbeatScheduler) persistLocked() {
 		}
 	}
 	if !needSave {
-		os.Remove(hs.stateFile)
+		_ = os.Remove(hs.stateFile)
 		return
 	}
 	data, err := json.MarshalIndent(states, "", "  ")

@@ -185,7 +185,7 @@ func (q *QwenTTS) Synthesize(ctx context.Context, text string, opts TTSSynthesis
 	if err != nil {
 		return nil, "", fmt.Errorf("qwen tts: download audio: %w", err)
 	}
-	defer audioResp.Body.Close()
+	defer func() { _ = audioResp.Body.Close() }()
 
 	wavData, err := io.ReadAll(audioResp.Body)
 	if err != nil {
@@ -621,8 +621,8 @@ func (p *PicoTTS) Synthesize(ctx context.Context, text string, opts TTSSynthesis
 		return nil, "", fmt.Errorf("pico2wave: create temp file: %w", err)
 	}
 	tmpPath := tmpFile.Name()
-	tmpFile.Close()
-	defer os.Remove(tmpPath)
+	_ = tmpFile.Close()
+	defer func() { _ = os.Remove(tmpPath) }()
 
 	// Build pico2wave command
 	// --lang: language code (zh-CN for Chinese, en-US for English)
@@ -688,8 +688,8 @@ func (e *EdgeTTS) Synthesize(ctx context.Context, text string, opts TTSSynthesis
 		return nil, "", fmt.Errorf("edge-tts: create temp file: %w", err)
 	}
 	tmpPath := tmpFile.Name()
-	tmpFile.Close()
-	defer os.Remove(tmpPath)
+	_ = tmpFile.Close()
+	defer func() { _ = os.Remove(tmpPath) }()
 
 	// Use edge-tts CLI directly to avoid code injection risks
 	// Pass text via --text argument, not via embedded code

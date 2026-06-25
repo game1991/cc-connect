@@ -221,7 +221,7 @@ var SvcStopOnce sync.Once
 func IsAdmin() bool {
 	// Method 1: TokenElevation (UAC elevated processes)
 	token := windows.GetCurrentProcessToken()
-	defer token.Close()
+	defer func() { _ = token.Close() }()
 
 	var elevated uint32
 	var returnedLen uint32
@@ -253,7 +253,7 @@ func IsAdmin() bool {
 		slog.Warn("svc: AllocateAndInitializeSid failed, assuming non-admin", "error", err)
 		return false
 	}
-	defer windows.FreeSid(sid)
+	defer func() { _ = windows.FreeSid(sid) }()
 
 	member, err := token.IsMember(sid)
 	return err == nil && member

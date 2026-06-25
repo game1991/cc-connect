@@ -348,7 +348,7 @@ func stopWithFallback(newMgr func() (daemon.Manager, error), loadMeta func() (*d
 	stopErr := mgr.Stop()
 	if stopErr != nil {
 		slog.Warn("daemon stop: platform stop reported error, will attempt kill", "platform", st.Platform, "error", stopErr)
-		fmt.Fprintf(stderr, "Platform stop reported: %v\n", stopErr)
+		_, _ = fmt.Fprintf(stderr, "Platform stop reported: %v\n", stopErr)
 	}
 
 	// Always verify the process exited via the instance lock PID.
@@ -362,9 +362,9 @@ func stopWithFallback(newMgr func() (daemon.Manager, error), loadMeta func() (*d
 	configPath := metaConfigPath(meta)
 	if kill(configPath) {
 		if stopErr != nil {
-			fmt.Fprintln(stderr, "Process killed via instance lock PID (platform stop had failed)")
+			_, _ = fmt.Fprintln(stderr, "Process killed via instance lock PID (platform stop had failed)")
 		} else {
-			fmt.Fprintln(stderr, "Warning: platform reported stopped but process was still running; killed via instance lock PID")
+			_, _ = fmt.Fprintln(stderr, "Warning: platform reported stopped but process was still running; killed via instance lock PID")
 		}
 		if err := RemoveInstanceLock(configPath); err != nil {
 			slog.Warn("failed to remove stale lock file", "error", err)

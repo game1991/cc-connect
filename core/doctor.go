@@ -335,7 +335,7 @@ func checkNetwork(ctx context.Context) []DoctorCheckResult {
 			})
 			continue
 		}
-		conn.Close()
+		_ = conn.Close()
 
 		status := DoctorPass
 		if latency > 3*time.Second {
@@ -500,7 +500,7 @@ func FormatDoctorResults(results []DoctorCheckResult, i18n *I18n) string {
 		if r.Latency > 0 {
 			latStr = fmt.Sprintf(" (%s)", r.Latency.Round(time.Millisecond))
 		}
-		sb.WriteString(fmt.Sprintf("%s %s%s\n   %s\n\n", r.Status.Icon(), displayName, latStr, r.Detail))
+		fmt.Fprintf(&sb, "%s %s%s\n   %s\n\n", r.Status.Icon(), displayName, latStr, r.Detail)
 	}
 
 	sb.WriteString(i18n.Tf(MsgDoctorSummary, passCount, warnCount, failCount))

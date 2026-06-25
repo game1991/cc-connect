@@ -202,7 +202,7 @@ func (o *sessionObserver) tailFile(ctx context.Context, path string, offset int6
 	if err != nil {
 		return offset
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	info, err := f.Stat()
 	if err != nil || info.Size() <= offset {

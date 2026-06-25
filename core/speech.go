@@ -71,7 +71,7 @@ func (w *OpenAIWhisper) Transcribe(ctx context.Context, audio []byte, format str
 	if lang != "" {
 		_ = writer.WriteField("language", lang)
 	}
-	writer.Close()
+	_ = writer.Close()
 
 	url := w.BaseURL + "/audio/transcriptions"
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, &buf)

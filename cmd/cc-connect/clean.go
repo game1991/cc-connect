@@ -84,7 +84,7 @@ func cleanRuntime() {
 
 	// 6. Remove empty data directory if nothing remains.
 	if entries, _ := os.ReadDir(dataDir); len(entries) == 0 {
-		os.Remove(dataDir)
+		_ = os.Remove(dataDir)
 		fmt.Printf("  Removed empty directory: %s\n", shortPath(dataDir))
 	}
 
@@ -168,7 +168,7 @@ func cleanReset() {
 
 	// 5. Remove data directory if empty.
 	if entries, _ := os.ReadDir(dataDir); len(entries) == 0 {
-		os.Remove(dataDir)
+		_ = os.Remove(dataDir)
 		fmt.Printf("  Removed empty directory: %s\n", shortPath(dataDir))
 	}
 

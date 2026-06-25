@@ -257,7 +257,7 @@ func (m *ManagementServer) buildHandler(mux *http.ServeMux) http.Handler {
 
 func (m *ManagementServer) Stop() {
 	if m.server != nil {
-		m.server.Close()
+		_ = m.server.Close()
 	}
 }
 
@@ -290,7 +290,7 @@ func (m *ManagementServer) withStaticFallback(apiMux *http.ServeMux) http.Handle
 			urlPath = "index.html"
 		}
 		if f, err := assets.Open(urlPath); err == nil {
-			f.Close()
+			_ = f.Close()
 			http.FileServer(http.FS(assets)).ServeHTTP(w, r)
 			return
 		}
@@ -1884,9 +1884,10 @@ func (m *ManagementServer) handleCCSwitchProviders(w http.ResponseWriter, r *htt
 				BaseURL: src.BaseURL,
 				Model:   src.Model,
 			}
-			if src.AppType == "claude" {
+			switch src.AppType {
+			case "claude":
 				gp.AgentTypes = []string{"claudecode"}
-			} else if src.AppType == "codex" {
+			case "codex":
 				gp.AgentTypes = []string{"codex"}
 			}
 			if err := m.addGlobalProvider(gp); err != nil {

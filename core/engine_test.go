@@ -3414,10 +3414,7 @@ func TestHandleMessage_AutoResetOnIdle_DoesNotRotateFreshSession(t *testing.T) {
 	e.handleMessage(p, msg)
 
 	deadline := time.After(2 * time.Second)
-	for {
-		if len(session.GetHistory(0)) >= 3 {
-			break
-		}
+	for len(session.GetHistory(0)) < 3 {
 		select {
 		case <-deadline:
 			t.Fatalf("timed out waiting for normal turn, sent=%v", p.getSent())
@@ -15466,7 +15463,7 @@ func TestSessionResumePrecheckIntegration(t *testing.T) {
 	}
 
 	// 2x → skip resume
-	skip, compact = shouldSkipResume(400_000, ctxWindow)
+	skip, _ = shouldSkipResume(400_000, ctxWindow)
 	if !skip {
 		t.Error("shouldSkipResume(400K, 200K) skip=false, want true")
 	}
@@ -15490,7 +15487,7 @@ func TestSessionResumePrecheckIntegration(t *testing.T) {
 	}
 
 	// 1M context window well over 2x
-	skip, compact = shouldSkipResume(2_100_000, 1_000_000)
+	skip, _ = shouldSkipResume(2_100_000, 1_000_000)
 	if !skip {
 		t.Error("shouldSkipResume(2.1M, 1M) skip=false, want true")
 	}

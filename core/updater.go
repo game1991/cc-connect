@@ -204,7 +204,7 @@ func extractBinaryFromTarGz(data []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer gr.Close()
+	defer func() { _ = gr.Close() }()
 
 	tr := tar.NewReader(gr)
 	for {
@@ -235,7 +235,7 @@ func extractBinaryFromZip(data []byte) ([]byte, error) {
 			if err != nil {
 				return nil, err
 			}
-			defer rc.Close()
+			defer func() { _ = rc.Close() }()
 			return io.ReadAll(rc)
 		}
 	}
@@ -260,11 +260,11 @@ func replaceBinary(newBinary []byte) error {
 	tmpPath := tmpFile.Name()
 
 	if _, err := tmpFile.Write(newBinary); err != nil {
-		tmpFile.Close()
+		_ = tmpFile.Close()
 		os.Remove(tmpPath)
 		return fmt.Errorf("write new binary: %w", err)
 	}
-	tmpFile.Close()
+	_ = tmpFile.Close()
 
 	if err := os.Chmod(tmpPath, 0o755); err != nil {
 		os.Remove(tmpPath)

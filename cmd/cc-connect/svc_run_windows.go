@@ -139,13 +139,13 @@ func fixSvcEnvironment() {
 	diagFile, diagErr := os.OpenFile(diagPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 	writeDiag := func(format string, args ...any) {
 		if diagFile != nil {
-			fmt.Fprintf(diagFile, "[%s] "+format+"\n",
+			_, _ = fmt.Fprintf(diagFile, "[%s] "+format+"\n",
 				append([]any{time.Now().Format(time.RFC3339)}, args...)...)
 		}
 	}
 	defer func() {
 		if diagFile != nil {
-			diagFile.Close()
+			_ = diagFile.Close()
 		}
 	}()
 
@@ -176,19 +176,19 @@ func fixSvcEnvironment() {
 	// Restore home directory from daemon.json (takes precedence over --config derivation).
 	if meta.HomeDir != "" {
 		hd := filepath.FromSlash(meta.HomeDir)
-		os.Setenv("USERPROFILE", hd)
-		os.Setenv("HOME", hd)
+		_ = os.Setenv("USERPROFILE", hd)
+		_ = os.Setenv("HOME", hd)
 		drive := filepath.VolumeName(hd)
-		os.Setenv("HOMEDRIVE", drive)
-		os.Setenv("HOMEPATH", strings.TrimPrefix(hd, drive))
+		_ = os.Setenv("HOMEDRIVE", drive)
+		_ = os.Setenv("HOMEPATH", strings.TrimPrefix(hd, drive))
 		writeDiag("restored home dir: USERPROFILE=%s", hd)
 	} else if configFile != "" {
 		homeDir := filepath.Dir(dataDir)
-		os.Setenv("USERPROFILE", homeDir)
-		os.Setenv("HOME", homeDir)
+		_ = os.Setenv("USERPROFILE", homeDir)
+		_ = os.Setenv("HOME", homeDir)
 		drive := filepath.VolumeName(homeDir)
-		os.Setenv("HOMEDRIVE", drive)
-		os.Setenv("HOMEPATH", strings.TrimPrefix(homeDir, drive))
+		_ = os.Setenv("HOMEDRIVE", drive)
+		_ = os.Setenv("HOMEPATH", strings.TrimPrefix(homeDir, drive))
 		writeDiag("derived home dir from config: %s", homeDir)
 	}
 
@@ -198,7 +198,7 @@ func fixSvcEnvironment() {
 		logFile = filepath.ToSlash(filepath.Join(dataDir, "logs", "cc-connect.log"))
 	}
 	logFile = filepath.FromSlash(logFile)
-	os.Setenv("CC_LOG_FILE", logFile)
+	_ = os.Setenv("CC_LOG_FILE", logFile)
 	writeDiag("CC_LOG_FILE=%s", logFile)
 
 	// Ensure the log directory exists (SYSTEM has full filesystem access).
@@ -209,14 +209,14 @@ func fixSvcEnvironment() {
 
 	// Restore PATH so agent binaries (claude, codex, etc.) are findable.
 	if meta.EnvPATH != "" {
-		os.Setenv("PATH", meta.EnvPATH)
+		_ = os.Setenv("PATH", meta.EnvPATH)
 		writeDiag("restored PATH, len=%d", len(meta.EnvPATH))
 	}
 
 	// Restore captured env vars from install time (API keys, proxy settings, etc.).
 	if len(meta.EnvExtra) > 0 {
 		for k, v := range meta.EnvExtra {
-			os.Setenv(k, v)
+			_ = os.Setenv(k, v)
 		}
 		writeDiag("restored EnvExtra, count=%d", len(meta.EnvExtra))
 	} else {
