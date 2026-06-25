@@ -11,9 +11,9 @@ import (
 // UserRole holds the resolved policy for a single role.
 type UserRole struct {
 	Name         string
-	Mode         string           // agent permission mode for this role (e.g. "yolo", "dontAsk", "default")
-	AllowedTools map[string]bool  // allowed_tools set for this role (only effective with dontAsk mode)
-	DisabledCmds map[string]bool  // resolved command IDs (including "*" wildcard)
+	Mode         string          // agent permission mode for this role (e.g. "yolo", "dontAsk", "default")
+	AllowedTools map[string]bool // allowed_tools set for this role (only effective with dontAsk mode)
+	DisabledCmds map[string]bool // resolved command IDs (including "*" wildcard)
 	RateLimitCfg *RateLimitCfg   // nil = no role-specific limit; use global fallback
 }
 
@@ -30,10 +30,10 @@ type RoleInput struct {
 // UserRoleManager resolves user IDs to roles and manages per-role rate limiters.
 type UserRoleManager struct {
 	mu          sync.RWMutex
-	roles       []roleEntry              // ordered list for iteration
-	defaultRole string                   // fallback role name
-	roleMap     map[string]*UserRole     // role name → resolved policy
-	limiters    map[string]*RateLimiter  // role name → shared per-role rate limiter
+	roles       []roleEntry             // ordered list for iteration
+	defaultRole string                  // fallback role name
+	roleMap     map[string]*UserRole    // role name → resolved policy
+	limiters    map[string]*RateLimiter // role name → shared per-role rate limiter
 }
 
 type roleEntry struct {

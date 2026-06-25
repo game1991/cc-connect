@@ -206,7 +206,7 @@ func TestReadSettingsModels(t *testing.T) {
 			"provider-a/family-a/model-beta",
 			"provider-b/family-b/model-gamma",
 		},
-		"defaultModel":  "family-a/model-beta",
+		"defaultModel":    "family-a/model-beta",
 		"defaultProvider": "provider-a",
 	}
 	data, _ := json.Marshal(settings)

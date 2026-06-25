@@ -18,8 +18,8 @@ const (
 	DefaultLogMaxSize    = 10 * 1024 * 1024 // 10 MB
 	DefaultLogMaxBackups = 3                // active + .1 + .2 + .3
 	ServiceName          = "cc-connect"
-	ServiceDisplayName  = "cc-connect AI Agent Bridge"
-	ServiceDescription  = "Bridge AI coding agents to instant messaging platforms"
+	ServiceDisplayName   = "cc-connect AI Agent Bridge"
+	ServiceDescription   = "Bridge AI coding agents to instant messaging platforms"
 )
 
 type Config struct {
@@ -81,10 +81,10 @@ type Meta struct {
 	LogMaxSize    int64             `json:"log_max_size"`
 	LogMaxBackups int               `json:"log_max_backups"`
 	WorkDir       string            `json:"work_dir"`
-	BinaryPath    string            `json:"binary_path"`  // informational only; daemon resolves cc-connect via PATH at runtime
+	BinaryPath    string            `json:"binary_path"` // informational only; daemon resolves cc-connect via PATH at runtime
 	ConfigFile    string            `json:"config_file,omitempty"`
-	EnvPATH       string            `json:"env_path,omitempty"`     // captured user PATH so service can find agent binaries
-	HomeDir       string            `json:"home_dir,omitempty"`      // captured user home directory for SYSTEM service
+	EnvPATH       string            `json:"env_path,omitempty"` // captured user PATH so service can find agent binaries
+	HomeDir       string            `json:"home_dir,omitempty"` // captured user home directory for SYSTEM service
 	EnvExtra      map[string]string `json:"env_extra,omitempty"`
 	InstalledAt   string            `json:"installed_at"`
 }

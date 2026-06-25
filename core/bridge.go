@@ -971,7 +971,7 @@ func (a *bridgeAdapter) handleCardAction(raw json.RawMessage) {
 		default:
 			return
 		}
-			a.dispatchAsPermissionResponse(ref, ca.SessionKey, ca.ReplyCtx, responseText)
+		a.dispatchAsPermissionResponse(ref, ca.SessionKey, ca.ReplyCtx, responseText)
 		return
 	}
 

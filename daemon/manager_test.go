@@ -262,10 +262,10 @@ access_token = "${UNSET_PLACEHOLDER_THAT_DOES_NOT_EXIST}"
 
 func TestMetaEnvExtraRoundTrip(t *testing.T) {
 	original := &Meta{
-		LogFile:  "C:/Users/test/.cc-connect/logs/cc-connect.log",
-		WorkDir:  "C:/Users/test/.cc-connect",
-		EnvPATH:  "/usr/bin",
-		HomeDir:  "C:/Users/test",
+		LogFile: "C:/Users/test/.cc-connect/logs/cc-connect.log",
+		WorkDir: "C:/Users/test/.cc-connect",
+		EnvPATH: "/usr/bin",
+		HomeDir: "C:/Users/test",
 		EnvExtra: map[string]string{
 			"ANTHROPIC_API_KEY": "sk-test-123",
 			"HTTPS_PROXY":       "http://proxy:8080",

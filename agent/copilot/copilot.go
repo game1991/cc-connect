@@ -198,7 +198,7 @@ type probeSession struct {
 }
 
 type probeSnapshot struct {
-	cmd  string
+	cmd     string
 	workDir string
 	env     []string
 }

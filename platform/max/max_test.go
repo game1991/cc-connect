@@ -666,7 +666,6 @@ func TestSendAudio(t *testing.T) {
 	}
 }
 
-
 func TestNormalizeLineBreaks(t *testing.T) {
 	cases := []struct {
 		name, in, want string

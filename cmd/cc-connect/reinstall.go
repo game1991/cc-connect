@@ -64,7 +64,6 @@ func runReinstall(args []string) {
 			continue
 		}
 		fmt.Printf("  Backed up: %s\n", bi.name)
-		
 	}
 
 	// Save daemon meta for Phase 2 restoration.
@@ -72,7 +71,6 @@ func runReinstall(args []string) {
 		metaData, _ := json.Marshal(meta)
 		if err := os.WriteFile(filepath.Join(backupDir, "daemon-meta.json"), metaData, 0600); err == nil {
 			fmt.Println("  Backed up: daemon-meta.json")
-			
 		}
 	}
 

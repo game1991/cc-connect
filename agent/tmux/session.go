@@ -65,8 +65,8 @@ func newTmuxSession(ctx context.Context, target, sessionID, promptPattern string
 		stripInputBlock: stripInputBlock,
 		stripPatterns:   stripPats,
 		events:          make(chan core.Event, 128),
-		ctx:       sessCtx,
-		cancel:    cancel,
+		ctx:             sessCtx,
+		cancel:          cancel,
 	}
 	s.alive.Store(true)
 	return s, nil

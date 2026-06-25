@@ -78,7 +78,7 @@ func truncateMarkdown(text string, limit int) string {
 // Platform v7 card schema exactly.
 
 type wpsCard struct {
-	Type    string       `json:"type"`
+	Type    string         `json:"type"`
 	Content wpsCardContent `json:"content"`
 }
 
@@ -87,17 +87,17 @@ type wpsCardContent struct {
 }
 
 type wpsCardInner struct {
-	Config     map[string]any   `json:"config"`
-	I18nItems  []wpsI18nItem    `json:"i18n_items"`
+	Config    map[string]any `json:"config"`
+	I18nItems []wpsI18nItem  `json:"i18n_items"`
 }
 
 type wpsI18nItem struct {
-	Key   string      `json:"key"`
+	Key   string       `json:"key"`
 	Value wpsI18nValue `json:"value"`
 }
 
 type wpsI18nValue struct {
-	Header   wpsCardHeader `json:"header"`
+	Header   wpsCardHeader    `json:"header"`
 	Elements []map[string]any `json:"elements"`
 }
 

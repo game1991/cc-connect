@@ -177,13 +177,13 @@ type stubManager struct {
 	statusErr error
 }
 
-func (s *stubManager) Install(daemon.Config) error { return nil }
-func (s *stubManager) Uninstall() error            { return nil }
-func (s *stubManager) Start() error                { return nil }
-func (s *stubManager) Stop() error                 { return s.stopErr }
-func (s *stubManager) Restart() error              { return nil }
+func (s *stubManager) Install(daemon.Config) error     { return nil }
+func (s *stubManager) Uninstall() error                { return nil }
+func (s *stubManager) Start() error                    { return nil }
+func (s *stubManager) Stop() error                     { return s.stopErr }
+func (s *stubManager) Restart() error                  { return nil }
 func (s *stubManager) Status() (*daemon.Status, error) { return s.status, s.statusErr }
-func (s *stubManager) Platform() string             { return "test" }
+func (s *stubManager) Platform() string                { return "test" }
 
 func TestStopWithFallback_StopSucceeds_ProcessGone(t *testing.T) {
 	err := stopWithFallback(

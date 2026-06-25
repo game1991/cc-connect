@@ -25,36 +25,36 @@ import (
 )
 
 var (
-	wsEndpoint      = "wss://openapi.wps.cn/v7/event/ws"
-	defaultBaseURL    = "https://openapi.wps.cn"
-	maxBackoff      = 60 * time.Second
-	maxErrBodyBytes = 256
-	httpTimeout     = 30 * time.Second
-	wpsCardMaxChars   = 15000
+	wsEndpoint          = "wss://openapi.wps.cn/v7/event/ws"
+	defaultBaseURL      = "https://openapi.wps.cn"
+	maxBackoff          = 60 * time.Second
+	maxErrBodyBytes     = 256
+	httpTimeout         = 30 * time.Second
+	wpsCardMaxChars     = 15000
 	wpsCardTruncateKeep = 14000
 )
 
 // Platform implements core.Platform for WPS Xiezuo (WPS 协作).
 type Platform struct {
-	appID       string
-	appSecret   string
-	baseURL     string
-	cleanReply  bool
-	allowFrom   string
-	handler     core.MessageHandler
-	ctx         context.Context // set by Start, used for context-aware waits
-	cancel      context.CancelFunc
-	conn        *websocket.Conn
-	mu          sync.Mutex // protects conn access
-	writeCh     chan any   // serializes all WebSocket writes (ACK, reactions, etc.)
-	dedup       core.MessageDedup
-	token       string
-	tokenExpire time.Time
-	tokenMu     sync.Mutex
-	stopOnce    sync.Once
-	stopped     bool
-	httpClient  *http.Client
-	previewMu   sync.Mutex
+	appID          string
+	appSecret      string
+	baseURL        string
+	cleanReply     bool
+	allowFrom      string
+	handler        core.MessageHandler
+	ctx            context.Context // set by Start, used for context-aware waits
+	cancel         context.CancelFunc
+	conn           *websocket.Conn
+	mu             sync.Mutex // protects conn access
+	writeCh        chan any   // serializes all WebSocket writes (ACK, reactions, etc.)
+	dedup          core.MessageDedup
+	token          string
+	tokenExpire    time.Time
+	tokenMu        sync.Mutex
+	stopOnce       sync.Once
+	stopped        bool
+	httpClient     *http.Client
+	previewMu      sync.Mutex
 	previewHandles map[string]*wpsPreviewHandle // key: chatID
 }
 
@@ -131,12 +131,12 @@ func New(opts map[string]any) (core.Platform, error) {
 	core.CheckAllowFrom("wps-xiezuo", allowFrom)
 
 	return &Platform{
-		appID:      appID,
-		appSecret:  appSecret,
-		baseURL:    baseURL,
-		cleanReply: cleanReply,
-		allowFrom:  allowFrom,
-		httpClient: &http.Client{Timeout: httpTimeout},
+		appID:          appID,
+		appSecret:      appSecret,
+		baseURL:        baseURL,
+		cleanReply:     cleanReply,
+		allowFrom:      allowFrom,
+		httpClient:     &http.Client{Timeout: httpTimeout},
 		previewHandles: make(map[string]*wpsPreviewHandle),
 	}, nil
 }

@@ -532,7 +532,7 @@ func runMain() {
 		}
 		if observeEnabled {
 			if obsChan == "" {
-								// Post-daemonize: stderr not connected to user terminal, slog only.
+				// Post-daemonize: stderr not connected to user terminal, slog only.
 				slog.Error("observe: channel is required (use --observe-channel or set channel in [projects.observe])")
 				os.Exit(1)
 			}

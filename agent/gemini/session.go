@@ -55,7 +55,7 @@ func newGeminiSession(ctx context.Context, cmd string, extraArgs []string, workD
 		extraEnv:  extraEnv,
 		events:    make(chan core.Event, 64),
 		ctx:       sessionCtx,
-		cancel:   cancel,
+		cancel:    cancel,
 	}
 	gs.alive.Store(true)
 

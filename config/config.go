@@ -249,8 +249,8 @@ type UsersConfig struct {
 // RoleConfig defines policies for a user role.
 type RoleConfig struct {
 	UserIDs          []string         `toml:"user_ids"`
-	Mode             string           `toml:"mode,omitempty"`              // agent permission mode ("yolo", "dontAsk", "default")
-	AllowedTools     []string         `toml:"allowed_tools,omitempty"`     // tool whitelist; yolo: redundant, default: pre-approve listed, dontAsk: only these auto-pass
+	Mode             string           `toml:"mode,omitempty"`          // agent permission mode ("yolo", "dontAsk", "default")
+	AllowedTools     []string         `toml:"allowed_tools,omitempty"` // tool whitelist; yolo: redundant, default: pre-approve listed, dontAsk: only these auto-pass
 	DisabledCommands []string         `toml:"disabled_commands,omitempty"`
 	RateLimit        *RateLimitConfig `toml:"rate_limit,omitempty"` // nil = inherit global
 }

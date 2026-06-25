@@ -1795,7 +1795,7 @@ func TestTruncateMarkdown_ParagraphBoundary(t *testing.T) {
 	// Total must exceed keep=14000 to trigger truncation.
 	first := strings.Repeat("hello ", 100) // ~600 chars
 	second := strings.Repeat("x", 14500)   // exceeds keep=14000
-	input := first + "\n\n" + second        // total ~15102
+	input := first + "\n\n" + second       // total ~15102
 	got := truncateMarkdown(input, 15000)
 	// Should keep the longest suffix that fits within keep (a paragraph boundary)
 	if !strings.Contains(got, "内容过长，已截断") {
@@ -2257,11 +2257,11 @@ func TestPreviewFlow_Integration(t *testing.T) {
 	defer srv.Close()
 
 	p := &Platform{
-		appID:      "int-test-app",
-		appSecret:  "int-test-secret",
-		baseURL:    srv.URL,
-		httpClient: srv.Client(),
-		token:      "int-test-token",
+		appID:       "int-test-app",
+		appSecret:   "int-test-secret",
+		baseURL:     srv.URL,
+		httpClient:  srv.Client(),
+		token:       "int-test-token",
 		tokenExpire: time.Now().Add(7200 * time.Second),
 	}
 
@@ -2335,11 +2335,11 @@ func TestUpdateMessage_DegradedOnSignatureError(t *testing.T) {
 	defer srv.Close()
 
 	p := &Platform{
-		appID:      "sig-test-app",
-		appSecret:  "sig-test-secret",
-		baseURL:    srv.URL,
-		httpClient: srv.Client(),
-		token:      "sig-test-token",
+		appID:       "sig-test-app",
+		appSecret:   "sig-test-secret",
+		baseURL:     srv.URL,
+		httpClient:  srv.Client(),
+		token:       "sig-test-token",
 		tokenExpire: time.Now().Add(7200 * time.Second),
 	}
 
@@ -2380,11 +2380,11 @@ func TestSendPreviewStart_ApiError_Integration(t *testing.T) {
 	defer srv.Close()
 
 	p := &Platform{
-		appID:      "api-err-app",
-		appSecret:  "api-err-secret",
-		baseURL:    srv.URL,
-		httpClient: srv.Client(),
-		token:      "api-err-token",
+		appID:       "api-err-app",
+		appSecret:   "api-err-secret",
+		baseURL:     srv.URL,
+		httpClient:  srv.Client(),
+		token:       "api-err-token",
 		tokenExpire: time.Now().Add(7200 * time.Second),
 	}
 
@@ -2536,11 +2536,11 @@ func TestUpdateMessage_DegradedOn403(t *testing.T) {
 	defer srv.Close()
 
 	p := &Platform{
-		appID:      "test-app",
-		appSecret:  "test-secret",
-		baseURL:    srv.URL,
-		httpClient: srv.Client(),
-		token:      "test-token",
+		appID:       "test-app",
+		appSecret:   "test-secret",
+		baseURL:     srv.URL,
+		httpClient:  srv.Client(),
+		token:       "test-token",
 		tokenExpire: time.Now().Add(7200 * time.Second),
 	}
 
@@ -2572,11 +2572,11 @@ func TestUpdateMessage_ApiErrorCode(t *testing.T) {
 	defer srv.Close()
 
 	p := &Platform{
-		appID:      "test-app",
-		appSecret:  "test-secret",
-		baseURL:    srv.URL,
-		httpClient: srv.Client(),
-		token:      "test-token",
+		appID:       "test-app",
+		appSecret:   "test-secret",
+		baseURL:     srv.URL,
+		httpClient:  srv.Client(),
+		token:       "test-token",
 		tokenExpire: time.Now().Add(7200 * time.Second),
 	}
 
@@ -2649,11 +2649,11 @@ func TestUpdateMessage_DegradedOn404(t *testing.T) {
 	defer srv.Close()
 
 	p := &Platform{
-		appID:      "test-app",
-		appSecret:  "test-secret",
-		baseURL:    srv.URL,
-		httpClient: srv.Client(),
-		token:      "test-token",
+		appID:       "test-app",
+		appSecret:   "test-secret",
+		baseURL:     srv.URL,
+		httpClient:  srv.Client(),
+		token:       "test-token",
 		tokenExpire: time.Now().Add(7200 * time.Second),
 	}
 

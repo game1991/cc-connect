@@ -674,7 +674,7 @@ type pendingPermission struct {
 	ToolName         string
 	ToolInput        map[string]any
 	InputPreview     string
-	RequestingUserID string // user who triggered the permission request
+	RequestingUserID string         // user who triggered the permission request
 	Questions        []UserQuestion // non-nil for AskUserQuestion
 	Answers          map[int]string // collected answers keyed by question index
 	CurrentQuestion  int            // index of the question currently being asked
@@ -3980,7 +3980,7 @@ func (e *Engine) getOrCreateInteractiveStateWith(sessionKey string, p Platform, 
 		// continues outputting while new agent starts (issue #327).
 		e.closeAgentSessionWithTimeout(sessionKey, state.agentSession)
 		delete(e.interactiveStates, sessionKey)
-			}
+	}
 
 	// Select the agent to use for this session
 	agent := e.agent
@@ -4191,13 +4191,13 @@ func (e *Engine) getOrCreateInteractiveStateWith(sessionKey string, p Platform, 
 	}
 
 	newState := &interactiveState{
-		agentSession:       agentSession,
-		platform:           p,
-		replyCtx:           replyCtx,
-		agent:              agent,
+		agentSession:      agentSession,
+		platform:          p,
+		replyCtx:          replyCtx,
+		agent:             agent,
 		ownerUserID:       ownerUserID,
-		eventsNeedResync:   true,
-		postResumeCompact:  postResumeCompact,
+		eventsNeedResync:  true,
+		postResumeCompact: postResumeCompact,
 	}
 
 	if isResume {
@@ -4229,8 +4229,11 @@ func (e *Engine) getOrCreateInteractiveStateWith(sessionKey string, p Platform, 
 					for t := range role.AllowedTools {
 						tools = append(tools, t)
 					}
-					_ = authorizer.AddAllowedTools(tools...)
-					slog.Info("applied role-based allowed_tools", "role", role.Name, "user", ownerUserID, "tools", tools)
+					if err := authorizer.AddAllowedTools(tools...); err != nil {
+						slog.Warn("failed to apply role-based allowed_tools", "role", role.Name, "user", ownerUserID, "tools", tools, "error", err)
+					} else {
+						slog.Info("applied role-based allowed_tools", "role", role.Name, "user", ownerUserID, "tools", tools)
+					}
 				}
 			}
 		}
@@ -4384,7 +4387,7 @@ func buildCardContent(thinking string, tools []cardToolEntry, answer string) str
 		sb.WriteString("\n\n---\n\n")
 	}
 	for _, t := range tools {
-		fmt.Fprintf(&sb,"🔧 **Tool #%d**: `%s`\n", t.Index, t.Name)
+		fmt.Fprintf(&sb, "🔧 **Tool #%d**: `%s`\n", t.Index, t.Name)
 		if t.Input != "" {
 			sb.WriteString(t.Input)
 			sb.WriteString("\n")
@@ -12147,7 +12150,7 @@ func (e *Engine) executeCardAction(cmd, args, sessionKey string) {
 			return
 		}
 		e.cleanupInteractiveState(interactiveKey)
-	// NOTE: Do NOT call session.ClearHistory() on the returned Session.
+		// NOTE: Do NOT call session.ClearHistory() on the returned Session.
 		// See cmdSwitch for the full explanation.
 		_ = sessions.SwitchToAgentSession(sessionKey, matched.ID, agent.Name(), matched.Summary)
 

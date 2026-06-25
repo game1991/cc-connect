@@ -82,8 +82,8 @@ type wpsTextContent struct {
 // --- WPS API response ---
 
 type wpsAPIResponse struct {
-	Code json.Number    `json:"code"`
-	Msg  string         `json:"msg"`
+	Code json.Number     `json:"code"`
+	Msg  string          `json:"msg"`
 	Data json.RawMessage `json:"data"`
 }
 

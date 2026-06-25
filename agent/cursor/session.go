@@ -39,8 +39,8 @@ type cursorSession struct {
 
 	// Permission handling: each Send() creates a new process whose stdin is used
 	// to respond to interaction_query permission requests.
-	stdinMu  sync.Mutex
-	stdin    io.WriteCloser // current process stdin; nil when no process is running
+	stdinMu sync.Mutex
+	stdin   io.WriteCloser // current process stdin; nil when no process is running
 
 	pendingMu sync.Mutex
 	pending   *pendingInteractionQuery // most recent unresolved interaction_query/request

@@ -176,16 +176,24 @@ func fixSvcEnvironment() {
 	// Restore home directory from daemon.json (takes precedence over --config derivation).
 	if meta.HomeDir != "" {
 		hd := filepath.FromSlash(meta.HomeDir)
-		_ = os.Setenv("USERPROFILE", hd)
-		_ = os.Setenv("HOME", hd)
+		if err := os.Setenv("USERPROFILE", hd); err != nil {
+			slog.Error("svc: failed to set USERPROFILE", "error", err)
+		}
+		if err := os.Setenv("HOME", hd); err != nil {
+			slog.Error("svc: failed to set HOME", "error", err)
+		}
 		drive := filepath.VolumeName(hd)
 		_ = os.Setenv("HOMEDRIVE", drive)
 		_ = os.Setenv("HOMEPATH", strings.TrimPrefix(hd, drive))
 		writeDiag("restored home dir: USERPROFILE=%s", hd)
 	} else if configFile != "" {
 		homeDir := filepath.Dir(dataDir)
-		_ = os.Setenv("USERPROFILE", homeDir)
-		_ = os.Setenv("HOME", homeDir)
+		if err := os.Setenv("USERPROFILE", homeDir); err != nil {
+			slog.Error("svc: failed to set USERPROFILE", "error", err)
+		}
+		if err := os.Setenv("HOME", homeDir); err != nil {
+			slog.Error("svc: failed to set HOME", "error", err)
+		}
 		drive := filepath.VolumeName(homeDir)
 		_ = os.Setenv("HOMEDRIVE", drive)
 		_ = os.Setenv("HOMEPATH", strings.TrimPrefix(homeDir, drive))
@@ -209,7 +217,9 @@ func fixSvcEnvironment() {
 
 	// Restore PATH so agent binaries (claude, codex, etc.) are findable.
 	if meta.EnvPATH != "" {
-		_ = os.Setenv("PATH", meta.EnvPATH)
+		if err := os.Setenv("PATH", meta.EnvPATH); err != nil {
+			slog.Error("svc: failed to set PATH", "error", err)
+		}
 		writeDiag("restored PATH, len=%d", len(meta.EnvPATH))
 	}
 
