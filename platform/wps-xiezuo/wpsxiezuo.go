@@ -811,7 +811,7 @@ func (p *Platform) sendWPSMessage(ctx context.Context, rctx any, content string)
 			ReceiverID: rc.ChatID,
 		},
 		Content: wpsMessageContent{
-			Text: wpsTextContent{
+			Text: &wpsTextContent{
 				Content: content,
 				Type:    "markdown",
 			},

@@ -1890,6 +1890,18 @@ func TestSendPreviewStart_Success(t *testing.T) {
 	if len(req.Content.Card) == 0 {
 		t.Fatal("expected non-empty card content")
 	}
+	// Regression guard: WPS v7 API rejects card messages with empty
+	// text_type (400000002). The JSON payload must omit the "text" key.
+	var rawParsed struct {
+		Type    string                 `json:"type"`
+		Content map[string]interface{} `json:"content"`
+	}
+	if err := json.Unmarshal(gotBody, &rawParsed); err != nil {
+		t.Fatalf("re-parse create body: %v", err)
+	}
+	if _, hasText := rawParsed.Content["text"]; hasText {
+		t.Fatalf("card create should omit 'text' key, but it was present: %s", gotBody)
+	}
 
 	// Verify returned handle
 	h, ok := handle.(*wpsPreviewHandle)
@@ -2069,6 +2081,18 @@ func TestUpdateMessage_Success(t *testing.T) {
 	}
 	if len(parsed.Content.Card) == 0 {
 		t.Error("expected non-empty card content")
+	}
+	// Regression guard: WPS v7 API rejects card messages with empty
+	// text_type (400000002). The JSON payload must omit the "text" key.
+	var rawParsed struct {
+		Type    string                 `json:"type"`
+		Content map[string]interface{} `json:"content"`
+	}
+	if err := json.Unmarshal(updateBody, &rawParsed); err != nil {
+		t.Fatalf("re-parse update body: %v", err)
+	}
+	if _, hasText := rawParsed.Content["text"]; hasText {
+		t.Fatalf("card update should omit 'text' key, but it was present: %s", updateBody)
 	}
 }
 

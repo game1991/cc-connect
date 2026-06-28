@@ -69,9 +69,15 @@ type wpsReceiverInfo struct {
 	ReceiverID string `json:"receiver_id"`
 }
 
+// WPS v7 API: Text and Card are mutually exclusive. When sending a
+// card message, Text must be nil (omitted from JSON); otherwise the
+// API rejects the request with code 400000002 ("invalid
+// open_v7_message_text_type"). Use a pointer + omitempty so nil
+// omits the field for card messages, while &wpsTextContent{...}
+// includes it for text messages.
 type wpsMessageContent struct {
-	Text wpsTextContent  `json:"text"`
-	Card json.RawMessage `json:"card,omitempty"`
+	Text *wpsTextContent `json:"text,omitempty"`
+	Card json.RawMessage  `json:"card,omitempty"`
 }
 
 type wpsTextContent struct {

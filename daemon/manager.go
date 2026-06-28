@@ -63,13 +63,31 @@ func NewManager() (Manager, error) {
 }
 
 func DefaultLogFile() string {
-	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".cc-connect", "logs", "cc-connect.log")
+	dir := DefaultDataDir()
+	return filepath.Join(dir, "logs", "cc-connect.log")
 }
 
+// DefaultDataDir returns the base directory for daemon state files.
+// If CC_DAEMON_DATA_DIR is set AND the process is a compiled Go test
+// binary (os.Args[0] ends in ".test" or contains "-test."), the env var
+// takes precedence. In production, the env var is silently ignored to
+// prevent an external process from hijacking the daemon's data directory.
 func DefaultDataDir() string {
+	if dir := os.Getenv("CC_DAEMON_DATA_DIR"); dir != "" && isGoTestBinary() {
+		return dir
+	}
 	home, _ := os.UserHomeDir()
 	return filepath.Join(home, ".cc-connect")
+}
+
+// isGoTestBinary reports whether the current process is a compiled Go test
+// binary. Package-level var so tests can override it; production uses
+// isGoTestBinaryDefault which checks os.Args[0] for well-known patterns.
+var isGoTestBinary = isGoTestBinaryDefault
+
+func isGoTestBinaryDefault() bool {
+	a := os.Args[0]
+	return strings.HasSuffix(a, ".test") || strings.Contains(a, "-test.")
 }
 
 // ── Metadata ────────────────────────────────────────────────
