@@ -5403,8 +5403,61 @@ func (e *Engine) processInteractiveEvents(state *interactiveState, session *Sess
 				idleTimer.Stop()
 			}
 
-			<-pending.Resolved
-			slog.Info("permission resolved", "request_id", event.RequestID)
+			// Wait for the user's permission response, but also watch for
+			// stop signals, turn deadline, and context cancellation so the
+			// event loop is never stuck indefinitely if the user never
+			// responds (e.g. they closed the chat app or the prompt
+			// scrolled away).
+			select {
+			case <-pending.Resolved:
+				slog.Info("permission resolved", "request_id", event.RequestID)
+			case <-stopCh:
+				slog.Warn("permission wait interrupted by stop signal", "request_id", event.RequestID)
+				_ = state.agentSession.RespondPermission(event.RequestID, PermissionResult{
+					Behavior: "deny",
+					Message:  "User stopped the session while waiting for permission.",
+				})
+				state.mu.Lock()
+				state.pending = nil
+				state.eventsNeedResync = true
+				state.mu.Unlock()
+				pending.resolve()
+				sp.discard()
+				return
+			case <-turnDeadlineCh:
+				slog.Warn("permission wait interrupted by turn deadline",
+					"session_key", sessionKey, "max_turn_time", e.maxTurnTime, "request_id", event.RequestID)
+				_ = state.agentSession.RespondPermission(event.RequestID, PermissionResult{
+					Behavior: "deny",
+					Message:  "Permission request timed out (turn deadline exceeded).",
+				})
+				state.mu.Lock()
+				state.pending = nil
+				state.eventsNeedResync = true
+				state.mu.Unlock()
+				pending.resolve()
+				cp.Finalize(ProgressCardStateFailed)
+				sp.discard()
+				state.mu.Lock()
+				p2 := state.platform
+				state.mu.Unlock()
+				e.send(p2, replyCtx, fmt.Sprintf(e.i18n.T(MsgError),
+					fmt.Sprintf("agent turn exceeded maximum time (%v), stopping", e.maxTurnTime)))
+				e.cleanupInteractiveState(sessionKey, state)
+				return
+			case <-e.ctx.Done():
+				slog.Warn("permission wait interrupted by context cancellation", "request_id", event.RequestID)
+				_ = state.agentSession.RespondPermission(event.RequestID, PermissionResult{
+					Behavior: "deny",
+					Message:  "Session shutting down while waiting for permission.",
+				})
+				state.mu.Lock()
+				state.pending = nil
+				state.eventsNeedResync = true
+				state.mu.Unlock()
+				pending.resolve()
+				return
+			}
 
 			// Restart idle timer after permission is resolved
 			if idleTimer != nil {

@@ -8214,6 +8214,126 @@ func TestProcessInteractiveEvents_PermissionWhileSendBlocked(t *testing.T) {
 	}
 }
 
+// TestProcessInteractiveEvents_PermissionWaitStopSignal verifies that the
+// event loop does not block indefinitely when the user never responds to a
+// permission request — a stop signal must break the wait.
+func TestProcessInteractiveEvents_PermissionWaitStopSignal(t *testing.T) {
+	p := &stubPlatformEngine{n: "test"}
+	sess := newControllableSession("perm-stop")
+	e := NewEngine("test", &stubAgent{}, []Platform{p}, "", LangEnglish)
+
+	key := "test:user1"
+	session := e.sessions.GetOrCreateActive(key)
+	state := &interactiveState{
+		agentSession: sess,
+		platform:     p,
+		replyCtx:     "ctx",
+	}
+	e.interactiveMu.Lock()
+	e.interactiveStates[key] = state
+	e.interactiveMu.Unlock()
+
+	if !session.TryLock() {
+		t.Fatal("expected to lock session")
+	}
+
+	sendDone := make(chan error, 1)
+	go func() {
+		sendDone <- sess.Send("prompt", nil, nil)
+	}()
+
+	done := make(chan struct{})
+	go func() {
+		e.processInteractiveEvents(state, session, e.sessions, key, "m1", time.Now(), nil, sendDone, nil)
+		session.Unlock()
+		close(done)
+	}()
+
+	// Send a permission request that will never be answered.
+	sess.events <- Event{
+		Type:         EventPermissionRequest,
+		RequestID:    "req-stop-test",
+		ToolName:     "AskUserQuestion",
+		ToolInput:    "What is your name?",
+		ToolInputRaw: map[string]any{"question": "What is your name?"},
+		Questions: []UserQuestion{
+			{Question: "What is your name?", Options: []UserQuestionOption{{Label: "A"}, {Label: "B"}}},
+		},
+	}
+
+	// Give the event loop time to reach the permission wait.
+	time.Sleep(200 * time.Millisecond)
+
+	// Fire the stop signal.
+	state.markStopped()
+
+	// The event loop must exit promptly (not hang forever).
+	select {
+	case <-done:
+		// Success: event loop exited after stop signal.
+	case <-time.After(5 * time.Second):
+		t.Fatal("processInteractiveEvents hung while waiting for permission — stop signal was ignored")
+	}
+}
+
+// TestProcessInteractiveEvents_PermissionWaitContextCancel verifies that
+// context cancellation breaks the permission wait.
+func TestProcessInteractiveEvents_PermissionWaitContextCancel(t *testing.T) {
+	p := &stubPlatformEngine{n: "test"}
+	sess := newControllableSession("perm-ctx")
+	e := NewEngine("test", &stubAgent{}, []Platform{p}, "", LangEnglish)
+
+	key := "test:user1"
+	session := e.sessions.GetOrCreateActive(key)
+	state := &interactiveState{
+		agentSession: sess,
+		platform:     p,
+		replyCtx:     "ctx",
+	}
+	e.interactiveMu.Lock()
+	e.interactiveStates[key] = state
+	e.interactiveMu.Unlock()
+
+	if !session.TryLock() {
+		t.Fatal("expected to lock session")
+	}
+
+	sendDone := make(chan error, 1)
+	go func() {
+		sendDone <- sess.Send("prompt", nil, nil)
+	}()
+
+	done := make(chan struct{})
+	go func() {
+		e.processInteractiveEvents(state, session, e.sessions, key, "m1", time.Now(), nil, sendDone, nil)
+		session.Unlock()
+		close(done)
+	}()
+
+	sess.events <- Event{
+		Type:         EventPermissionRequest,
+		RequestID:    "req-ctx-test",
+		ToolName:     "AskUserQuestion",
+		ToolInput:    "Pick one",
+		ToolInputRaw: map[string]any{"question": "Pick one"},
+		Questions: []UserQuestion{
+			{Question: "Pick one", Options: []UserQuestionOption{{Label: "X"}, {Label: "Y"}}},
+		},
+	}
+
+	time.Sleep(200 * time.Millisecond)
+
+	// Cancel the engine context (simulates daemon shutdown).
+	e.cancel()
+
+	select {
+	case <-done:
+		// Success.
+	case <-time.After(5 * time.Second):
+		t.Fatal("processInteractiveEvents hung while waiting for permission — context cancellation was ignored")
+	}
+}
+
 func TestReapIdleWorkspaces_SkipsWorkspaceWithActiveTurn(t *testing.T) {
 	p := &stubPlatformEngine{n: "test"}
 	sess := newBlockingSendSession("busy-turn")
