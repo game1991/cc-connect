@@ -8334,6 +8334,67 @@ func TestProcessInteractiveEvents_PermissionWaitContextCancel(t *testing.T) {
 	}
 }
 
+// TestProcessInteractiveEvents_PermissionWaitChannelClosed verifies that
+// the permission wait exits immediately when the agent's events channel
+// closes (agent process died), rather than blocking until idle timeout.
+func TestProcessInteractiveEvents_PermissionWaitChannelClosed(t *testing.T) {
+	p := &stubPlatformEngine{n: "test"}
+	sess := newControllableSession("perm-chclose")
+	e := NewEngine("test", &stubAgent{}, []Platform{p}, "", LangEnglish)
+
+	key := "test:user1"
+	session := e.sessions.GetOrCreateActive(key)
+	state := &interactiveState{
+		agentSession: sess,
+		platform:     p,
+		replyCtx:     "ctx",
+	}
+	e.interactiveMu.Lock()
+	e.interactiveStates[key] = state
+	e.interactiveMu.Unlock()
+
+	if !session.TryLock() {
+		t.Fatal("expected to lock session")
+	}
+
+	sendDone := make(chan error, 1)
+	go func() {
+		sendDone <- sess.Send("prompt", nil, nil)
+	}()
+
+	done := make(chan struct{})
+	go func() {
+		e.processInteractiveEvents(state, session, e.sessions, key, "m1", time.Now(), nil, sendDone, nil)
+		session.Unlock()
+		close(done)
+	}()
+
+	sess.events <- Event{
+		Type:         EventPermissionRequest,
+		RequestID:    "req-chclose-test",
+		ToolName:     "AskUserQuestion",
+		ToolInput:    "Pick one",
+		ToolInputRaw: map[string]any{"question": "Pick one"},
+		Questions: []UserQuestion{
+			{Question: "Pick one", Options: []UserQuestionOption{{Label: "X"}, {Label: "Y"}}},
+		},
+	}
+
+	// Give the event loop time to enter the permission wait.
+	time.Sleep(200 * time.Millisecond)
+
+	// Close the events channel (simulates agent process dying).
+	close(sess.events)
+
+	// The event loop must exit promptly — NOT wait 2 hours for idle timeout.
+	select {
+	case <-done:
+		// Success: event loop exited after channel closed.
+	case <-time.After(5 * time.Second):
+		t.Fatal("processInteractiveEvents hung while waiting for permission — events channel close was not detected")
+	}
+}
+
 func TestReapIdleWorkspaces_SkipsWorkspaceWithActiveTurn(t *testing.T) {
 	p := &stubPlatformEngine{n: "test"}
 	sess := newBlockingSendSession("busy-turn")

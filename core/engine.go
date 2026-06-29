@@ -3666,16 +3666,13 @@ func (e *Engine) processInteractiveMessageWith(p Platform, msg *Message, session
 		return
 	}
 
+
 	turnStart := time.Now()
 
 	e.i18n.DetectAndSet(msg.Content)
 	session.AddHistory("user", msg.Content)
-	// Persist user message immediately so crashes between user input and
-	// assistant reply don't lose it (the assistant-side Save below depends
-	// on the turn completing without a process crash).
 	sessions.Save()
 
-	// Use the agent override when available (multi-workspace mode)
 	var agentOverride Agent
 	if agent != e.agent {
 		agentOverride = agent
@@ -3952,6 +3949,20 @@ func (e *Engine) getOrCreateInteractiveStateWith(sessionKey string, p Platform, 
 	defer e.interactiveMu.Unlock()
 
 	state, ok := e.interactiveStates[sessionKey]
+	// Clean up stale state where agent is dead but entry still exists.
+	if ok && state.agentSession != nil && !state.agentSession.Alive() {
+		slog.Info("cleaning up stale interactive state (agent dead)",
+			"session_key", sessionKey)
+		e.stopUnsolicitedReader(state)
+		oldDeadSession := state.agentSession
+		state.agentSession = nil
+		delete(e.interactiveStates, sessionKey)
+		defer func() {
+			if oldDeadSession != nil {
+				e.closeAgentSessionAsync(sessionKey, oldDeadSession)
+			}
+		}()
+	}
 	if ok && state.agentSession != nil && state.agentSession.Alive() {
 		// Verify the running agent session matches the current active session.
 		// After /new or /switch the active session changes, but the old agent
@@ -3976,10 +3987,21 @@ func (e *Engine) getOrCreateInteractiveStateWith(sessionKey string, p Platform, 
 		)
 		e.stopUnsolicitedReader(state)
 		state.markStopped()
-		// Close synchronously to prevent race condition where old agent
-		// continues outputting while new agent starts (issue #327).
-		e.closeAgentSessionWithTimeout(sessionKey, state.agentSession)
+		// Nil out and delete under the lock so concurrent callers see the
+		// state is gone. Close the agent session AFTER releasing the lock
+		// to avoid blocking interactiveMu for up to 130s (close timeout).
+		oldSession := state.agentSession
+		state.agentSession = nil
 		delete(e.interactiveStates, sessionKey)
+		// Defer the close so it runs after we release interactiveMu (via
+		// the function-level defer). The old process may overlap briefly
+		// with the new one, but since we've already removed the state
+		// and stopped its unsolicited reader, its output goes nowhere.
+		defer func() {
+			if oldSession != nil {
+				e.closeAgentSessionAsync(sessionKey, oldSession)
+			}
+		}()
 	}
 
 	// Select the agent to use for this session
@@ -5444,6 +5466,26 @@ func (e *Engine) processInteractiveEvents(state *interactiveState, session *Sess
 				e.send(p2, replyCtx, fmt.Sprintf(e.i18n.T(MsgError),
 					fmt.Sprintf("agent turn exceeded maximum time (%v), stopping", e.maxTurnTime)))
 				e.cleanupInteractiveState(sessionKey, state)
+				return
+			case _, ok := <-events:
+				if !ok {
+					slog.Warn("permission wait interrupted: agent channel closed", "request_id", event.RequestID)
+					_ = state.agentSession.RespondPermission(event.RequestID, PermissionResult{
+						Behavior: "deny",
+						Message:  "Agent process exited while waiting for permission.",
+					})
+				} else {
+					slog.Warn("permission wait interrupted: unexpected event", "request_id", event.RequestID)
+					_ = state.agentSession.RespondPermission(event.RequestID, PermissionResult{
+						Behavior: "deny",
+						Message:  "Permission interrupted by concurrent event.",
+					})
+				}
+				state.mu.Lock()
+				state.pending = nil
+				state.eventsNeedResync = true
+				state.mu.Unlock()
+				pending.resolve()
 				return
 			case <-e.ctx.Done():
 				slog.Warn("permission wait interrupted by context cancellation", "request_id", event.RequestID)
