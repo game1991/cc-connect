@@ -159,3 +159,4 @@ docs
 .claude/worktrees/
 docs/branch-compare.html
 docs/superpowers/
+core/test_ws_*.json
