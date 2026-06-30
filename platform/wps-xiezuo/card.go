@@ -76,15 +76,10 @@ func truncateMarkdown(text string, limit int) string {
 // These typed structs replace map[string]any in buildWPSCard for compile-time
 // field safety and self-documenting structure. JSON tags match the WPS Open
 // Platform v7 card schema exactly.
-
-type wpsCard struct {
-	Type    string         `json:"type"`
-	Content wpsCardContent `json:"content"`
-}
-
-type wpsCardContent struct {
-	Card wpsCardInner `json:"card"`
-}
+//
+// Note: buildWPSCard returns the *inner* card object ({config, i18n_items})
+// directly, NOT wrapped in {type, content}. The outer {type:"card", content:{card:...}}
+// envelope is added by wpsSendMessageRequest.Content.Card at the API boundary.
 
 type wpsCardInner struct {
 	Config    map[string]any `json:"config"`
@@ -118,22 +113,17 @@ func buildWPSCard(agentName string, status core.CardStatus, markdown string) []b
 		elements = append(elements, wpsTextElement(markdown))
 	}
 
-	card := wpsCard{
-		Type: "card",
-		Content: wpsCardContent{
-			Card: wpsCardInner{
-				Config: map[string]any{},
-				I18nItems: []wpsI18nItem{
-					{
-						Key: "zh-CN",
-						Value: wpsI18nValue{
-							Header: wpsCardHeader{
-								Title:    wpsPlainElement("CC"),
-								Subtitle: wpsPlainElement(agentName),
-							},
-							Elements: elements,
-						},
+	card := wpsCardInner{
+		Config: map[string]any{},
+		I18nItems: []wpsI18nItem{
+			{
+				Key: "zh-CN",
+				Value: wpsI18nValue{
+					Header: wpsCardHeader{
+						Title:    wpsPlainElement("CC"),
+						Subtitle: wpsPlainElement(agentName),
 					},
+					Elements: elements,
 				},
 			},
 		},
@@ -169,10 +159,13 @@ func wpsTextElement(content string) map[string]any {
 }
 
 // wpsHRElement returns a WPS card horizontal rule element.
+// Per WPS docs, `style` must be "solid" or "dashed" — omitting it triggers
+// `invalid open_v7_message_card_hr_style` error from the API.
 func wpsHRElement() map[string]any {
 	return map[string]any{
 		"hr": map[string]any{
-			"tag": "hr",
+			"tag":   "hr",
+			"style": "solid",
 		},
 	}
 }

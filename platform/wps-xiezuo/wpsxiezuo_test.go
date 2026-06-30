@@ -1619,13 +1619,8 @@ func TestBuildWPSCard_Thinking(t *testing.T) {
 	if err := json.Unmarshal(raw, &card); err != nil {
 		t.Fatalf("invalid JSON: %v", err)
 	}
-	// Check top-level structure
-	if card["type"] != "card" {
-		t.Fatalf("expected type=card, got %v", card["type"])
-	}
-	content, _ := card["content"].(map[string]any)
-	inner, _ := content["card"].(map[string]any)
-	items, _ := inner["i18n_items"].([]any)
+	// buildWPSCard returns the inner card directly: {config, i18n_items}
+	items, _ := card["i18n_items"].([]any)
 	if len(items) == 0 {
 		t.Fatal("expected i18n_items")
 	}
@@ -1663,9 +1658,7 @@ func TestBuildWPSCard_SubtitleIsAgentName(t *testing.T) {
 	var card map[string]any
 	_ = json.Unmarshal(raw, &card)
 
-	content, _ := card["content"].(map[string]any)
-	inner, _ := content["card"].(map[string]any)
-	items, _ := inner["i18n_items"].([]any)
+	items, _ := card["i18n_items"].([]any)
 	item, _ := items[0].(map[string]any)
 	val, _ := item["value"].(map[string]any)
 	hdr, _ := val["header"].(map[string]any)
@@ -1693,10 +1686,8 @@ func TestResolveWPSContent_PlainMarkdown(t *testing.T) {
 		t.Fatalf("invalid JSON: %v", err)
 	}
 
-	// Navigate to elements
-	content, _ := card["content"].(map[string]any)
-	inner, _ := content["card"].(map[string]any)
-	items, _ := inner["i18n_items"].([]any)
+	// Navigate to elements (buildWPSCard returns {config, i18n_items} directly)
+	items, _ := card["i18n_items"].([]any)
 	item, _ := items[0].(map[string]any)
 	val, _ := item["value"].(map[string]any)
 	elems, _ := val["elements"].([]any)
@@ -1738,10 +1729,8 @@ func TestResolveWPSContent_EmptyContent(t *testing.T) {
 		t.Fatalf("invalid JSON: %v", err)
 	}
 
-	// Navigate to elements
-	content, _ := card["content"].(map[string]any)
-	inner, _ := content["card"].(map[string]any)
-	items, _ := inner["i18n_items"].([]any)
+	// Navigate to elements (buildWPSCard returns {config, i18n_items} directly)
+	items, _ := card["i18n_items"].([]any)
 	item, _ := items[0].(map[string]any)
 	val, _ := item["value"].(map[string]any)
 	elems, _ := val["elements"].([]any)
@@ -2438,9 +2427,7 @@ func TestBuildWPSCard_NilContent(t *testing.T) {
 	var card map[string]any
 	_ = json.Unmarshal(raw, &card)
 
-	content, _ := card["content"].(map[string]any)
-	inner, _ := content["card"].(map[string]any)
-	items, _ := inner["i18n_items"].([]any)
+	items, _ := card["i18n_items"].([]any)
 	item, _ := items[0].(map[string]any)
 	val, _ := item["value"].(map[string]any)
 	elems, _ := val["elements"].([]any)
@@ -2525,9 +2512,7 @@ func TestBuildWPSCard_StatusLabels(t *testing.T) {
 			var card map[string]any
 			_ = json.Unmarshal(raw, &card)
 
-			content, _ := card["content"].(map[string]any)
-			inner, _ := content["card"].(map[string]any)
-			items, _ := inner["i18n_items"].([]any)
+			items, _ := card["i18n_items"].([]any)
 			item, _ := items[0].(map[string]any)
 			val, _ := item["value"].(map[string]any)
 			elems, _ := val["elements"].([]any)

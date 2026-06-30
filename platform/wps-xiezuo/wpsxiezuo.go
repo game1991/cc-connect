@@ -1154,7 +1154,7 @@ func (p *Platform) SendPreviewStart(ctx context.Context, rctx any, content strin
 	}
 	defer func() { _ = resp.Body.Close() }()
 
-	respBody, err := io.ReadAll(io.LimitReader(resp.Body, int64(maxErrBodyBytes)+1))
+	respBody, err := io.ReadAll(io.LimitReader(resp.Body, 64*1024))
 	if err != nil {
 		return nil, fmt.Errorf("wps-xiezuo: send preview: read body: %w", err)
 	}
@@ -1165,7 +1165,7 @@ func (p *Platform) SendPreviewStart(ctx context.Context, rctx any, content strin
 
 	var apiResp wpsAPIResponse
 	if err := json.Unmarshal(respBody, &apiResp); err != nil {
-		return nil, fmt.Errorf("wps-xiezuo: send preview: parse response: %w", err)
+		return nil, fmt.Errorf("wps-xiezuo: send preview: parse response: %w (body_len=%d, body=%s)", err, len(respBody), truncateAndRedact(respBody, token))
 	}
 	if apiResp.Code.String() != "0" {
 		return nil, fmt.Errorf("wps-xiezuo: send preview failed: code=%s msg=%s", apiResp.Code, core.RedactToken(apiResp.Msg, token))
@@ -1251,7 +1251,7 @@ func (p *Platform) UpdateMessage(ctx context.Context, rctx any, content string) 
 	}
 	defer func() { _ = resp.Body.Close() }()
 
-	respBody, err := io.ReadAll(io.LimitReader(resp.Body, int64(maxErrBodyBytes)+1))
+	respBody, err := io.ReadAll(io.LimitReader(resp.Body, 64*1024))
 	if err != nil {
 		return fmt.Errorf("wps-xiezuo: update message: read response body: %w", err)
 	}
