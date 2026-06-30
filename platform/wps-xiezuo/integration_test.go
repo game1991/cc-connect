@@ -71,7 +71,7 @@ func TestSendCardIntegration(t *testing.T) {
 	t.Log("--- 步骤4: UpdateMessage 再次更新（验证幂等去重） ---")
 	err = p.UpdateMessage(ctx, handle, "## 卡片更新测试\n\n这是通过 **UpdateMessage** 发送的内容，包含 KSO-1 签名。")
 	if err != nil {
-		t.Logf("再次更新失败（可接受，可能是内容相同被去重）: %v", err)
+		t.Errorf("幂等去重应返回 nil error（lastContent 优化），实际: %v", err)
 	} else {
 		t.Log("✓ 相同内容被去重跳过（符合 lastContent 优化）")
 	}

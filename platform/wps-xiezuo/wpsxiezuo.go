@@ -28,7 +28,9 @@ var (
 	wsEndpoint          = "wss://openapi.wps.cn/v7/event/ws"
 	defaultBaseURL      = "https://openapi.wps.cn"
 	maxBackoff          = 60 * time.Second
-	maxErrBodyBytes     = 256
+	maxErrBodyBytes     = 256              // cap for raw error response reads (legacy cap used by non-card paths)
+	maxRedactBodyBytes  = 2048             // cap for body content shown in error messages (WPS success responses echo full card content)
+	maxRespBodyBytes    = int64(64 * 1024) // cap for card API response reads (io.LimitReader takes int64)
 	httpTimeout         = 30 * time.Second
 	wpsCardMaxChars     = 15000
 	wpsCardTruncateKeep = 14000
@@ -882,7 +884,7 @@ func (p *Platform) getToken(ctx context.Context) (string, error) {
 			continue
 		}
 
-		respBody, err := io.ReadAll(io.LimitReader(resp.Body, 64*1024))
+		respBody, err := io.ReadAll(io.LimitReader(resp.Body, maxRespBodyBytes))
 		_ = resp.Body.Close()
 		if err != nil {
 			lastErr = err
@@ -1088,10 +1090,16 @@ func cleanReplyContent(content string) string {
 
 // --- HTTP response helpers ---
 
+// truncateAndRedact truncates body to maxRedactBodyBytes for display in error
+// messages and redacts bearer tokens. The cap is larger than maxErrBodyBytes
+// because WPS error responses (and success responses that later fail to parse)
+// often contain diagnostic fields beyond the first 256 bytes — e.g. card
+// content echo, field-level validation details. Token redaction is applied
+// after truncation so the bearer token in headers/auth is never leaked.
 func truncateAndRedact(body []byte, token string) string {
 	s := string(body)
-	if len(s) > maxErrBodyBytes {
-		s = s[:maxErrBodyBytes] + "...(truncated)"
+	if len(s) > maxRedactBodyBytes {
+		s = s[:maxRedactBodyBytes] + "...(truncated)"
 	}
 	return core.RedactToken(s, token)
 }
@@ -1154,7 +1162,7 @@ func (p *Platform) SendPreviewStart(ctx context.Context, rctx any, content strin
 	}
 	defer func() { _ = resp.Body.Close() }()
 
-	respBody, err := io.ReadAll(io.LimitReader(resp.Body, 64*1024))
+	respBody, err := io.ReadAll(io.LimitReader(resp.Body, maxRespBodyBytes))
 	if err != nil {
 		return nil, fmt.Errorf("wps-xiezuo: send preview: read body: %w", err)
 	}
@@ -1251,7 +1259,7 @@ func (p *Platform) UpdateMessage(ctx context.Context, rctx any, content string) 
 	}
 	defer func() { _ = resp.Body.Close() }()
 
-	respBody, err := io.ReadAll(io.LimitReader(resp.Body, 64*1024))
+	respBody, err := io.ReadAll(io.LimitReader(resp.Body, maxRespBodyBytes))
 	if err != nil {
 		return fmt.Errorf("wps-xiezuo: update message: read response body: %w", err)
 	}
@@ -1276,7 +1284,7 @@ func (p *Platform) UpdateMessage(ctx context.Context, rctx any, content string) 
 
 	var apiResp wpsAPIResponse
 	if err := json.Unmarshal(respBody, &apiResp); err != nil {
-		return fmt.Errorf("wps-xiezuo: update message: parse response: %w", err)
+		return fmt.Errorf("wps-xiezuo: update message: parse response: %w (body_len=%d, body=%s)", err, len(respBody), truncateAndRedact(respBody, token))
 	}
 	if apiResp.Code.String() != "0" {
 		return fmt.Errorf("wps-xiezuo: update message failed: code=%s msg=%s", apiResp.Code, core.RedactToken(apiResp.Msg, token))

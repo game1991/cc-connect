@@ -76,31 +76,58 @@ func TestBuildWPSCardStructure(t *testing.T) {
 	}
 }
 
-func TestBuildWPSCardJSON(t *testing.T) {
-	// 打印 buildWPSCard 生成的 JSON 结构，验证是否有多余嵌套
-	b := buildWPSCard("测试Agent", core.CardStatusThinking, "## 标题\n\n正文")
-	t.Logf("buildWPSCard 输出:\n%s", string(b))
+// TestBuildWPSCard_HRStyle 断言 hr 元素包含 style 字段。
+// WPS API 要求 hr 元素必须有 style 字段（"solid" 或 "dashed"），
+// 缺少时报 "invalid open_v7_message_card_hr_style" 错误。
+func TestBuildWPSCard_HRStyle(t *testing.T) {
+	// 只有传入非空 markdown 才会触发 hr 元素生成
+	b := buildWPSCard("test", core.CardStatusThinking, "## 标题\n\n正文")
 
-	// 解析并打印层级结构
-	var raw map[string]json.RawMessage
-	if err := json.Unmarshal(b, &raw); err != nil {
+	var card map[string]json.RawMessage
+	if err := json.Unmarshal(b, &card); err != nil {
 		t.Fatalf("解析失败: %v", err)
 	}
-	t.Logf("顶层字段: %v", keys(raw))
 
-	// 同时打印完整请求 JSON（模拟 SendPreviewStart 的请求结构）
-	reqBody := wpsSendMessageRequest{
-		Type: "card",
-		Receiver: wpsReceiverInfo{
-			Type:       "chat",
-			ReceiverID: "lLomJ37",
-		},
-		Content: wpsMessageContent{
-			Card: json.RawMessage(b),
-		},
+	var items []map[string]json.RawMessage
+	if err := json.Unmarshal(card["i18n_items"], &items); err != nil {
+		t.Fatalf("解析 i18n_items 失败: %v", err)
 	}
-	reqJSON, _ := json.MarshalIndent(reqBody, "", "  ")
-	t.Logf("完整请求 JSON:\n%s", string(reqJSON))
+	if len(items) == 0 {
+		t.Fatal("i18n_items 不能为空")
+	}
+
+	var val map[string]json.RawMessage
+	if err := json.Unmarshal(items[0]["value"], &val); err != nil {
+		t.Fatalf("解析 value 失败: %v", err)
+	}
+
+	var elements []map[string]json.RawMessage
+	if err := json.Unmarshal(val["elements"], &elements); err != nil {
+		t.Fatalf("解析 elements 失败: %v", err)
+	}
+
+	// 找到 hr 元素并断言 style 字段
+	for _, elem := range elements {
+		if hrRaw, ok := elem["hr"]; ok {
+			var hr map[string]any
+			if err := json.Unmarshal(hrRaw, &hr); err != nil {
+				t.Fatalf("解析 hr 元素失败: %v", err)
+			}
+			style, exists := hr["style"]
+			if !exists {
+				t.Fatal("hr 元素必须包含 style 字段（WPS API 要求）")
+			}
+			styleStr, ok := style.(string)
+			if !ok {
+				t.Fatalf("hr.style 必须是字符串，实际类型: %T", style)
+			}
+			if styleStr != "solid" && styleStr != "dashed" {
+				t.Errorf("hr.style 必须是 solid 或 dashed，实际: %q", styleStr)
+			}
+			return
+		}
+	}
+	t.Fatal("未找到 hr 元素（应传入非空 markdown 触发 hr 生成）")
 }
 
 func keys(m map[string]json.RawMessage) []string {
@@ -110,4 +137,3 @@ func keys(m map[string]json.RawMessage) []string {
 	}
 	return k
 }
-
