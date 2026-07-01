@@ -125,10 +125,15 @@ func TestBuildWindowsTaskScript_DropsEmptyValue(t *testing.T) {
 }
 
 // TestSchtasksInstall_TightensExistingScriptFrom0644 covers the upgrade
-// path: os.WriteFile would truncate-in-place and keep the old POSIX
-// mode of a script left by an earlier cc-connect version. While
-// Windows real access is governed by ACLs, the POSIX bits are still
-// expected to reflect intent.
+// path: os.WriteFile truncates in-place, so a script left by an earlier
+// cc-connect version must be overwritten with the regenerated script.
+//
+// NOTE: On Windows, POSIX perm bits have weak semantics — only the
+// read-only flag 0400 is honored, and 0600/0644/0666 all stat as 0666
+// (see windows.go). Unlike the systemd/launchd counterparts, this test
+// cannot assert the tightened 0600 mode via os.Stat; it verifies the
+// legacy content is overwritten with the new cfg instead. Real access
+// control is the file ACL under %USERPROFILE%.
 func TestSchtasksInstall_TightensExistingScriptFrom0644(t *testing.T) {
 	t.Setenv("USERPROFILE", t.TempDir())
 
@@ -140,11 +145,14 @@ func TestSchtasksInstall_TightensExistingScriptFrom0644(t *testing.T) {
 		t.Fatalf("mkdir: %v", err)
 	}
 	scriptPath := windowsTaskScriptPath()
-	if err := os.WriteFile(scriptPath, []byte("$env:OLD = 'leftover'\r\n"), 0o644); err != nil {
+	seed := []byte("$env:OLD = 'leftover'\r\n")
+	if err := os.WriteFile(scriptPath, seed, 0o644); err != nil {
 		t.Fatalf("seed legacy script: %v", err)
 	}
-	if info, _ := os.Stat(scriptPath); info.Mode().Perm() != 0o644 {
-		t.Fatalf("precondition: seeded file mode = %o, want 0644", info.Mode().Perm())
+	// Confirm seed content is in place. POSIX perm check skipped: on
+	// Windows os.WriteFile(..., 0o644) stats as 0666 (only 0400 honored).
+	if got, _ := os.ReadFile(scriptPath); string(got) != string(seed) {
+		t.Fatalf("precondition: seeded content mismatch")
 	}
 
 	mgr := &schtasksManager{}
@@ -159,11 +167,14 @@ func TestSchtasksInstall_TightensExistingScriptFrom0644(t *testing.T) {
 	if err := mgr.Install(cfg); err != nil {
 		t.Fatalf("Install: %v", err)
 	}
-	info, err := os.Stat(scriptPath)
+	got, err := os.ReadFile(scriptPath)
 	if err != nil {
-		t.Fatalf("stat: %v", err)
+		t.Fatalf("read script after reinstall: %v", err)
 	}
-	if info.Mode().Perm() != 0o600 {
-		t.Errorf("script mode after reinstall = %o, want 0600", info.Mode().Perm())
+	if strings.Contains(string(got), "$env:OLD = 'leftover'") {
+		t.Errorf("legacy content not overwritten:\n%s", got)
+	}
+	if !strings.Contains(string(got), "$env:CUSTOM_TOKEN = 'captured'") {
+		t.Errorf("new env (CUSTOM_TOKEN) not written:\n%s", got)
 	}
 }
