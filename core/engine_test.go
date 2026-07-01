@@ -10644,6 +10644,29 @@ func TestEventIdleTimeout_CleansUpSession(t *testing.T) {
 	}
 }
 
+// TestDefaultEventIdleTimeoutIsReasonable guards against regressing the
+// default back to 2h. A hung-but-alive agent (e.g. a stuck MCP stdio call)
+// is only detectable via the idle timeout: the process never exits, so an
+// Alive() probe stays true and the events channel never closes. With the
+// old 2h default a hung daemon sat idle until manual kill; 30m reaps it
+// automatically.
+//
+// Note: this is a constant guard, not a behavior test. The hang-reap
+// behavior itself is covered by TestEventIdleTimeout_CleansUpSession (which
+// uses an explicit short timeout via SetEventIdleTimeout, since the 30m
+// default cannot run to completion in a unit test).
+func TestDefaultEventIdleTimeoutIsReasonable(t *testing.T) {
+	if defaultEventIdleTimeout > 30*time.Minute {
+		t.Fatalf("defaultEventIdleTimeout = %v, want <= 30m (a hung agent must be reaped promptly, not after 2h)", defaultEventIdleTimeout)
+	}
+	// NewEngine must apply the default when SetEventIdleTimeout is not called.
+	p := &stubPlatformEngine{n: "test"}
+	e := NewEngine("test", &stubAgent{}, []Platform{p}, "", LangEnglish)
+	if e.eventIdleTimeout != defaultEventIdleTimeout {
+		t.Fatalf("NewEngine eventIdleTimeout = %v, want default %v", e.eventIdleTimeout, defaultEventIdleTimeout)
+	}
+}
+
 func TestEventIdleTimeout_ResetOnEvent(t *testing.T) {
 	p := &stubPlatformEngine{n: "test"}
 	sess := newControllableSession("idle-reset")

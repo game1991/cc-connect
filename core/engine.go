@@ -4391,7 +4391,13 @@ func (e *Engine) closeAgentSessionWithTimeout(sessionKey string, agentSession Ag
 	}
 }
 
-const defaultEventIdleTimeout = 2 * time.Hour
+// defaultEventIdleTimeout is the only detector for a hung-but-alive agent:
+// when an agent process blocks (e.g. on a stuck MCP stdio call) it neither
+// exits nor emits events, so an Alive() probe stays true and the events
+// channel never closes. Only the idle timer — reset on every event — can
+// reap it. The old 2h default left a hung daemon idle until manual kill;
+// 30m reaps it automatically.
+const defaultEventIdleTimeout = 30 * time.Minute
 
 // cardToolEntry stores a tool call record for card content rendering.
 type cardToolEntry struct {

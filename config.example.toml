@@ -142,8 +142,15 @@ level = "info" # debug, info, warn, error
 
 # Agent idle timeout: max minutes between consecutive agent events before
 # considering the session stuck. Set to 0 to disable the timeout entirely.
+# The timer resets on every event (including tool results), so a tool that
+# streams output stays alive; only a fully silent hang (e.g. a stuck MCP
+# stdio call) triggers it. If your workflow runs commands silent for over
+# 30 minutes with no event output, raise this value.
 # Agent 空闲超时：两次 agent 事件之间的最大等待分钟数，超时则认为会话卡住。设为 0 禁用。
-# idle_timeout_mins = 120  # default: 120 (2 hours) / 默认 120（2 小时）
+# 计时器在每个事件（含工具结果）时重置，因此持续输出的工具不会误触发；只有完全静默的
+# 卡死（如 MCP stdio 调用挂起）才会触发。若你的工作流包含静默超过 30 分钟无事件输出的
+# 命令，请调大此值。
+# idle_timeout_mins = 30  # default: 30 (30 minutes) / 默认 30（30 分钟）
 
 # Absolute wall-clock cap per agent turn in minutes. Unlike idle_timeout_mins
 # (which resets on every event), this timer is never reset — it guarantees the

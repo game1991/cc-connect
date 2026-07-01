@@ -111,7 +111,7 @@ type Config struct {
 	Bridge             BridgeConfig            `toml:"bridge"`
 	Management         ManagementConfig        `toml:"management"`
 	Hooks              []HookConfig            `toml:"hooks"`
-	IdleTimeoutMins    *int                    `toml:"idle_timeout_mins,omitempty"`  // max minutes between consecutive agent events; 0 = no timeout; default 120
+	IdleTimeoutMins    *int                    `toml:"idle_timeout_mins,omitempty"`  // max minutes between consecutive agent events; 0 = no timeout; default 30
 	MaxTurnTimeMins    *int                    `toml:"max_turn_time_mins,omitempty"` // absolute wall-clock cap per turn in minutes; 0 = disabled (default)
 	// WorkspaceIdleTimeoutMins controls the workspace idle reaper timeout
 	// (multi-workspace mode) for every engine in the process. 0 disables
@@ -3466,7 +3466,7 @@ func GetGlobalSettings() map[string]any {
 	if cfg.IdleTimeoutMins != nil {
 		result["idle_timeout_mins"] = *cfg.IdleTimeoutMins
 	} else {
-		result["idle_timeout_mins"] = 120
+		result["idle_timeout_mins"] = 30
 	}
 	if cfg.MaxTurnTimeMins != nil {
 		result["max_turn_time_mins"] = *cfg.MaxTurnTimeMins
