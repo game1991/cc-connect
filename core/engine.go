@@ -519,6 +519,12 @@ type interactiveState struct {
 	pending                  *pendingPermission
 	pendingMessages          []queuedMessage // messages queued while session was busy
 	approveAll               bool            // when true, auto-approve all permission requests for this session
+	// permissionAllowed is set (under mu) just before inbound RespondPermission(allow)
+	// for the current pending request. It lets the permission-wait select distinguish
+	// "user already allowed this permission" from a true concurrent/unexpected event,
+	// closing the race where the agent's post-answer event arrives at the select before
+	// pending.resolve() runs. Reset to false when a new pending is created (engine.go).
+	permissionAllowed bool
 	fromVoice                bool            // true if current turn originated from voice transcription
 	sideText                 string
 	deleteMode               *deleteModeState
@@ -3357,6 +3363,14 @@ found:
 		// All questions answered — build response and resolve
 		updatedInput := buildAskQuestionResponse(pending.ToolInput, pending.Questions, pending.Answers)
 
+		// Mark the permission as allowed BEFORE RespondPermission so the
+		// permission-wait select's race guard treats the agent's immediate
+		// post-answer event as a replay rather than an unexpected interrupt.
+		// See the AskUserQuestion race fix (docs/plans/2026-07-15-askquestion-race-fix.md).
+		state.mu.Lock()
+		state.permissionAllowed = true
+		state.mu.Unlock()
+
 		if err := state.agentSession.RespondPermission(pending.RequestID, PermissionResult{
 			Behavior:     "allow",
 			UpdatedInput: updatedInput,
@@ -3379,6 +3393,7 @@ found:
 	if isApproveAllResponse(lower) {
 		state.mu.Lock()
 		state.approveAll = true
+		state.permissionAllowed = true // race guard: see AskUserQuestion race fix
 		state.mu.Unlock()
 
 		if err := state.agentSession.RespondPermission(pending.RequestID, PermissionResult{
@@ -3391,6 +3406,11 @@ found:
 			e.reply(p, msg.ReplyCtx, e.i18n.T(MsgPermissionApproveAll))
 		}
 	} else if isAllowResponse(lower) {
+		// Mark allowed before RespondPermission; see AskUserQuestion race fix.
+		state.mu.Lock()
+		state.permissionAllowed = true
+		state.mu.Unlock()
+
 		if err := state.agentSession.RespondPermission(pending.RequestID, PermissionResult{
 			Behavior:     "allow",
 			UpdatedInput: pending.ToolInput,
@@ -4737,6 +4757,18 @@ func (e *Engine) processInteractiveEvents(state *interactiveState, session *Sess
 	triggerAutoCompress := false
 	pendingSend := sendDone
 
+	// AskUserQuestion race fix: one-slot buffer for an agent "bounce-back" event
+	// that arrives at the permission-wait select after the user has already
+	// allowed the permission (permissionAllowed) or after pending.resolve() ran
+	// (Resolved closed). The 5476 branch detects this race and, instead of
+	// denying, stashes the event here and continues the outer for loop; the
+	// loop head replays it via goto dispatchEvent so it flows through the same
+	// 4919 prelude (isStopped check + idle reset) and 4969 dispatch as a normal
+	// event — preserving the final reply instead of dropping it. Named
+	// replayEvent (not pendingEvent) to avoid confusion with pendingPermission.
+	var replayEvent Event
+	hasReplayEvent := false
+
 	// stopTyping tracks the current turn's typing indicator so it can be
 	// stopped when a queued message starts a new turn.
 	stopTyping := stopTypingFn
@@ -4820,6 +4852,19 @@ func (e *Engine) processInteractiveEvents(state *interactiveState, session *Sess
 	for {
 		var event Event
 		var ok bool
+
+		// AskUserQuestion race fix: if the previous iteration's permission-wait
+		// select stashed a bounce-back event in replayEvent (because it lost the
+		// race against the user's permission answer), replay it here FIRST —
+		// before reading new events — so the agent's final reply is dispatched
+		// through the normal prelude (isStopped + idle reset) and switch.
+		if hasReplayEvent {
+			event = replayEvent
+			ok = true
+			hasReplayEvent = false
+			replayEvent = Event{}
+			goto dispatchEvent
+		}
 
 		select {
 		case <-stopCh:
@@ -4916,6 +4961,9 @@ func (e *Engine) processInteractiveEvents(state *interactiveState, session *Sess
 			return
 		}
 
+	dispatchEvent:
+		// Both normal events and replayed race events converge here so they
+		// share the isStopped check and idle-timer reset before dispatch.
 		if state.isStopped() {
 			sp.discard()
 			state.mu.Lock()
@@ -5410,6 +5458,7 @@ func (e *Engine) processInteractiveEvents(state *interactiveState, session *Sess
 			}
 			state.mu.Lock()
 			state.pending = pending
+			state.permissionAllowed = false // new permission request: clear the previous turn's flag
 			state.mu.Unlock()
 
 			if isAskQuestion {
@@ -5473,7 +5522,49 @@ func (e *Engine) processInteractiveEvents(state *interactiveState, session *Sess
 					fmt.Sprintf("agent turn exceeded maximum time (%v), stopping", e.maxTurnTime)))
 				e.cleanupInteractiveState(sessionKey, state)
 				return
-			case _, ok := <-events:
+			case ev, ok := <-events:
+				// AskUserQuestion race guard (double defense). When the agent's
+				// bounce-back event arrives at this branch, we must distinguish
+				// "the user already answered (allow)" from a genuine concurrent
+				// interrupt. Two defenses cover the two race windows:
+				//   1. permissionAllowed: inbound already sent RespondPermission(allow)
+				//      for this pending (set under mu before RespondPermission), but
+				//      pending.resolve() may not have run yet → Resolved still open.
+				//   2. pending.Resolved: inbound already called resolve() → Resolved
+				//      is closed (non-blocking peek; never blocks here).
+				// If either fires, the event is a legitimate post-answer event
+				// (often the final EventResult): stash it for replay and continue
+				// the outer loop so it is dispatched normally instead of being
+				// denied and dropped. Only when BOTH miss is it a true unexpected
+				// event (or agent channel closed with no answer) → deny below.
+				// NOTE: ev (not _) captures the dequeued event so it can be replayed;
+				// the outer `event` var still holds the EventPermissionRequest that
+				// started this wait, which is NOT what we want to replay.
+				state.mu.Lock()
+				allowed := state.permissionAllowed
+				state.mu.Unlock()
+				raced := allowed
+				if !raced {
+					select {
+					case <-pending.Resolved:
+						raced = true
+					default:
+					}
+				}
+				if raced {
+					slog.Info("permission resolved (raced with agent event)", "request_id", event.RequestID)
+					state.mu.Lock()
+					state.pending = nil
+					state.permissionAllowed = false
+					state.mu.Unlock()
+					replayEvent = ev
+					hasReplayEvent = true
+					pending.resolve()
+					// Do NOT deny or set eventsNeedResync. Continue the outer
+					// for loop: the loop head replays replayEvent via goto
+					// dispatchEvent → isStopped + idle reset → 4969 normal dispatch.
+					continue
+				}
 				if !ok {
 					slog.Warn("permission wait interrupted: agent channel closed", "request_id", event.RequestID)
 					_ = state.agentSession.RespondPermission(event.RequestID, PermissionResult{

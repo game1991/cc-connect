@@ -15722,3 +15722,208 @@ func TestFormatContextPercentage(t *testing.T) {
 		})
 	}
 }
+
+// TestProcessInteractiveEvents_PermissionWaitRace_AllowedFlag is a regression
+// test for the AskUserQuestion race that permanently dropped the agent's final
+// reply on platforms without card/button support (e.g. WPS-xiezuo).
+//
+// Root cause: after the user answers an AskUserQuestion, inbound code calls
+// RespondPermission(allow) and then pending.resolve(). The agent, having
+// received the allow, immediately emits its next event (the final EventResult).
+// In the permission-wait select, <-pending.Resolved and <-events can both be
+// ready; Go's select picks one pseudo-randomly. If it picks <-events, the
+// 5476 branch treated the agent's own reply event as an "unexpected event",
+// denied the already-allowed permission, set eventsNeedResync, and returned —
+// causing the caller to silently drop the final reply.
+//
+// This test forces the race deterministically: with permissionAllowed=true
+// (simulating "inbound already sent RespondPermission(allow) but resolve() not
+// yet run") and Resolved NOT closed, <-pending.Resolved is not ready while
+// stopCh/idleCh/turnDeadlineCh are nil (idle & maxTurn disabled) — so <-events
+// is the ONLY ready case and the 5476 branch is guaranteed to fire. The fix
+// peeks permissionAllowed (defense 1) and pending.Resolved (defense 2); since
+// defense 1 is set, the event is replayed through the normal dispatch instead
+// of being treated as an interrupt, and the final reply is delivered.
+//
+// Before the fix: the 5476 branch denies and returns; the EventResult is
+// dropped by drainEvents; p.sent never contains the final reply → test fails.
+// After the fix: the event is replayed to case EventResult; the reply is sent
+// to p.sent → test passes.
+func TestProcessInteractiveEvents_PermissionWaitRace_AllowedFlag(t *testing.T) {
+	p := &stubPlatformEngine{n: "test"}
+	sess := newControllableSession("perm-race-allowed")
+	e := NewEngine("test", &stubAgent{}, []Platform{p}, "", LangEnglish)
+	// Disable idle & max-turn timers so their channels (idleCh/turnDeadlineCh)
+	// stay nil and never become ready — making <-events the only ready case in
+	// the permission-wait select, which deterministically triggers the 5476 branch.
+	e.eventIdleTimeout = 0
+	e.maxTurnTime = 0
+
+	key := "test:user1"
+	session := e.sessions.GetOrCreateActive(key)
+	state := &interactiveState{
+		agentSession: sess,
+		platform:     p,
+		replyCtx:     "ctx",
+		ownerUserID:  "user1",
+	}
+	e.interactiveMu.Lock()
+	e.interactiveStates[key] = state
+	e.interactiveMu.Unlock()
+
+	if !session.TryLock() {
+		t.Fatal("expected to lock session")
+	}
+
+	sendDone := make(chan error, 1)
+	go func() {
+		sendDone <- sess.Send("prompt", nil, nil)
+	}()
+
+	done := make(chan struct{})
+	go func() {
+		e.processInteractiveEvents(state, session, e.sessions, key, "m1", time.Now(), nil, sendDone, nil)
+		session.Unlock()
+		close(done)
+	}()
+
+	// Inject a permission request (AskUserQuestion) so the event loop builds a
+	// pending permission and enters the permission-wait select.
+	sess.events <- Event{
+		Type:         EventPermissionRequest,
+		RequestID:    "req-race-allowed",
+		ToolName:     "AskUserQuestion",
+		ToolInput:    "Pick one",
+		ToolInputRaw: map[string]any{"question": "Pick one"},
+		Questions: []UserQuestion{
+			{Question: "Pick one", Options: []UserQuestionOption{{Label: "X"}, {Label: "Y"}}},
+		},
+	}
+
+	// Give the event loop time to reach the permission-wait select.
+	time.Sleep(200 * time.Millisecond)
+
+	// Simulate the race window: inbound has already sent RespondPermission(allow)
+	// (so permissionAllowed=true) but pending.resolve() has NOT run yet (Resolved
+	// still open). The agent, having received the allow, emits its final reply.
+	state.mu.Lock()
+	state.permissionAllowed = true
+	state.mu.Unlock()
+	sess.events <- Event{Type: EventResult, Content: "race-final-reply", Done: true}
+
+	// The event loop must deliver the final reply rather than dropping it.
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("processInteractiveEvents hung — race fix did not replay the event")
+	}
+
+	sent := p.getSent()
+	for _, s := range sent {
+		if strings.Contains(s, "race-final-reply") {
+			return // success: the final reply was delivered, not dropped
+		}
+	}
+	t.Fatalf("final reply was dropped by the permission race: sent=%v", sent)
+}
+
+// TestProcessInteractiveEvents_PermissionWaitRace_ResolvedClosed covers defense
+// 2 of the race fix: inbound has already called pending.resolve() (Resolved is
+// closed) when the agent's post-answer event arrives at the 5476 branch. With
+// Resolved closed, <-pending.Resolved IS ready alongside <-events, so this path
+// is probabilistic in production — but the fix's non-blocking peek of
+// pending.Resolved (defense 2) must still replay the event instead of denying.
+//
+// To make the 5476 branch fire deterministically here, we keep permissionAllowed
+// false and rely on defense 2: we resolve() the pending (close Resolved) AND
+// ensure the events branch is the one selected by making Resolved ready only via
+// the peek. Since both cases are ready Go may pick either; if it picks
+// <-pending.Resolved the test trivially passes (normal path). The meaningful
+// coverage is when <-events is picked: defense 2 peeks Resolved (closed) → replay.
+// We run the scenario in a short loop to exercise both branches over many runs.
+func TestProcessInteractiveEvents_PermissionWaitRace_ResolvedClosed(t *testing.T) {
+	const iterations = 30
+	delivered := 0
+	for i := 0; i < iterations; i++ {
+		p := &stubPlatformEngine{n: "test"}
+		sess := newControllableSession("perm-race-resolved")
+		e := NewEngine("test", &stubAgent{}, []Platform{p}, "", LangEnglish)
+		e.eventIdleTimeout = 0
+		e.maxTurnTime = 0
+
+		key := "test:user1"
+		session := e.sessions.GetOrCreateActive(key)
+		state := &interactiveState{
+			agentSession: sess,
+			platform:     p,
+			replyCtx:     "ctx",
+			ownerUserID:  "user1",
+		}
+		e.interactiveMu.Lock()
+		e.interactiveStates[key] = state
+		e.interactiveMu.Unlock()
+
+		if !session.TryLock() {
+			t.Fatal("expected to lock session")
+		}
+
+		sendDone := make(chan error, 1)
+		go func() {
+			sendDone <- sess.Send("prompt", nil, nil)
+		}()
+
+		done := make(chan struct{})
+		go func() {
+			e.processInteractiveEvents(state, session, e.sessions, key, "m1", time.Now(), nil, sendDone, nil)
+			session.Unlock()
+			close(done)
+		}()
+
+		sess.events <- Event{
+			Type:         EventPermissionRequest,
+			RequestID:    "req-race-resolved",
+			ToolName:     "AskUserQuestion",
+			ToolInput:    "Pick one",
+			ToolInputRaw: map[string]any{"question": "Pick one"},
+			Questions: []UserQuestion{
+				{Question: "Pick one", Options: []UserQuestionOption{{Label: "X"}, {Label: "Y"}}},
+			},
+		}
+
+		time.Sleep(150 * time.Millisecond)
+
+		// Defense 2 window: resolve() has run (Resolved closed) but the agent's
+		// reply event is also waiting on the events channel. Read state.pending
+		// under its mutex (production never touches it unlocked) so the race
+		// detector doesn't flag the concurrent event-loop write at engine.go:5460.
+		state.mu.Lock()
+		pending := state.pending
+		state.mu.Unlock()
+		if pending != nil {
+			pending.resolve()
+		}
+		sess.events <- Event{Type: EventResult, Content: "resolved-final-reply", Done: true}
+
+		select {
+		case <-done:
+		case <-time.After(5 * time.Second):
+			t.Fatalf("iter %d: processInteractiveEvents hung", i)
+		}
+
+		sent := p.getSent()
+		for _, s := range sent {
+			if strings.Contains(s, "resolved-final-reply") {
+				delivered++
+				break
+			}
+		}
+	}
+
+	// Over 30 iterations with both cases ready, the pre-fix code would drop the
+	// reply roughly half the time (whenever <-events was chosen). The fix replays
+	// in both branches, so every iteration must deliver the reply.
+	if delivered != iterations {
+		t.Fatalf("race defense 2 (Resolved closed) dropped the reply in %d/%d iterations; expected all delivered", iterations-delivered, iterations)
+	}
+}
+
